@@ -1,0 +1,27 @@
+{
+  "name": "casino-prototype",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "test:wallet": "tsx src/wallet/wallet.devtest.ts",
+    "test:slots": "tsx src/games/slot.devtest.ts",
+    "test:dev": "npm run test:wallet && npm run test:slots"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "lucide-react": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "vite": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "tsx": "latest",
+    "typescript": "latest"
+  }
+}

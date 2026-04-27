@@ -1,0 +1,210 @@
+import { RotateCcw, Users } from "lucide-react";
+import { useState } from "react";
+import { useAuth } from "../auth/AuthContext";
+import { StatCard } from "../components/StatCard";
+import { TransactionTable } from "../components/TransactionTable";
+import { useToast } from "../components/ToastContext";
+import { formatCoins } from "../lib/format";
+import { seedDemoUsers } from "../lib/demoSeed";
+import { readData, resetData } from "../lib/storage";
+import { getMathWarnings, simulateSlot } from "../games/slotMath";
+import { slotConfigs } from "../games/slotConfigs";
+import type { SimulationResult } from "../games/types";
+import type { Currency } from "../types";
+import { creditCurrency, debitCurrency, getBalance, getTransactions } from "../wallet/walletService";
+import { getProgression } from "../progression/progressionService";
+import { resetMissions } from "../missions/missionService";
+import { resetStreak } from "../streaks/streakService";
+import { missionDefs } from "../missions/missionDefs";
+import { streakRewards } from "../streaks/streakService";
+import { QAChecklist } from "./QAChecklist";
+
+export function AdminPage() {
+  const { logout } = useAuth();
+  const notify = useToast();
+  const [dataVersion, setDataVersion] = useState(0);
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [currency, setCurrency] = useState<Currency>("GOLD");
+  const [amount, setAmount] = useState(1000);
+  const [simulations, setSimulations] = useState<Record<string, SimulationResult>>({});
+  const data = readData();
+
+  function refresh() {
+    setDataVersion((value) => value + 1);
+  }
+
+  function adjust() {
+    if (!selectedUserId) return notify("Choose a user first.", "error");
+    try {
+      if (amount >= 0) {
+        creditCurrency({ userId: selectedUserId, type: "ADMIN_ADJUSTMENT", currency, amount, metadata: { source: "admin_panel" } });
+      } else {
+        debitCurrency({ userId: selectedUserId, type: "ADMIN_ADJUSTMENT", currency, amount: Math.abs(amount), metadata: { source: "admin_panel" } });
+      }
+      refresh();
+      notify("Admin adjustment recorded in ledger.", "success");
+    } catch (caught) {
+      notify(caught instanceof Error ? caught.message : "Adjustment failed.", "error");
+    }
+  }
+
+  function resetDemo() {
+    resetData();
+    logout();
+    notify("Local demo data reset.", "info");
+  }
+
+  function seedUsers() {
+    seedDemoUsers();
+    refresh();
+    notify("Demo users seeded. Password is demo123.", "success");
+  }
+
+  function runSimulation(gameId: string) {
+    const game = slotConfigs.find((candidate) => candidate.id === gameId);
+    if (!game) return;
+    const result = simulateSlot(game, 100000, game.minBet);
+    setSimulations((current) => ({ ...current, [gameId]: result }));
+  }
+
+  const allTransactions = getTransactions();
+  const suspiciousGames = slotConfigs.flatMap((game) => getMathWarnings(game, simulations[game.id]));
+  const economyWarnings = [
+    ...suspiciousGames,
+    ...(missionDefs.some((mission) => mission.rewardAmount > 5000) ? ["Mission rewards are high for demo economy."] : []),
+    ...(streakRewards.some((reward) => reward.bonus > 6000 || reward.gold > 1000) ? ["Streak rewards are high for demo economy."] : []),
+    ...(slotConfigs.some((game) => game.maxPayoutMultiplier > 75) ? ["A max payout cap is high."] : []),
+  ];
+
+  return (
+    <section className="page-stack" key={dataVersion}>
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow">Mock admin</p>
+          <h1>Dev Tools</h1>
+          <p className="muted">ADMIN role only. Local prototype data and demo-only math tools.</p>
+        </div>
+        <button className="ghost-button icon-button" onClick={seedUsers}>
+          <Users size={17} />
+          Seed Demo Users
+        </button>
+      </div>
+
+      {economyWarnings.length > 0 && (
+        <div className="error-box">
+          {economyWarnings.slice(0, 4).join(" ")}
+        </div>
+      )}
+
+      <div className="grid three">
+        <StatCard label="Users" value={String(data.users.length)} />
+        <StatCard label="Transactions" value={String(allTransactions.length)} />
+        <StatCard label="Games" value={String(slotConfigs.length)} note="Config-driven slots" />
+      </div>
+
+      <QAChecklist />
+
+      <div className="grid two">
+        <article className="card">
+          <h2>Users</h2>
+          <div className="user-list">
+            {data.users.map((user) => {
+              const balances = getBalance(user.id);
+              return (
+                <button
+                  className={selectedUserId === user.id ? "user-row active" : "user-row"}
+                  key={user.id}
+                  onClick={() => setSelectedUserId(user.id)}
+                >
+                  <span>{user.username}</span>
+                  <small>{user.email}</small>
+                  <small>GC {formatCoins(balances.GOLD)} | BC {formatCoins(balances.BONUS)}</small>
+                  <small>Level {getProgression(user.id).level} | XP {formatCoins(getProgression(user.id).xp)}</small>
+                </button>
+              );
+            })}
+          </div>
+        </article>
+
+        <article className="card">
+          <h2>Balance Adjustment</h2>
+          <div className="form-stack">
+            <label>
+              Currency
+              <select value={currency} onChange={(event) => setCurrency(event.target.value as Currency)}>
+                <option value="GOLD">Gold Coins</option>
+                <option value="BONUS">Bonus Coins</option>
+              </select>
+            </label>
+            <label>
+              Amount
+              <input type="number" value={amount} onChange={(event) => setAmount(Number(event.target.value))} />
+            </label>
+            <button className="primary-button" onClick={adjust}>Record Adjustment</button>
+            <button className="ghost-button" disabled={!selectedUserId} onClick={() => { resetMissions(selectedUserId); refresh(); notify("Missions reset.", "info"); }}>Reset Missions</button>
+            <button className="ghost-button" disabled={!selectedUserId} onClick={() => { resetStreak(selectedUserId); refresh(); notify("Streak reset.", "info"); }}>Reset Streak</button>
+            <button className="danger-button icon-button" onClick={resetDemo}>
+              <RotateCcw size={16} />
+              Reset Local Demo Data
+            </button>
+          </div>
+        </article>
+      </div>
+
+      <article className="card">
+        <div className="section-title">
+          <h2>Game Math Simulator</h2>
+          <span>100,000 spins</span>
+        </div>
+        <div className="sim-grid">
+          {slotConfigs.map((game) => {
+            const sim = simulations[game.id];
+            const warnings = getMathWarnings(game, sim);
+            return (
+              <article className="sim-card" key={game.id}>
+                <h3>{game.name}</h3>
+                <small>Target RTP {(game.targetRtp * 100).toFixed(1)}%</small>
+                {sim ? (
+                  <div className="detail-list compact-detail">
+                    <span>Total wagered</span><strong>{formatCoins(sim.totalWagered)}</strong>
+                    <span>Total paid</span><strong>{formatCoins(sim.totalPaid)}</strong>
+                    <span>Observed RTP</span><strong>{(sim.observedRtp * 100).toFixed(2)}%</strong>
+                    <span>Hit rate</span><strong>{(sim.hitRate * 100).toFixed(2)}%</strong>
+                    <span>Biggest win</span><strong>{formatCoins(sim.biggestWin)}</strong>
+                    <span>Bonus trigger</span><strong>{(sim.bonusTriggerRate * 100).toFixed(2)}%</strong>
+                    <span>Free spins</span><strong>{(sim.freeSpinTriggerRate * 100).toFixed(2)}%</strong>
+                    <span>Pick bonus</span><strong>{(sim.pickBonusTriggerRate * 100).toFixed(2)}%</strong>
+                  </div>
+                ) : (
+                  <p className="muted">Run simulation to inspect rough observed RTP.</p>
+                )}
+                {warnings.map((warning) => <div className="warning" key={warning}>{warning}</div>)}
+                <button className="ghost-button" onClick={() => runSimulation(game.id)}>Simulate</button>
+              </article>
+            );
+          })}
+        </div>
+      </article>
+
+      <article className="card">
+        <div className="section-title">
+          <h2>Economy Summary</h2>
+          <span>Virtual only</span>
+        </div>
+        <div className="grid three">
+          <StatCard label="Mission Rewards" value={formatCoins(missionDefs.reduce((sum, mission) => sum + mission.rewardAmount, 0))} />
+          <StatCard label="Streak Bonus Total" value={formatCoins(streakRewards.reduce((sum, reward) => sum + reward.bonus, 0))} />
+          <StatCard label="Highest Max Cap" value={`${Math.max(...slotConfigs.map((game) => game.maxPayoutMultiplier))}x`} />
+        </div>
+      </article>
+
+      <article className="card">
+        <div className="section-title">
+          <h2>All Transactions</h2>
+          <span>{allTransactions.length} records</span>
+        </div>
+        <TransactionTable transactions={allTransactions} />
+      </article>
+    </section>
+  );
+}
