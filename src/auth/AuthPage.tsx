@@ -9,15 +9,19 @@ export function AuthPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  function submit(event: React.FormEvent) {
+  async function submit(event: React.FormEvent) {
     event.preventDefault();
     setError("");
+    setSubmitting(true);
     try {
-      if (mode === "login") login(email, password);
-      else register(email, username, password);
+      if (mode === "login") await login(email, password);
+      else await register(email, username, password);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Something went wrong.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -65,12 +69,12 @@ export function AuthPage() {
             />
           </label>
           {error && <div className="error-box">{error}</div>}
-          <button className="primary-button" type="submit">
-            {mode === "login" ? "Login" : "Create Account"}
+          <button className="primary-button" type="submit" disabled={submitting}>
+            {submitting ? "Please wait..." : mode === "login" ? "Login" : "Create Account"}
           </button>
         </form>
 
-        <p className="hint">Admin demo: admin@demo.local / admin123</p>
+        <p className="hint">Local fallback admin: admin@demo.local / admin123</p>
       </section>
     </main>
   );

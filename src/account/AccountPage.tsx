@@ -4,6 +4,7 @@ import { formatDateTime } from "../lib/format";
 import { getProgression } from "../progression/progressionService";
 import { ProgressionBar } from "../progression/ProgressionBar";
 import { MissionsPanel } from "../missions/MissionsPanel";
+import { SupabaseDebugPanel } from "../components/SupabaseDebugPanel";
 
 export function AccountPage() {
   const { user, logout } = useAuth();
@@ -25,6 +26,7 @@ export function AccountPage() {
       </div>
 
       <ProgressionBar progress={progression} />
+      <SupabaseDebugPanel />
 
       <div className="grid two">
         <article className="card detail-card">

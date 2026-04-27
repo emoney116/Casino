@@ -1,5 +1,6 @@
 import { createId } from "../lib/ids";
 import { readData, updateData } from "../lib/storage";
+import { getRepository, mirrorToBackend } from "../repositories";
 import type { Currency, Transaction, TransactionType, WalletBalances } from "../types";
 
 export const emptyBalances: WalletBalances = { GOLD: 0, BONUS: 0 };
@@ -59,7 +60,14 @@ export function creditCurrency(input: LedgerInput): Transaction {
     data.transactions.push(created);
   });
 
-  return created as Transaction;
+  const tx = created as Transaction;
+  const balances = getBalance(input.userId);
+  mirrorToBackend(async () => {
+    const repository = getRepository();
+    await repository.syncWalletBalance(input.userId, balances);
+    await repository.syncWalletTransaction(tx);
+  });
+  return tx;
 }
 
 export function debitCurrency(input: LedgerInput): Transaction {
@@ -90,5 +98,12 @@ export function debitCurrency(input: LedgerInput): Transaction {
     data.transactions.push(created);
   });
 
-  return created as Transaction;
+  const tx = created as Transaction;
+  const balances = getBalance(input.userId);
+  mirrorToBackend(async () => {
+    const repository = getRepository();
+    await repository.syncWalletBalance(input.userId, balances);
+    await repository.syncWalletTransaction(tx);
+  });
+  return tx;
 }

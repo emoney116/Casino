@@ -18,6 +18,7 @@ import { resetStreak } from "../streaks/streakService";
 import { missionDefs } from "../missions/missionDefs";
 import { streakRewards } from "../streaks/streakService";
 import { QAChecklist } from "./QAChecklist";
+import { SupabaseDebugPanel } from "../components/SupabaseDebugPanel";
 
 export function AdminPage() {
   const { logout } = useAuth();
@@ -103,6 +104,7 @@ export function AdminPage() {
       </div>
 
       <QAChecklist />
+      <SupabaseDebugPanel />
 
       <div className="grid two">
         <article className="card">

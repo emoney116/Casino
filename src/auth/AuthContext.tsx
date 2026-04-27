@@ -1,40 +1,69 @@
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getCurrentUser, loginUser, logoutUser, registerUser } from "./authService";
+import { isSupabaseConfigured, supabase } from "../lib/supabaseClient";
 import type { User } from "../types";
 
 interface AuthContextValue {
   user: User | null;
-  refreshUser: () => void;
-  login: (email: string, password: string) => void;
-  register: (email: string, username: string, password: string) => void;
-  logout: () => void;
+  loading: boolean;
+  refreshUser: () => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, username: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => getCurrentUser());
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const refreshUser = useCallback(() => {
-    setUser(getCurrentUser());
+  const refreshUser = useCallback(async () => {
+    setUser(await getCurrentUser());
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    getCurrentUser()
+      .then((currentUser) => {
+        if (active) setUser(currentUser);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    if (!isSupabaseConfigured || !supabase) {
+      return () => {
+        active = false;
+      };
+    }
+
+    const { data } = supabase.auth.onAuthStateChange(() => {
+      void refreshUser();
+    });
+    return () => {
+      active = false;
+      data.subscription.unsubscribe();
+    };
+  }, [refreshUser]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
+      loading,
       refreshUser,
-      login: (email, password) => {
-        setUser(loginUser(email, password).user);
+      login: async (email, password) => {
+        setUser((await loginUser(email, password)).user);
       },
-      register: (email, username, password) => {
-        setUser(registerUser(email, username, password).user);
+      register: async (email, username, password) => {
+        setUser((await registerUser(email, username, password)).user);
       },
-      logout: () => {
-        logoutUser();
+      logout: async () => {
+        await logoutUser();
         setUser(null);
       },
     }),
-    [refreshUser, user],
+    [loading, refreshUser, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
