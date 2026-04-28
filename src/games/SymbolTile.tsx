@@ -19,7 +19,7 @@ export function SymbolTile({
 
   return (
     <div
-      className={`symbol-tile ${active ? "win" : ""} ${spinning ? "spinning" : ""} ${compact ? "compact" : ""}`}
+      className={`symbol-tile ${symbol?.kind ?? "regular"} ${active ? "win" : ""} ${spinning ? "spinning" : ""} ${compact ? "compact" : ""}`}
       style={{ "--symbol": color } as React.CSSProperties}
       title={label}
     >

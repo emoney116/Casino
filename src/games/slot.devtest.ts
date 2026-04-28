@@ -5,6 +5,7 @@ import { creditCurrency, getBalance, getTransactions } from "../wallet/walletSer
 import type { User } from "../types";
 import { clearRecentGames, getRecentGames, recordRecentGame } from "./recentGames";
 import { dismissOnboarding, hasDismissedOnboarding } from "../app/onboarding";
+import { frontierUiAssets, requiredFrontierUiAssetKeys } from "./frontierAssets";
 import { nextFreeSpinTotal } from "./slotSession";
 import { getProgression, recordSpinProgress } from "../progression/progressionService";
 import { claimStreak, getStreak, resetStreak } from "../streaks/streakService";
@@ -72,6 +73,13 @@ for (const filename of requiredFrontierAssets) {
 }
 if (exposedSlotConfigs[0].symbols.some((symbol) => !symbol.image)) {
   throw new Error("Expected exposed Frontier Fortune symbols to use image assets.");
+}
+const requiredUiAssetValues = new Set(Object.values(frontierUiAssets));
+if (requiredFrontierUiAssetKeys.length !== 29 || requiredUiAssetValues.size !== 29) {
+  throw new Error("Expected Frontier Fortune UI asset map to include every sliced asset and the source sheet.");
+}
+if (!frontierUiAssets.backgroundMobile.includes("/assets/ui/frontier/") || !frontierUiAssets.spinButton.includes("/assets/ui/frontier/")) {
+  throw new Error("Expected Frontier Fortune UI assets to point at the sliced public asset folder.");
 }
 
 const game = slotConfigs.find((candidate) => candidate.id === "neon-fortune") ?? slotConfigs[0];

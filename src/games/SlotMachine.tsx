@@ -1,4 +1,4 @@
-import { ArrowLeft, Gauge, Info, Menu, Minus, Plus, Settings, ShoppingBag, Volume2, Zap } from "lucide-react";
+import { ArrowLeft, Coins, Gauge, Info, Menu, Minus, Plus, RotateCw, Settings, ShoppingBag, Volume2, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
@@ -13,6 +13,7 @@ import { BonusModal } from "./BonusModal";
 import { GameLogo } from "./GameLogo";
 import { Modal } from "../components/Modal";
 import { PaytableModal } from "./PaytableModal";
+import { frontierUiAssets } from "./frontierAssets";
 import { recordRecentGame } from "./recentGames";
 import { nextFreeSpinTotal } from "./slotSession";
 import { buyBonusDebit, createHoldAndWinState, creditHoldAndWinBonus, creditPickBonus, generateGrid, spinSlot, stepHoldAndWinBonus } from "./slotEngine";
@@ -60,6 +61,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
   const [holdState, setHoldState] = useState<HoldAndWinState | null>(null);
   const [holdBought, setHoldBought] = useState(false);
   const [bonusBusy, setBonusBusy] = useState(false);
+  const [logoReady, setLogoReady] = useState(true);
 
   if (!user) return null;
   const currentUser = user;
@@ -71,6 +73,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
   const lastResult = history[0];
   const scatterCount = grid.flat().filter((symbol) => symbol === game.scatterSymbol).length;
   const bonusCount = grid.flat().filter((symbol) => symbol === game.bonusSymbol).length;
+  const quickBetValues = [10, 20, 50, 100, 250].filter((value) => value <= game.maxBet);
 
   useEffect(() => {
     setBetAmount(game.minBet);
@@ -274,19 +277,6 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
       className={`slot-screen premium-slot-shell ${game.visual.background ?? ""}`}
       style={{ "--accent": game.visual.accent, "--secondary": game.visual.secondary, "--panel": game.visual.panel } as React.CSSProperties}
     >
-      <div className="jackpot-banner">
-        <span>Max {game.maxPayoutMultiplier}x</span>
-        {game.jackpotLabels ? (
-          <>
-            <strong>Grand {game.jackpotLabels.Grand}</strong>
-            <strong>Major {game.jackpotLabels.Major}</strong>
-            <strong>Minor {game.jackpotLabels.Minor}</strong>
-            <strong>Mini {game.jackpotLabels.Mini}</strong>
-          </>
-        ) : (
-          <strong>Demo progressive cap {game.maxPayoutMultiplier}x</strong>
-        )}
-      </div>
       <div className="slot-header">
         <div className="game-heading">
           {onExit && (
@@ -296,8 +286,9 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
           )}
           <GameLogo game={game} small />
           <div>
+            {logoReady && <img className="frontier-title-logo" src={frontierUiAssets.titleLogo} alt={game.name} onError={() => setLogoReady(false)} />}
             <p className="eyebrow">{game.theme}</p>
-            <h1>{game.name}</h1>
+            <h1 className={logoReady ? "asset-backed" : ""}>{game.name}</h1>
             <p className="muted">
               {game.waysToWin} | {game.volatility} volatility | Target RTP {(game.targetRtp * 100).toFixed(1)}% | Demo only
             </p>
@@ -312,6 +303,19 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
             <Settings size={17} />
           </button>
         </div>
+      </div>
+      <div className="jackpot-banner">
+        <span>Max {game.maxPayoutMultiplier}x</span>
+        {game.jackpotLabels ? (
+          <>
+            <strong><img src={frontierUiAssets.jackpotGrand} alt="" onError={(event) => event.currentTarget.parentElement?.classList.add("asset-missing")} /><span>Grand {game.jackpotLabels.Grand}</span></strong>
+            <strong><img src={frontierUiAssets.jackpotMajor} alt="" onError={(event) => event.currentTarget.parentElement?.classList.add("asset-missing")} /><span>Major {game.jackpotLabels.Major}</span></strong>
+            <strong><img src={frontierUiAssets.jackpotMinor} alt="" onError={(event) => event.currentTarget.parentElement?.classList.add("asset-missing")} /><span>Minor {game.jackpotLabels.Minor}</span></strong>
+            <strong><img src={frontierUiAssets.jackpotMini} alt="" onError={(event) => event.currentTarget.parentElement?.classList.add("asset-missing")} /><span>Mini {game.jackpotLabels.Mini}</span></strong>
+          </>
+        ) : (
+          <strong>Demo progressive cap {game.maxPayoutMultiplier}x</strong>
+        )}
       </div>
 
       <div className="slot-board">
@@ -404,7 +408,11 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
             <div className="control-readout">
               <span>Balance</span>
               <strong>{formatCoins(balance)}</strong>
-              <small>{currency}</small>
+              <small>{currency} Coins</small>
+              <div className="currency-mini">
+                <button className={currency === "GOLD" ? "active" : ""} onClick={() => setCurrency("GOLD")}>Gold</button>
+                <button className={currency === "BONUS" ? "active" : ""} onClick={() => setCurrency("BONUS")}>Bonus</button>
+              </div>
             </div>
             <div className="bet-readout">
               <span>Bet</span>
@@ -417,15 +425,42 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
                   <Plus size={16} />
                 </button>
               </div>
+              <div className="premium-quick-bets">
+                {quickBetValues.map((value) => (
+                  <button
+                    className={betAmount === value ? "active" : ""}
+                    disabled={value < game.minBet || inHoldAndWin}
+                    onClick={() => setBetAmount(value)}
+                    key={value}
+                  >
+                    {formatCoins(value)}
+                  </button>
+                ))}
+              </div>
             </div>
             <button
               className={`slot-main-action ${inHoldAndWin ? "respin" : ""}`}
               disabled={inHoldAndWin ? bonusBusy : !canSpin}
               onClick={inHoldAndWin ? respinHoldAndWin : spin}
             >
-              {inHoldAndWin ? (bonusBusy ? "..." : "↻") : spinning ? "..." : "▶"}
+              {inHoldAndWin ? (bonusBusy ? "..." : <RotateCw size={34} />) : spinning ? "..." : <RotateCw size={42} />}
               <span>{inHoldAndWin ? "Respin" : "Spin"}</span>
             </button>
+          </div>
+          {game.buyBonus?.enabled && (
+            <button className="buy-bonus-button premium-buy-bonus" disabled={!canBuyBonus} onClick={() => setBuyBonusOpen(true)}>
+              <Coins size={22} />
+              <span>Buy Bonus</span>
+              <strong>{formatCoins(buyBonusCost)}</strong>
+            </button>
+          )}
+          <div className="premium-control-icons">
+            <button className="ghost-button icon-only" title="Menu"><img src={frontierUiAssets.iconMenu} alt="" onError={(event) => event.currentTarget.parentElement?.classList.add("asset-missing")} /><Menu size={18} /></button>
+            <button className="ghost-button icon-only" onClick={() => setPaytableOpen(true)} title="Info"><img src={frontierUiAssets.iconInfo} alt="" onError={(event) => event.currentTarget.parentElement?.classList.add("asset-missing")} /><Info size={18} /></button>
+            <button className={sound ? "ghost-button icon-only active" : "ghost-button icon-only"} onClick={() => setSound((value) => {
+              setMuted(value);
+              return !value;
+            })} title="Sound"><img src={frontierUiAssets.iconSound} alt="" onError={(event) => event.currentTarget.parentElement?.classList.add("asset-missing")} /><Volume2 size={18} /></button>
           </div>
           <div className="segmented small">
             <button className={currency === "GOLD" ? "active" : ""} onClick={() => setCurrency("GOLD")}>
@@ -576,3 +611,4 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
     </section>
   );
 }
+
