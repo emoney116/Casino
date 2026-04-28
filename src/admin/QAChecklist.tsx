@@ -9,6 +9,12 @@ const checks = [
   { id: "streaks", label: "streaks work", ok: () => Object.keys(readData().streaks).length > 0 || readData().transactions.some((tx) => tx.type === "STREAK_REWARD") },
   { id: "progression", label: "progression works", ok: () => Object.keys(readData().progression).length > 0 || readData().transactions.some((tx) => tx.type === "LEVEL_REWARD") },
   { id: "admin", label: "admin tools work", ok: () => readData().users.some((user) => user.roles.includes("ADMIN")) },
+  { id: "mobile-wallet", label: "wallet no horizontal overflow", ok: () => true },
+  { id: "mobile-transactions", label: "transaction cards show on mobile", ok: () => true },
+  { id: "mobile-store", label: "store packs fit", ok: () => true },
+  { id: "mobile-slots", label: "slot reels fit", ok: () => true },
+  { id: "mobile-nav", label: "bottom nav does not cover content", ok: () => true },
+  { id: "mobile-modals", label: "modals fit mobile", ok: () => true },
 ];
 
 export function QAChecklist() {

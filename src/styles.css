@@ -8,6 +8,11 @@
 
 * { box-sizing: border-box; }
 
+html, body, #root {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -16,6 +21,14 @@ body {
     radial-gradient(circle at 18% 0%, rgba(245, 158, 11, 0.15), transparent 24rem),
     radial-gradient(circle at 92% 8%, rgba(20, 184, 166, 0.11), transparent 22rem),
     linear-gradient(145deg, #11131b 0%, #101827 50%, #151019 100%);
+}
+
+img, svg, canvas, video {
+  max-width: 100%;
+}
+
+button, input, select, textarea, pre, code, p {
+  overflow-wrap: anywhere;
 }
 
 button, input, select { font: inherit; }
@@ -111,6 +124,8 @@ h3 { font-size: 1.02rem; margin-bottom: 8px; }
 
 .main-panel {
   min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   padding: 24px;
   padding-bottom: 36px;
 }
@@ -633,6 +648,10 @@ body {
   justify-items: start;
   text-align: left;
 }
+
+.game-logo.small strong {
+  display: none;
+}
 .logo-orbit {
   width: 92px;
   height: 92px;
@@ -1116,5 +1135,274 @@ body {
   .slot-controls .primary-button,
   .slot-controls .danger-button {
     min-height: 48px;
+  }
+}
+
+/* Mobile polish pass: keep every primary surface inside narrow phone viewports. */
+.page-stack,
+.card,
+.notice-card,
+.balance-card,
+.stat-card,
+.game-card,
+.lobby-hero,
+.slot-screen,
+.slot-board,
+.slot-panel,
+.wallet-balances,
+.store-grid,
+.mini-pack,
+.streak-card,
+.transaction-table-wrap,
+.modal-card {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.wallet-export-button {
+  white-space: nowrap;
+}
+
+.transaction-card-list {
+  display: none;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: #dbeafe;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.1);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.status-chip.completed {
+  border-color: rgba(34,197,94,0.32);
+  color: #bbf7d0;
+}
+
+.status-chip.failed {
+  border-color: rgba(248,113,113,0.4);
+  color: #fecaca;
+}
+
+@media (max-width: 1020px) {
+  .main-panel {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-bottom: calc(112px + env(safe-area-inset-bottom));
+  }
+
+  .mobile-tabbar {
+    padding: 8px max(8px, env(safe-area-inset-left)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right));
+  }
+}
+
+@media (max-width: 720px) {
+  h1 {
+    font-size: clamp(1.7rem, 8vw, 2.35rem);
+    line-height: 1.05;
+  }
+
+  .page-heading,
+  .section-title,
+  .slot-header {
+    width: 100%;
+  }
+
+  .game-heading {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .game-heading > div:not(.game-logo) {
+    min-width: 0;
+  }
+
+  .game-logo.small {
+    width: auto;
+    min-width: 0;
+    grid-template-columns: 46px minmax(0, auto);
+  }
+
+  .game-logo.small .logo-orbit {
+    width: 44px;
+    height: 44px;
+  }
+
+  .game-logo strong {
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  .wallet-balances {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .wallet-export-button {
+    width: auto;
+    max-width: 100%;
+    align-self: flex-start;
+  }
+
+  .store-grid,
+  .sim-grid,
+  .settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mini-pack {
+    display: grid;
+    gap: 8px;
+  }
+
+  .streak-grid {
+    grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+    gap: 7px;
+  }
+
+  .streak-day {
+    min-height: 76px;
+    padding: 7px 5px;
+  }
+
+  .filter-row {
+    flex-wrap: wrap;
+    overflow: visible;
+    padding-bottom: 0;
+  }
+
+  .filter-row button {
+    flex: 1 1 calc(50% - 8px);
+    min-width: 0;
+    padding-inline: 8px;
+  }
+
+  .transaction-table-wrap {
+    display: none;
+  }
+
+  .transaction-card-list {
+    display: grid;
+    gap: 10px;
+  }
+
+  .transaction-card {
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    text-align: left;
+    color: #e5f2ff;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.055);
+    border: 1px solid rgba(148,163,255,0.14);
+  }
+
+  .transaction-card:disabled {
+    opacity: 1;
+    cursor: default;
+  }
+
+  .transaction-card-top,
+  .transaction-card-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .transaction-card-top strong,
+  .transaction-card-row strong,
+  .transaction-card-row span {
+    min-width: 0;
+  }
+
+  .lobby-hero {
+    padding: 18px;
+  }
+
+  .game-grid,
+  .game-grid.compact {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+    gap: 12px;
+  }
+
+  .game-selector {
+    padding-inline: 2px 18px;
+    scroll-padding-inline: 12px;
+  }
+
+  .reel-stage {
+    width: 100%;
+    max-width: 100%;
+    min-height: clamp(238px, 78vw, 320px);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .symbol-tile,
+  .reel-tile {
+    min-width: 0;
+  }
+
+  .win-overlay,
+  .big-win-overlay {
+    max-width: calc(100% - 20px);
+    overflow-wrap: anywhere;
+  }
+
+  .slot-controls {
+    position: static;
+  }
+
+  .modal-backdrop {
+    padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  }
+
+  .modal-card {
+    width: 100%;
+    max-width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+    padding: 16px;
+  }
+
+  .detail-list {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-list pre {
+    max-width: 100%;
+    overflow: auto;
+    white-space: pre-wrap;
+  }
+}
+
+@media (max-width: 360px) {
+  .wallet-balances {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-row button {
+    flex-basis: 100%;
+  }
+
+  .mobile-tabbar button {
+    font-size: 0.68rem;
+    padding-inline: 2px;
+  }
+
+  .reel-stage {
+    min-height: 232px;
+    gap: 5px;
+    padding: 6px;
   }
 }

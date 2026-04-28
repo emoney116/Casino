@@ -63,13 +63,13 @@ export function WalletPage() {
           <h1>Balances and Ledger</h1>
           <p className="muted">Gold Coins and Bonus Coins have no cash value.</p>
         </div>
-        <button className="ghost-button icon-button" onClick={exportJson}>
+        <button className="ghost-button icon-button wallet-export-button" onClick={exportJson}>
           <Download size={17} />
           Export JSON
         </button>
       </div>
 
-      <div className="grid two">
+      <div className="grid two wallet-balances">
         <BalanceCard label="Gold Coins" amount={balances.GOLD} tone="gold" />
         <BalanceCard label="Bonus Coins" amount={balances.BONUS} tone="bonus" />
       </div>
