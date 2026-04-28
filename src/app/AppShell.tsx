@@ -30,7 +30,7 @@ export function AppShell() {
   }
 
   return (
-    <div className="shell">
+    <div className={`shell ${activeView === "games" ? "game-mode" : ""}`}>
       <aside className="sidebar">
         <div className="shell-brand">
           <BrandIcon />
@@ -74,7 +74,7 @@ export function AppShell() {
 
         {activeView === "lobby" && <LobbyPage onPlay={playGame} onWallet={() => setActiveView("wallet")} />}
         {activeView === "games" && (
-          <GamesPage activeGameId={activeGameId} onGameChange={setActiveGameId} />
+          <GamesPage activeGameId={activeGameId} onGameChange={setActiveGameId} onExit={() => setActiveView("lobby")} />
         )}
         {activeView === "wallet" && <WalletPage />}
         {activeView === "account" && <AccountPage />}
@@ -84,7 +84,7 @@ export function AppShell() {
         </div>
       </main>
 
-      <MobileTabBar activeView={activeView} roles={user.roles} onChange={setActiveView} />
+      {activeView !== "games" && <MobileTabBar activeView={activeView} roles={user.roles} onChange={setActiveView} />}
       {showOnboarding && (
         <Modal title="Welcome to the Demo Casino" onClose={() => undefined}>
           <div className="modal-stack">

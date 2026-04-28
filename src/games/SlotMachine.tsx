@@ -1,4 +1,4 @@
-import { Gauge, Info, Menu, Minus, Plus, Settings, ShoppingBag, Volume2, Zap } from "lucide-react";
+import { ArrowLeft, Gauge, Info, Menu, Minus, Plus, Settings, ShoppingBag, Volume2, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
@@ -15,9 +15,9 @@ import { Modal } from "../components/Modal";
 import { PaytableModal } from "./PaytableModal";
 import { recordRecentGame } from "./recentGames";
 import { nextFreeSpinTotal } from "./slotSession";
-import { buyBonusFeature, creditPickBonus, generateGrid, spinSlot } from "./slotEngine";
+import { buyBonusDebit, createHoldAndWinState, creditHoldAndWinBonus, creditPickBonus, generateGrid, spinSlot, stepHoldAndWinBonus } from "./slotEngine";
 import { SymbolTile } from "./SymbolTile";
-import type { SlotConfig, SlotSpinResult } from "./types";
+import type { HoldAndWinState, SlotConfig, SlotSpinResult } from "./types";
 
 type SlotUiState =
   | "Idle"
@@ -27,9 +27,10 @@ type SlotUiState =
   | "Bonus Triggered"
   | "Free Spins"
   | "Pick Bonus"
+  | "Hold And Win"
   | "Error/Insufficient Balance";
 
-export function SlotMachine({ game }: { game: SlotConfig }) {
+export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () => void }) {
   const { user, refreshUser } = useAuth();
   const notify = useToast();
   const [currency, setCurrency] = useState<Currency>("GOLD");
@@ -49,13 +50,17 @@ export function SlotMachine({ game }: { game: SlotConfig }) {
   const [uiState, setUiState] = useState<SlotUiState>("Idle");
   const [anticipating, setAnticipating] = useState(false);
   const [overlayResult, setOverlayResult] = useState<SlotSpinResult | null>(null);
+  const [holdState, setHoldState] = useState<HoldAndWinState | null>(null);
+  const [holdBought, setHoldBought] = useState(false);
+  const [bonusBusy, setBonusBusy] = useState(false);
 
   if (!user) return null;
   const currentUser = user;
   const balance = getBalance(currentUser.id, currency);
-  const canSpin = !spinning && (freeSpins > 0 || balance >= betAmount);
+  const inHoldAndWin = Boolean(holdState);
+  const canSpin = !spinning && !inHoldAndWin && (freeSpins > 0 || balance >= betAmount);
   const buyBonusCost = game.buyBonus?.enabled ? Math.round(betAmount * game.buyBonus.costMultiplier) : 0;
-  const canBuyBonus = !spinning && Boolean(game.buyBonus?.enabled) && balance >= buyBonusCost;
+  const canBuyBonus = !spinning && !inHoldAndWin && Boolean(game.buyBonus?.enabled) && balance >= buyBonusCost;
   const lastResult = history[0];
   const scatterCount = grid.flat().filter((symbol) => symbol === game.scatterSymbol).length;
   const bonusCount = grid.flat().filter((symbol) => symbol === game.bonusSymbol).length;
@@ -69,6 +74,8 @@ export function SlotMachine({ game }: { game: SlotConfig }) {
     setBonusMeter(0);
     setUiState("Idle");
     setOverlayResult(null);
+    setHoldState(null);
+    setHoldBought(false);
   }, [game]);
 
   function updateAfterSpin(result: SlotSpinResult, usedFreeSpin: boolean) {
@@ -83,10 +90,25 @@ export function SlotMachine({ game }: { game: SlotConfig }) {
       setFreeSpins((count) => count + result.freeSpinsAwarded);
       setFreeSpinTotal(0);
     }
-    if (result.triggeredBonus) setBonusResult(result);
-    setOverlayResult(result.payout > 0 ? result : null);
+    if (result.triggeredHoldAndWin) {
+      setHoldState(createHoldAndWinState(game, betAmount, 3));
+      setHoldBought(false);
+      setOverlayResult({
+        ...result,
+        payout: 0,
+        winType: "HOLD_AND_WIN",
+        winTier: "BIG",
+      });
+    } else if (result.triggeredBonus) {
+      setBonusResult(result);
+      setOverlayResult(result.payout > 0 ? result : null);
+    } else {
+      setOverlayResult(result.payout > 0 ? result : null);
+    }
     setUiState(
-      result.triggeredPickBonus
+      result.triggeredHoldAndWin
+        ? "Hold And Win"
+        : result.triggeredPickBonus
         ? "Pick Bonus"
         : result.triggeredFreeSpins
           ? "Bonus Triggered"
@@ -159,28 +181,19 @@ export function SlotMachine({ game }: { game: SlotConfig }) {
 
   function resolveBuyBonus() {
     try {
+      if (!game.buyBonus?.enabled) throw new Error("Buy bonus is not available.");
+      if (balance < buyBonusCost) throw new Error("Insufficient balance.");
       setSpinning(true);
       setUiState("Bonus Triggered");
-      const result = buyBonusFeature({ user: currentUser, game, currency, betAmount });
-      setGrid(result.grid);
-      setHistory((current) => [result, ...current].slice(0, 8));
-      setOverlayResult(result.payout > 0 ? result : null);
-      setBonusResult(result.triggeredPickBonus ? result : null);
-      setUiState(
-        result.triggeredHoldAndWin
-          ? "Bonus Triggered"
-          : result.triggeredWheelBonus
-            ? "Bonus Triggered"
-            : result.triggeredFreeSpins
-              ? "Free Spins"
-              : result.payout > 0
-                ? "Win"
-                : "Idle",
-      );
+      buyBonusDebit({ user: currentUser, game, currency, betAmount });
+      setHoldState(createHoldAndWinState(game, betAmount, 4));
+      setHoldBought(true);
+      setOverlayResult(null);
+      setUiState("Hold And Win");
       refreshUser();
       recordRecentGame(game.id);
-      setSessionStats((stats) => nextSessionStats(stats, result.wager, result.payout));
-      notify(`Demo bonus buy resolved: ${formatCoins(result.payout)} virtual coins.`, "success");
+      setSessionStats((stats) => nextSessionStats(stats, buyBonusCost, 0));
+      notify("Demo bonus buy started. Virtual coins only.", "success");
       playBonus();
     } catch (caught) {
       setUiState("Error/Insufficient Balance");
@@ -189,6 +202,56 @@ export function SlotMachine({ game }: { game: SlotConfig }) {
       setBuyBonusOpen(false);
       setSpinning(false);
     }
+  }
+
+  function respinHoldAndWin() {
+    if (!holdState || bonusBusy) return;
+    setBonusBusy(true);
+    window.setTimeout(() => {
+      const next = stepHoldAndWinBonus(game, betAmount, holdState);
+      setHoldState(next);
+      if (next.lastNewCoins.length > 0) notify(`${next.lastNewCoins.length} new coin${next.lastNewCoins.length === 1 ? "" : "s"} locked. Respins reset.`, "success");
+      if (next.finished) {
+        try {
+          creditHoldAndWinBonus({ user: currentUser, game, currency, betAmount, state: next, buyBonus: holdBought });
+          const result: SlotSpinResult = {
+            gameId: game.id,
+            grid,
+            wager: 0,
+            payout: next.total,
+            multiplier: betAmount > 0 ? next.total / betAmount : 0,
+            winType: "HOLD_AND_WIN",
+            winTier: next.total >= betAmount * 20 ? "MEGA" : next.total >= betAmount * 8 ? "BIG" : "SMALL",
+            capped: next.total >= betAmount * game.maxPayoutMultiplier,
+            lineWins: [],
+            winningPositions: [],
+            freeSpinsAwarded: 0,
+            triggeredBonus: true,
+            triggeredFreeSpins: false,
+            triggeredPickBonus: false,
+            triggeredHoldAndWin: true,
+            bonusPayout: next.total,
+            jackpotLabel: next.filledAll ? "Grand" : undefined,
+          };
+          setHistory((current) => [result, ...current].slice(0, 8));
+          setOverlayResult(result);
+          setUiState("Win");
+          refreshUser();
+          setSessionStats((stats) => nextSessionStats(stats, 0, next.total));
+          notify(`Hold and Win paid ${formatCoins(next.total)} virtual coins.`, "success");
+          playBigWin();
+        } catch (caught) {
+          notify(caught instanceof Error ? caught.message : "Bonus credit failed.", "error");
+        }
+      }
+      setBonusBusy(false);
+    }, 520);
+  }
+
+  function closeHoldAndWin() {
+    setHoldState(null);
+    setHoldBought(false);
+    setUiState("Idle");
   }
 
   return (
@@ -211,6 +274,11 @@ export function SlotMachine({ game }: { game: SlotConfig }) {
       </div>
       <div className="slot-header">
         <div className="game-heading">
+          {onExit && (
+            <button className="ghost-button icon-only game-back-button" onClick={onExit} title="Back to lobby">
+              <ArrowLeft size={18} />
+            </button>
+          )}
           <GameLogo game={game} small />
           <div>
             <p className="eyebrow">{game.theme}</p>
@@ -246,30 +314,70 @@ export function SlotMachine({ game }: { game: SlotConfig }) {
           {lastResult?.holdAndWin && <strong>Hold and Win total {formatCoins(lastResult.holdAndWin.total)}</strong>}
           {lastResult?.wheelBonus && <strong>Wheel landed {lastResult.wheelBonus.segment}</strong>}
         </div>
-        <div className={`reel-stage ${lastResult?.payout ? "winning" : ""}`}>
-          {game.paylines.map((payline) => (
-            <div
-              className={`payline-trace ${lastResult?.lineWins.some((win) => win.paylineId === payline.id) ? "active" : ""} ${payline.id}`}
-              key={payline.id}
-            />
-          ))}
-          {Array.from({ length: game.rowCount }, (_, row) =>
-            Array.from({ length: game.reelCount }, (_, reel) => {
-              const symbolId = grid[reel]?.[row] ?? game.symbols[0].id;
-              const active = Boolean(lastResult?.winningPositions.some((position) => position.reel === reel && position.row === row));
-              return (
-                <SymbolTile
-                  game={game}
-                  symbolId={symbolId}
-                  active={active}
-                  spinning={spinning}
-                  key={`${reel}-${row}-${symbolId}`}
+        <div className={`reel-stage frontier-reel-stage ${lastResult?.payout ? "winning" : ""} ${holdState ? "hold-mode" : ""}`}>
+          {holdState ? (
+            <div className="hold-and-win-board">
+              <div className="hold-title">
+                <strong>HOLD AND WIN</strong>
+                <span>{holdState.finished ? "Bonus Complete" : `${holdState.respinsRemaining} respins remaining`}</span>
+              </div>
+              <div className="hold-grid">
+                {holdState.values.map((value, index) => (
+                  <div className={`hold-cell ${value ? "locked" : ""} ${holdState.lastNewCoins.includes(index) ? "new" : ""}`} key={index}>
+                    {value ? (
+                      <>
+                        <span>🪙</span>
+                        <strong>{formatCoins(value)}</strong>
+                      </>
+                    ) : (
+                      <em>Spin</em>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="hold-total">
+                <span>Bonus Total</span>
+                <strong>{formatCoins(holdState.total)}</strong>
+              </div>
+              <button className="spin-button" disabled={bonusBusy || holdState.finished} onClick={respinHoldAndWin}>
+                {bonusBusy ? "Respinning" : holdState.finished ? "Complete" : "Respin"}
+              </button>
+              {holdState.finished && (
+                <button className="primary-button" onClick={closeHoldAndWin}>
+                  Collect
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              {game.paylines.map((payline) => (
+                <div
+                  className={`payline-trace ${lastResult?.lineWins.some((win) => win.paylineId === payline.id) ? "active" : ""} ${payline.id}`}
+                  key={payline.id}
                 />
-              );
-            }),
+              ))}
+              {Array.from({ length: game.rowCount }, (_, row) =>
+                Array.from({ length: game.reelCount }, (_, reel) => {
+                  const symbolId = grid[reel]?.[row] ?? game.symbols[0].id;
+                  const active = Boolean(
+                    lastResult?.winningPositions.some((position) => position.reel === reel && position.row === row) ||
+                    (lastResult?.triggeredHoldAndWin && symbolId === game.bonusSymbol)
+                  );
+                  return (
+                    <SymbolTile
+                      game={game}
+                      symbolId={symbolId}
+                      active={active}
+                      spinning={spinning}
+                      key={`${reel}-${row}-${symbolId}`}
+                    />
+                  );
+                }),
+              )}
+            </>
           )}
           {overlayResult ? (
-            <div className={`big-win-overlay ${overlayResult.winTier.toLowerCase()}`}>
+            <button className={`big-win-overlay ${overlayResult.winTier.toLowerCase()}`} onClick={() => setOverlayResult(null)}>
               {overlayResult.triggeredHoldAndWin ? "Hold And Win" : overlayResult.triggeredWheelBonus ? "Wheel Bonus" : overlayResult.winTier === "MEGA" ? "Mega Win" : overlayResult.winTier === "BIG" ? "Big Win" : "Small Win"}
               <span>{formatCoins(overlayResult.payout)}</span>
               {overlayResult.jackpotLabel && <small>{overlayResult.jackpotLabel} demo jackpot</small>}
@@ -277,7 +385,7 @@ export function SlotMachine({ game }: { game: SlotConfig }) {
               {overlayResult.wheelBonus && <small>Wheel segment: {overlayResult.wheelBonus.segment}</small>}
               {(overlayResult.winTier === "BIG" || overlayResult.winTier === "MEGA") && <div className="coin-burst" />}
               {overlayResult.winTier === "MEGA" && <div className="confetti-burst" />}
-            </div>
+            </button>
           ) : null}
         </div>
 

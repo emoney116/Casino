@@ -165,6 +165,15 @@ export interface HoldAndWinResult {
   filledAll: boolean;
 }
 
+export interface HoldAndWinState {
+  values: Array<number | null>;
+  respinsRemaining: number;
+  total: number;
+  finished: boolean;
+  filledAll: boolean;
+  lastNewCoins: number[];
+}
+
 export interface WheelBonusResult {
   segment: string;
   multiplier: number;

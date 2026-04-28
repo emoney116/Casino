@@ -1,6 +1,6 @@
-import { slotConfigs } from "./slotConfigs";
+import { exposedSlotConfigs, slotConfigs } from "./slotConfigs";
 import { simulateSlot } from "./slotMath";
-import { buyBonusFeature, calculateHoldAndWinBonus, calculateNeonCascadeResult, calculateSlotResult, calculateWheelBonus, creditPickBonus, spinSlot } from "./slotEngine";
+import { buyBonusDebit, buyBonusFeature, calculateHoldAndWinBonus, calculateNeonCascadeResult, calculateSlotResult, calculateWheelBonus, createHoldAndWinState, creditHoldAndWinBonus, creditPickBonus, spinSlot, stepHoldAndWinBonus } from "./slotEngine";
 import { creditCurrency, getBalance, getTransactions } from "../wallet/walletService";
 import type { User } from "../types";
 import { clearRecentGames, getRecentGames, recordRecentGame } from "./recentGames";
@@ -41,6 +41,10 @@ const user: User = {
 };
 
 creditCurrency({ userId: user.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 1000 });
+if (exposedSlotConfigs.length !== 1 || exposedSlotConfigs[0].id !== "frontier-fortune") {
+  throw new Error("Expected only Frontier Fortune to be exposed.");
+}
+
 const game = slotConfigs.find((candidate) => candidate.id === "neon-fortune") ?? slotConfigs[0];
 const result = spinSlot({ user, game, currency: "GOLD", betAmount: game.minBet });
 const transactions = getTransactions(user.id);
@@ -148,6 +152,41 @@ if (buyResult.payout > 0 && !buyTransactions.some((tx) => tx.type === "BONUS_WIN
   throw new Error("Expected bonus win ledger entry.");
 }
 if (buyTransactions.length <= buyTxBefore) throw new Error("Expected buy bonus to add transactions.");
+const debitOnlyUser: User = {
+  ...user,
+  id: "buy-bonus-debit-only-user",
+  email: "buy-debit@test.local",
+};
+creditCurrency({ userId: debitOnlyUser.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 500000 });
+const debitOnlyBefore = getTransactions(debitOnlyUser.id).filter((tx) => tx.type === "BUY_BONUS").length;
+buyBonusDebit({ user: debitOnlyUser, game: frontier, currency: "GOLD", betAmount: frontier.minBet });
+if (getTransactions(debitOnlyUser.id).filter((tx) => tx.type === "BUY_BONUS").length !== debitOnlyBefore + 1) {
+  throw new Error("Expected buy bonus debit-only ledger entry.");
+}
+
+let holdState = createHoldAndWinState(frontier, frontier.minBet, 3);
+if (holdState.respinsRemaining !== 3 || holdState.values.filter((value) => value !== null).length < 3) {
+  throw new Error("Expected Hold and Win to start with locked coins and 3 respins.");
+}
+const resetCandidate = { ...holdState, values: holdState.values.map((value, index) => index < 10 ? value ?? frontier.minBet : null), respinsRemaining: 1, finished: false };
+let sawReset = false;
+for (let index = 0; index < 200; index += 1) {
+  const stepped = stepHoldAndWinBonus(frontier, frontier.minBet, resetCandidate);
+  if (stepped.lastNewCoins.length > 0 && stepped.respinsRemaining === 3) {
+    sawReset = true;
+    break;
+  }
+}
+if (!sawReset) throw new Error("Expected new Hold and Win coins to reset respins to 3.");
+for (let index = 0; index < 60 && !holdState.finished; index += 1) {
+  holdState = stepHoldAndWinBonus(frontier, frontier.minBet, holdState);
+}
+if (!holdState.finished) throw new Error("Expected Hold and Win bonus to end.");
+const holdCreditBefore = getTransactions(debitOnlyUser.id).filter((tx) => tx.type === "BONUS_WIN" || tx.type === "JACKPOT_WIN").length;
+creditHoldAndWinBonus({ user: debitOnlyUser, game: frontier, currency: "GOLD", betAmount: frontier.minBet, state: holdState, buyBonus: true });
+if (getTransactions(debitOnlyUser.id).filter((tx) => tx.type === "BONUS_WIN" || tx.type === "JACKPOT_WIN").length !== holdCreditBefore + 1) {
+  throw new Error("Expected final Hold and Win credit ledger entry.");
+}
 try {
   buyBonusFeature({ user, game: frontier, currency: "BONUS", betAmount: frontier.minBet });
   throw new Error("Expected buy bonus insufficient balance.");

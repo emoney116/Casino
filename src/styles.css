@@ -567,6 +567,380 @@ th { color: #a9b4c7; font-size: 0.78rem; text-transform: uppercase; }
   .toast { width: 100%; }
 }
 
+/* Frontier-only focused game mode. */
+.game-mode .main-panel {
+  padding: 0;
+}
+
+.game-mode .balance-strip,
+.game-mode .mobile-header,
+.game-mode .mobile-compliance {
+  display: none;
+}
+
+.flagship-game-page {
+  gap: 0;
+}
+
+.flagship-game-page .game-selector {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.flagship-game-page .premium-slot-shell {
+  min-height: 100vh;
+  border: 0;
+  border-radius: 0;
+}
+
+.frontier.premium-slot-shell::before,
+.frontier.premium-slot-shell::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.frontier.premium-slot-shell::before {
+  inset: 0;
+  background:
+    radial-gradient(circle at 16% 18%, rgba(255,245,157,0.38), transparent 9rem),
+    linear-gradient(165deg, rgba(56,189,248,0.24), transparent 32%),
+    linear-gradient(180deg, rgba(252,165,85,0.28), transparent 58%);
+}
+
+.frontier.premium-slot-shell::after {
+  left: -10%;
+  right: -10%;
+  bottom: 0;
+  height: 34%;
+  background:
+    radial-gradient(ellipse at 25% 100%, rgba(249,115,22,0.48), transparent 42%),
+    radial-gradient(ellipse at 75% 100%, rgba(185,91,32,0.42), transparent 44%),
+    linear-gradient(180deg, transparent, rgba(88,37,19,0.86));
+}
+
+.frontier .jackpot-banner strong {
+  text-transform: uppercase;
+  color: #f8fafc;
+  background:
+    linear-gradient(180deg, rgba(56,189,248,0.26), rgba(15,23,42,0.18)),
+    linear-gradient(135deg, rgba(249,115,22,0.62), rgba(14,116,144,0.62));
+}
+
+.frontier .jackpot-banner strong:nth-child(2) {
+  color: #fef3c7;
+  background: linear-gradient(135deg, rgba(236,72,153,0.72), rgba(249,115,22,0.75));
+}
+
+.frontier .slot-header {
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.game-back-button {
+  flex: 0 0 auto;
+}
+
+.frontier .slot-header h1 {
+  font-size: clamp(1.55rem, 4vw, 2.6rem);
+}
+
+.frontier .slot-board {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.frontier .frontier-reel-stage {
+  min-height: min(54vh, 520px);
+  background:
+    linear-gradient(90deg, rgba(65,18,18,0.86), rgba(25,12,32,0.92)),
+    repeating-linear-gradient(90deg, transparent 0 19%, rgba(255,255,255,0.05) 19% 20%);
+}
+
+.frontier .symbol-tile {
+  border-radius: 10px;
+  border-width: 2px;
+}
+
+.frontier .symbol-tile span {
+  font-size: clamp(1.7rem, 4vw, 3.8rem);
+}
+
+.frontier .symbol-tile small {
+  color: #172033;
+  text-transform: uppercase;
+}
+
+.frontier .symbol-tile.spinning:nth-child(5n + 1) { animation-delay: 0ms; }
+.frontier .symbol-tile.spinning:nth-child(5n + 2) { animation-delay: 90ms; }
+.frontier .symbol-tile.spinning:nth-child(5n + 3) { animation-delay: 180ms; }
+.frontier .symbol-tile.spinning:nth-child(5n + 4) { animation-delay: 270ms; }
+.frontier .symbol-tile.spinning:nth-child(5n) { animation-delay: 360ms; }
+
+.hold-and-win-board {
+  grid-column: 1 / -1;
+  width: min(640px, 100%);
+  margin: auto;
+  display: grid;
+  gap: 12px;
+  align-content: center;
+}
+
+.hold-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  color: #f8fafc;
+  text-transform: uppercase;
+}
+
+.hold-title strong {
+  font-size: clamp(1.2rem, 4vw, 2rem);
+  color: #fef3c7;
+  text-shadow: 0 0 20px rgba(249,115,22,0.8);
+}
+
+.hold-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.hold-cell {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  gap: 3px;
+  border-radius: 12px;
+  background: rgba(15,23,42,0.74);
+  border: 1px dashed rgba(255,255,255,0.18);
+  color: #94a3b8;
+}
+
+.hold-cell.locked {
+  color: #fef3c7;
+  border-style: solid;
+  border-color: rgba(253,224,71,0.72);
+  background:
+    radial-gradient(circle at 50% 32%, rgba(253,224,71,0.3), transparent 44%),
+    linear-gradient(145deg, rgba(113,63,18,0.84), rgba(15,23,42,0.8));
+  box-shadow: 0 0 20px rgba(253,224,71,0.2);
+}
+
+.hold-cell.new {
+  animation: winGlow 650ms ease infinite alternate;
+}
+
+.hold-cell span {
+  font-size: clamp(1.25rem, 5vw, 2.4rem);
+}
+
+.hold-cell strong {
+  font-size: clamp(0.72rem, 2vw, 1rem);
+}
+
+.hold-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.34);
+  border: 1px solid rgba(253,224,71,0.24);
+}
+
+.big-win-overlay {
+  cursor: pointer;
+  border: 0;
+}
+
+@media (min-width: 1021px) {
+  .game-mode .sidebar {
+    display: none;
+  }
+
+  .game-mode.shell {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .flagship-game-page .premium-slot-shell {
+    min-height: 100dvh;
+    height: 100dvh;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    padding: 8px;
+  }
+
+  .frontier .jackpot-banner {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-bottom: 6px;
+  }
+
+  .frontier .jackpot-banner span {
+    display: none;
+  }
+
+  .frontier .jackpot-banner strong {
+    min-height: 32px;
+    font-size: 0.64rem;
+  }
+
+  .frontier .slot-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+  }
+
+  .frontier .game-heading {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .frontier .game-heading .game-back-button {
+    grid-row: 1;
+    grid-column: 1;
+  }
+
+  .frontier .game-heading .game-logo {
+    display: none;
+  }
+
+  .frontier .slot-header h1 {
+    font-size: 1.35rem;
+    margin-bottom: 2px;
+  }
+
+  .frontier .slot-header .muted {
+    display: none;
+  }
+
+  .frontier .slot-header-actions .icon-only {
+    display: none;
+  }
+
+  .frontier .slot-board {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "state"
+      "reels"
+      "controls";
+    gap: 8px;
+    min-height: 0;
+    align-content: end;
+    grid-template-rows: auto auto auto;
+  }
+
+  .frontier .slot-state-pill {
+    min-height: 36px;
+    padding: 8px 10px;
+  }
+
+  .frontier .frontier-reel-stage {
+    min-height: 0;
+    height: min(39dvh, 300px);
+    padding: 7px;
+    gap: 5px;
+  }
+
+  .frontier .symbol-tile span {
+    font-size: clamp(2rem, 11vw, 3rem);
+  }
+
+  .frontier .symbol-tile small {
+    display: none;
+  }
+
+  .frontier .slot-controls {
+    position: static;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+    padding: 9px;
+    border-radius: 12px;
+  }
+
+  .frontier .slot-controls label,
+  .frontier .quick-bets,
+  .frontier .meter,
+  .frontier .demo-copy,
+  .frontier .toggle-row,
+  .frontier .session-stats,
+  .frontier .slot-controls > .ghost-button.icon-button {
+    display: none;
+  }
+
+  .frontier .segmented,
+  .frontier .balance-line,
+  .frontier .bet-stepper,
+  .frontier .spin-button,
+  .frontier .buy-bonus-button,
+  .frontier .error-box {
+    grid-column: 1 / -1;
+  }
+
+  .frontier .balance-line {
+    order: -1;
+    text-align: center;
+    font-weight: 800;
+  }
+
+  .frontier .bet-stepper {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .frontier .spin-button,
+  .frontier .buy-bonus-button {
+    min-height: 48px;
+  }
+
+  .hold-and-win-board {
+    gap: 8px;
+  }
+
+  .hold-grid {
+    gap: 5px;
+  }
+
+  .hold-title {
+    display: grid;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .hold-total {
+    border-radius: 10px;
+  }
+
+  .frontier .card:not(.slot-controls) {
+    display: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .frontier .frontier-reel-stage {
+    height: min(40dvh, 292px);
+  }
+
+  .frontier .slot-controls {
+    gap: 6px;
+    padding: 7px;
+  }
+
+  .frontier .spin-button,
+  .frontier .buy-bonus-button {
+    min-height: 44px;
+  }
+}
+
 /* Premium arcade refresh: blue, purple, cyan, and magenta drive the visual system. */
 body {
   background:

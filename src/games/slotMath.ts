@@ -1,5 +1,5 @@
 import type { SimulationResult, SlotConfig } from "./types";
-import { buyBonusFeature, calculateNeonCascadeResult, calculateSlotResult } from "./slotEngine";
+import { buyBonusFeature, calculateHoldAndWinBonus, calculateNeonCascadeResult, calculateSlotResult } from "./slotEngine";
 import { creditCurrency } from "../wallet/walletService";
 import type { User } from "../types";
 
@@ -27,7 +27,8 @@ export function simulateSlot(game: SlotConfig, spins = 100000, betAmount = game.
       biggestWin = Math.max(biggestWin, freeResult.payout);
     }
     const pickAward = result.pickBonusAwards?.[0] ?? 0;
-    const totalResultPaid = result.payout + pickAward + freeSpinPaid;
+    const holdAward = result.triggeredHoldAndWin ? calculateHoldAndWinBonus(game, betAmount).total : 0;
+    const totalResultPaid = result.payout + pickAward + holdAward + freeSpinPaid;
     totalPaid += totalResultPaid;
     if (totalResultPaid > 0) hits += 1;
     if (result.triggeredBonus) bonusTriggers += 1;

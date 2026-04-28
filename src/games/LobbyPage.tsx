@@ -8,7 +8,7 @@ import { formatCoins } from "../lib/format";
 import { canClaimDailyBonus, claimDailyBonus, DAILY_BONUS_AMOUNT } from "../wallet/dailyBonusService";
 import { getBalance } from "../wallet/walletService";
 import { getRecentGames } from "./recentGames";
-import { slotConfigs } from "./slotConfigs";
+import { exposedSlotConfigs } from "./slotConfigs";
 import type { SlotConfig, Volatility } from "./types";
 import { getProgression } from "../progression/progressionService";
 import { ProgressionBar } from "../progression/ProgressionBar";
@@ -31,16 +31,16 @@ export function LobbyPage({ onPlay, onWallet }: { onPlay: (gameId: string) => vo
   const dailyAvailable = canClaimDailyBonus(currentUser);
   const filteredGames = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return slotConfigs.filter((game) => {
+    return exposedSlotConfigs.filter((game) => {
       const matchesSearch = !term || `${game.name} ${game.theme}`.toLowerCase().includes(term);
       const matchesVolatility = volatility === "All" || game.volatility === volatility;
       return matchesSearch && matchesVolatility;
     });
   }, [search, volatility]);
   const recent = getRecentGames()
-    .map((id) => slotConfigs.find((game) => game.id === id))
+    .map((id) => exposedSlotConfigs.find((game) => game.id === id))
     .filter(Boolean)
-    .slice(0, 3) as typeof slotConfigs;
+    .slice(0, 3) as SlotConfig[];
 
   function claim() {
     try {
@@ -102,11 +102,10 @@ export function LobbyPage({ onPlay, onWallet }: { onPlay: (gameId: string) => vo
         <GameSection title="Filtered Games" games={filteredGames} onPlay={onPlay} emptyText="No games match those filters." />
       ) : (
         <>
-          <GameSection title="Favorites" games={favorites.map((id) => slotConfigs.find((game) => game.id === id)).filter(Boolean) as SlotConfig[]} onPlay={onPlay} emptyText="No favorites yet. Tap the star on any game tile." favorites={favorites} onToggleFavorite={(id) => { toggleFavorite(currentUser.id, id); setVersion((value) => value + 1); }} />
-          <GameSection title="Featured Games" games={slotConfigs} onPlay={onPlay} favorites={favorites} onToggleFavorite={(id) => { toggleFavorite(currentUser.id, id); setVersion((value) => value + 1); }} />
-          <GameSection title="New Releases" games={[slotConfigs[2], slotConfigs[3], slotConfigs[4]]} onPlay={onPlay} />
-          <GameSection title="High Volatility" games={slotConfigs.filter((game) => game.volatility === "High")} onPlay={onPlay} />
-          <GameSection title="Bonus Games" games={slotConfigs.filter((game) => game.freeSpins || game.pickBonus)} onPlay={onPlay} />
+          <GameSection title="Favorites" games={favorites.map((id) => exposedSlotConfigs.find((game) => game.id === id)).filter(Boolean) as SlotConfig[]} onPlay={onPlay} emptyText="No favorites yet. Tap the star on any game tile." favorites={favorites} onToggleFavorite={(id) => { toggleFavorite(currentUser.id, id); setVersion((value) => value + 1); }} />
+          <GameSection title="Featured Flagship" games={exposedSlotConfigs} onPlay={onPlay} favorites={favorites} onToggleFavorite={(id) => { toggleFavorite(currentUser.id, id); setVersion((value) => value + 1); }} />
+          <GameSection title="Hold and Win" games={exposedSlotConfigs.filter((game) => game.featureTypes?.includes("HOLD_AND_WIN"))} onPlay={onPlay} />
+          <GameSection title="Bonus Game" games={exposedSlotConfigs.filter((game) => game.buyBonus?.enabled)} onPlay={onPlay} />
           <GameSection title="Recently Played" games={recent} onPlay={onPlay} emptyText="No recently played games yet. Pick a game to start your history." />
         </>
       )}

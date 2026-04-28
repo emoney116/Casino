@@ -25,13 +25,15 @@ export const slotConfigs: SlotConfig[] = [
     featureTypes: ["HOLD_AND_WIN"],
     specialSymbols: { wild: "wild", bonus: "coin", coin: "coin", collector: "eagle" },
     symbols: [
-      { id: "eagle", label: "Eagle", icon: "EGL", weight: 7, color: "#93c5fd" },
-      { id: "bison", label: "Bison", icon: "BIS", weight: 8, color: "#f97316" },
-      { id: "wolf", label: "Wolf", icon: "WLF", weight: 12, color: "#a78bfa" },
-      { id: "cougar", label: "Cougar", icon: "CGR", weight: 14, color: "#22d3ee" },
-      { id: "canyon", label: "Canyon", icon: "CAN", weight: 20, color: "#fb7185" },
+      { id: "bison", label: "Buffalo", icon: "🐃", weight: 8, color: "#f97316" },
+      { id: "eagle", label: "Eagle", icon: "🦅", weight: 8, color: "#93c5fd" },
+      { id: "wolf", label: "Wolf", icon: "🐺", weight: 12, color: "#a78bfa" },
+      { id: "cougar", label: "Cougar", icon: "🐾", weight: 14, color: "#22d3ee" },
+      { id: "canyon", label: "Canyon", icon: "🏜️", weight: 20, color: "#fb7185" },
       { id: "wild", label: "Wild", icon: "WILD", weight: 4, kind: "wild", color: "#f0abfc" },
-      { id: "coin", label: "Coin Bonus", icon: "COIN", weight: 7, kind: "coin", color: "#fde047" },
+      { id: "scatter", label: "Scatter", icon: "🌵", weight: 3, kind: "scatter", color: "#34d399" },
+      { id: "bonus", label: "Bonus", icon: "⭐", weight: 3, kind: "bonus", color: "#f0abfc" },
+      { id: "coin", label: "Coin", icon: "🪙", weight: 7, kind: "coin", color: "#fde047" },
     ],
     waysToWin: "8 canyon paylines",
     payoutTable: [
@@ -42,7 +44,7 @@ export const slotConfigs: SlotConfig[] = [
       { symbol: "canyon", count: 3, multiplier: 10 },
     ],
     twoMatchMultiplier: 0,
-    scatterSymbol: "coin",
+    scatterSymbol: "scatter",
     bonusSymbol: "coin",
     bonusFeature: { meterPerSpin: 9 },
     freeSpins: { triggerCount: 99, awarded: [0, 0], winMultiplier: 1, retrigger: false },
@@ -355,6 +357,8 @@ export const slotConfigs: SlotConfig[] = [
   },
 ];
 
+export const exposedSlotConfigs = slotConfigs.filter((game) => game.id === "frontier-fortune");
+
 export function getSlotConfig(gameId: string) {
-  return slotConfigs.find((game) => game.id === gameId) ?? slotConfigs[0];
+  return slotConfigs.find((game) => game.id === gameId) ?? exposedSlotConfigs[0];
 }

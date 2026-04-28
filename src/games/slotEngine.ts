@@ -1,6 +1,6 @@
 import { creditCurrency, debitCurrency } from "../wallet/walletService";
 import type { Currency, User } from "../types";
-import type { BonusFeatureType, HoldAndWinResult, SlotConfig, SlotSpinInput, SlotSpinResult, WheelBonusResult } from "./types";
+import type { BonusFeatureType, HoldAndWinResult, HoldAndWinState, SlotConfig, SlotSpinInput, SlotSpinResult, WheelBonusResult } from "./types";
 
 function pickWeightedSymbol(game: SlotConfig) {
   const total = game.symbols.reduce((sum, symbol) => sum + symbol.weight, 0);
@@ -97,31 +97,68 @@ function coinAward(game: SlotConfig, betAmount: number) {
   return Math.round(betAmount * randomFrom(multipliers));
 }
 
-export function calculateHoldAndWinBonus(game: SlotConfig, betAmount: number): HoldAndWinResult {
+export function createHoldAndWinState(game: SlotConfig, betAmount: number, startingCoins = 3): HoldAndWinState {
   const positions = game.reelCount * game.rowCount;
-  let lockedCoins = Math.min(positions, 3 + Math.floor(Math.random() * 3));
-  let total = Array.from({ length: lockedCoins }, () => coinAward(game, betAmount)).reduce((sum, value) => sum + value, 0);
-  let respinsRemaining = 3;
+  const values: Array<number | null> = Array.from({ length: positions }, () => null);
+  const used = new Set<number>();
+  while (used.size < Math.min(startingCoins, positions)) {
+    used.add(Math.floor(Math.random() * positions));
+  }
+  used.forEach((position) => {
+    values[position] = coinAward(game, betAmount);
+  });
+  const total = values.reduce<number>((sum, value) => sum + (value ?? 0), 0);
+  return {
+    values,
+    respinsRemaining: 3,
+    total,
+    finished: false,
+    filledAll: values.every((value) => value !== null),
+    lastNewCoins: [...used],
+  };
+}
+
+export function stepHoldAndWinBonus(game: SlotConfig, betAmount: number, state: HoldAndWinState): HoldAndWinState {
+  if (state.finished) return state;
+  const values = [...state.values];
+  const lastNewCoins: number[] = [];
+  values.forEach((value, index) => {
+    if (value === null && Math.random() < 0.18) {
+      values[index] = coinAward(game, betAmount);
+      lastNewCoins.push(index);
+    }
+  });
+  const filledAll = values.every((value) => value !== null);
+  const respinsRemaining = filledAll ? 0 : lastNewCoins.length > 0 ? 3 : state.respinsRemaining - 1;
+  const total = Math.min(
+    values.reduce<number>((sum, value) => sum + (value ?? 0), 0) + (filledAll ? Math.round(betAmount * 60) : 0),
+    maxWinFor(game, betAmount),
+  );
+  return {
+    values,
+    respinsRemaining,
+    total,
+    finished: filledAll || respinsRemaining <= 0,
+    filledAll,
+    lastNewCoins,
+  };
+}
+
+export function calculateHoldAndWinBonus(game: SlotConfig, betAmount: number): HoldAndWinResult {
+  let state = createHoldAndWinState(game, betAmount, 3 + Math.floor(Math.random() * 3));
   const respinRounds: HoldAndWinResult["respinRounds"] = [];
 
-  while (respinsRemaining > 0 && lockedCoins < positions) {
-    const empty = positions - lockedCoins;
-    const newCoins = Array.from({ length: empty }).filter(() => Math.random() < 0.18).length;
-    if (newCoins > 0) {
-      lockedCoins += newCoins;
-      total += Array.from({ length: newCoins }, () => coinAward(game, betAmount)).reduce((sum, value) => sum + value, 0);
-      respinsRemaining = 3;
-    } else {
-      respinsRemaining -= 1;
-    }
-    respinRounds.push({ respinsRemaining, newCoins, lockedCoins, total });
+  while (!state.finished) {
+    state = stepHoldAndWinBonus(game, betAmount, state);
+    respinRounds.push({
+      respinsRemaining: state.respinsRemaining,
+      newCoins: state.lastNewCoins.length,
+      lockedCoins: state.values.filter((value) => value !== null).length,
+      total: state.total,
+    });
   }
 
-  const filledAll = lockedCoins >= positions;
-  if (filledAll) {
-    total += Math.round(betAmount * 60);
-  }
-  return { total: Math.min(total, maxWinFor(game, betAmount)), respinRounds, filledAll };
+  return { total: state.total, respinRounds, filledAll: state.filledAll };
 }
 
 export function calculateWheelBonus(game: SlotConfig, betAmount: number): WheelBonusResult {
@@ -220,9 +257,6 @@ export function calculateSlotResult(
   }
 
   if (triggeredHoldAndWin) {
-    holdAndWin = calculateHoldAndWinBonus(game, betAmount);
-    bonusPayout += holdAndWin.total;
-    jackpotLabel = holdAndWin.filledAll ? "Grand" : undefined;
     winType = "HOLD_AND_WIN";
   }
 
@@ -355,6 +389,68 @@ export function creditPickBonus({
   });
 }
 
+export function buyBonusDebit({
+  user,
+  game,
+  currency,
+  betAmount,
+}: {
+  user: User;
+  game: SlotConfig;
+  currency: Currency;
+  betAmount: number;
+}) {
+  if (!game.buyBonus?.enabled) throw new Error("Buy bonus is not available for this game.");
+  if (betAmount < game.minBet || betAmount > game.maxBet) throw new Error("Bet amount is outside this game's limits.");
+  const cost = Math.round(betAmount * game.buyBonus.costMultiplier);
+  return debitCurrency({
+    userId: user.id,
+    type: "BUY_BONUS",
+    currency,
+    amount: cost,
+    metadata: {
+      gameId: game.id,
+      gameName: game.name,
+      featureType: game.buyBonus.featureType,
+      demoOnly: true,
+    },
+  });
+}
+
+export function creditHoldAndWinBonus({
+  user,
+  game,
+  currency,
+  betAmount,
+  state,
+  buyBonus = false,
+}: {
+  user: User;
+  game: SlotConfig;
+  currency: Currency;
+  betAmount: number;
+  state: HoldAndWinState;
+  buyBonus?: boolean;
+}) {
+  const amount = Math.min(state.total, maxWinFor(game, betAmount));
+  if (amount <= 0) throw new Error("Hold and Win award must be positive.");
+  return creditCurrency({
+    userId: user.id,
+    type: state.filledAll ? "JACKPOT_WIN" : "BONUS_WIN",
+    currency,
+    amount,
+    metadata: {
+      gameId: game.id,
+      gameName: game.name,
+      winType: "HOLD_AND_WIN",
+      buyBonus,
+      filledAll: state.filledAll,
+      lockedCoins: state.values.filter((value) => value !== null).length,
+      demoOnly: true,
+    },
+  });
+}
+
 export function buyBonusFeature({
   user,
   game,
@@ -369,18 +465,7 @@ export function buyBonusFeature({
   if (!game.buyBonus?.enabled) throw new Error("Buy bonus is not available for this game.");
   if (betAmount < game.minBet || betAmount > game.maxBet) throw new Error("Bet amount is outside this game's limits.");
   const cost = Math.round(betAmount * game.buyBonus.costMultiplier);
-  debitCurrency({
-    userId: user.id,
-    type: "BUY_BONUS",
-    currency,
-    amount: cost,
-    metadata: {
-      gameId: game.id,
-      gameName: game.name,
-      featureType: game.buyBonus.featureType,
-      demoOnly: true,
-    },
-  });
+  buyBonusDebit({ user, game, currency, betAmount });
 
   const feature = calculateDirectFeature(game, betAmount, game.buyBonus.featureType);
   const payout = Math.min(feature.bonusPayout, maxWinFor(game, betAmount));

@@ -33,6 +33,20 @@ export function PaytableModal({ game, onClose }: { game: SlotConfig; onClose: ()
           {game.buyBonus?.enabled ? ` Buy Bonus costs ${game.buyBonus.costMultiplier}x the current bet and starts ${game.buyBonus.featureType.replaceAll("_", " ")}.` : ""}
           Jackpot labels and bonus awards are demo virtual-coin values only.
         </div>
+        {game.featureTypes?.includes("HOLD_AND_WIN") && (
+          <div className="notice-card">
+            Hold and Win: landing 3 or more coin symbols starts the bonus. Coin positions lock,
+            you begin with 3 respins, and any new coin resets respins back to 3. Filling every
+            position awards the Grand demo jackpot, capped by the game max payout.
+          </div>
+        )}
+        {game.jackpotLabels && (
+          <div className="rules-grid">
+            {Object.entries(game.jackpotLabels).map(([label, value]) => (
+              <div key={label}><span>{label}</span><strong>{value}</strong></div>
+            ))}
+          </div>
+        )}
       </div>
     </Modal>
   );

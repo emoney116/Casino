@@ -1,27 +1,30 @@
 import { useEffect } from "react";
-import { GameCard } from "../components/GameCard";
-import { getSlotConfig, slotConfigs } from "./slotConfigs";
+import { getSlotConfig, exposedSlotConfigs } from "./slotConfigs";
 import { SlotMachine } from "./SlotMachine";
 
 export function GamesPage({
   activeGameId,
   onGameChange,
+  onExit,
 }: {
   activeGameId: string | null;
   onGameChange: (gameId: string | null) => void;
+  onExit?: () => void;
 }) {
   const game = activeGameId ? getSlotConfig(activeGameId) : null;
 
   useEffect(() => {
-    if (!activeGameId) onGameChange(slotConfigs[0].id);
+    if (!activeGameId || !exposedSlotConfigs.some((candidate) => candidate.id === activeGameId)) {
+      onGameChange(exposedSlotConfigs[0].id);
+    }
   }, [activeGameId, onGameChange]);
 
   if (!game) return null;
 
   return (
-    <section className="page-stack">
+    <section className="page-stack flagship-game-page">
       <div className="game-selector">
-        {slotConfigs.map((candidate) => (
+        {exposedSlotConfigs.map((candidate) => (
           <button
             className={candidate.id === game.id ? "active" : ""}
             key={candidate.id}
@@ -31,20 +34,7 @@ export function GamesPage({
           </button>
         ))}
       </div>
-      <SlotMachine game={game} />
-      <section className="page-stack">
-        <div className="section-title">
-          <h2>More Games</h2>
-          <span>Virtual coins only</span>
-        </div>
-        <div className="game-grid compact">
-          {slotConfigs
-            .filter((candidate) => candidate.id !== game.id)
-            .map((candidate) => (
-              <GameCard key={candidate.id} game={candidate} onPlay={onGameChange} />
-            ))}
-        </div>
-      </section>
+      <SlotMachine game={game} onExit={onExit} />
     </section>
   );
 }
