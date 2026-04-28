@@ -1,6 +1,6 @@
 import { slotConfigs } from "./slotConfigs";
 import { simulateSlot } from "./slotMath";
-import { calculateNeonCascadeResult, calculateSlotResult, creditPickBonus, spinSlot } from "./slotEngine";
+import { buyBonusFeature, calculateHoldAndWinBonus, calculateNeonCascadeResult, calculateSlotResult, calculateWheelBonus, creditPickBonus, spinSlot } from "./slotEngine";
 import { creditCurrency, getBalance, getTransactions } from "../wallet/walletService";
 import type { User } from "../types";
 import { clearRecentGames, getRecentGames, recordRecentGame } from "./recentGames";
@@ -41,7 +41,7 @@ const user: User = {
 };
 
 creditCurrency({ userId: user.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 1000 });
-const game = slotConfigs[0];
+const game = slotConfigs.find((candidate) => candidate.id === "neon-fortune") ?? slotConfigs[0];
 const result = spinSlot({ user, game, currency: "GOLD", betAmount: game.minBet });
 const transactions = getTransactions(user.id);
 
@@ -115,6 +115,44 @@ const sim = simulateSlot(game, 1000, game.minBet);
 if (!Number.isFinite(sim.observedRtp)) throw new Error("Simulation did not produce RTP.");
 if (!Number.isFinite(sim.freeSpinTriggerRate) || !Number.isFinite(sim.pickBonusTriggerRate)) {
   throw new Error("Simulation did not produce bonus trigger rates.");
+}
+if (!Number.isFinite(sim.holdAndWinTriggerRate ?? 0) || !Number.isFinite(sim.wheelBonusTriggerRate ?? 0)) {
+  throw new Error("Simulation did not produce premium bonus trigger rates.");
+}
+
+const frontier = slotConfigs.find((candidate) => candidate.id === "frontier-fortune");
+if (!frontier) throw new Error("Expected Frontier Fortune config.");
+const holdBonus = calculateHoldAndWinBonus(frontier, frontier.minBet);
+if (!Number.isFinite(holdBonus.total) || holdBonus.respinRounds.length === 0) {
+  throw new Error("Expected hold-and-win respins to calculate.");
+}
+
+const electric = slotConfigs.find((candidate) => candidate.id === "electric-millions");
+if (!electric) throw new Error("Expected Electric Millions config.");
+const wheel = calculateWheelBonus(electric, electric.minBet);
+if (!Number.isFinite(wheel.payout) || wheel.payout <= 0) {
+  throw new Error("Expected wheel bonus payout.");
+}
+
+const buyBonusUser: User = {
+  ...user,
+  id: "buy-bonus-test-user",
+  email: "buy@test.local",
+};
+creditCurrency({ userId: buyBonusUser.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 500000 });
+const buyTxBefore = getTransactions(buyBonusUser.id).length;
+const buyResult = buyBonusFeature({ user: buyBonusUser, game: frontier, currency: "GOLD", betAmount: frontier.minBet });
+const buyTransactions = getTransactions(buyBonusUser.id);
+if (!buyTransactions.some((tx) => tx.type === "BUY_BONUS")) throw new Error("Expected buy bonus debit ledger entry.");
+if (buyResult.payout > 0 && !buyTransactions.some((tx) => tx.type === "BONUS_WIN" || tx.type === "JACKPOT_WIN")) {
+  throw new Error("Expected bonus win ledger entry.");
+}
+if (buyTransactions.length <= buyTxBefore) throw new Error("Expected buy bonus to add transactions.");
+try {
+  buyBonusFeature({ user, game: frontier, currency: "BONUS", betAmount: frontier.minBet });
+  throw new Error("Expected buy bonus insufficient balance.");
+} catch (error) {
+  if (!(error instanceof Error) || error.message !== "Insufficient balance.") throw error;
 }
 
 const xpBefore = getProgression(user.id).xp;

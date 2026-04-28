@@ -1,14 +1,14 @@
 import type { Currency, User } from "../types";
 
 export type Volatility = "Low" | "Medium" | "High";
-export type BonusFeatureType = "FREE_SPINS" | "PICK_BONUS";
+export type BonusFeatureType = "FREE_SPINS" | "HOLD_AND_WIN" | "WHEEL_BONUS" | "PICK_BONUS";
 
 export interface SlotSymbol {
   id: string;
   label: string;
   icon: string;
   weight: number;
-  kind?: "regular" | "wild" | "scatter" | "bonus";
+  kind?: "regular" | "wild" | "scatter" | "bonus" | "coin" | "multiplier" | "collector";
   color?: string;
 }
 
@@ -32,6 +32,26 @@ export interface SlotConfig {
   volatility: Volatility;
   targetRtp: number;
   maxPayoutMultiplier: number;
+  jackpotLabels?: {
+    Grand: string;
+    Major: string;
+    Minor: string;
+    Mini: string;
+  };
+  buyBonus?: {
+    enabled: boolean;
+    costMultiplier: number;
+    featureType: BonusFeatureType;
+  };
+  featureTypes?: BonusFeatureType[];
+  specialSymbols?: {
+    wild?: string;
+    scatter?: string;
+    bonus?: string;
+    coin?: string;
+    multiplier?: string;
+    collector?: string;
+  };
   payoutTable: PayoutRule[];
   twoMatchMultiplier: number;
   scatterSymbol: string;
@@ -60,6 +80,8 @@ export interface SlotConfig {
     secondary: string;
     panel: string;
     logo: string;
+    background?: string;
+    cabinet?: string;
   };
 }
 
@@ -83,7 +105,7 @@ export interface SlotSpinResult {
   wager: number;
   payout: number;
   multiplier: number;
-  winType: "LOSS" | "LINE_WIN" | "BIG_WIN" | "FREE_SPINS" | "PICK_BONUS";
+  winType: "LOSS" | "LINE_WIN" | "BIG_WIN" | "FREE_SPINS" | "PICK_BONUS" | "HOLD_AND_WIN" | "WHEEL_BONUS" | "BUY_BONUS";
   winTier: "NONE" | "SMALL" | "BIG" | "MEGA";
   capped: boolean;
   lineWins: Array<{
@@ -103,6 +125,12 @@ export interface SlotSpinResult {
   triggeredBonus: boolean;
   triggeredFreeSpins: boolean;
   triggeredPickBonus: boolean;
+  triggeredHoldAndWin?: boolean;
+  triggeredWheelBonus?: boolean;
+  bonusPayout?: number;
+  jackpotLabel?: "Grand" | "Major" | "Minor" | "Mini";
+  holdAndWin?: HoldAndWinResult;
+  wheelBonus?: WheelBonusResult;
   cascades?: Array<{
     grid: string[][];
     payout: number;
@@ -121,4 +149,25 @@ export interface SimulationResult {
   bonusTriggerRate: number;
   freeSpinTriggerRate: number;
   pickBonusTriggerRate: number;
+  holdAndWinTriggerRate?: number;
+  wheelBonusTriggerRate?: number;
+  buyBonusRtp?: number;
+}
+
+export interface HoldAndWinResult {
+  total: number;
+  respinRounds: Array<{
+    respinsRemaining: number;
+    newCoins: number;
+    lockedCoins: number;
+    total: number;
+  }>;
+  filledAll: boolean;
+}
+
+export interface WheelBonusResult {
+  segment: string;
+  multiplier: number;
+  payout: number;
+  jackpotLabel?: "Grand" | "Major" | "Minor" | "Mini";
 }

@@ -176,6 +176,9 @@ export function AdminPage() {
                     <span>Bonus trigger</span><strong>{(sim.bonusTriggerRate * 100).toFixed(2)}%</strong>
                     <span>Free spins</span><strong>{(sim.freeSpinTriggerRate * 100).toFixed(2)}%</strong>
                     <span>Pick bonus</span><strong>{(sim.pickBonusTriggerRate * 100).toFixed(2)}%</strong>
+                    <span>Hold and win</span><strong>{((sim.holdAndWinTriggerRate ?? 0) * 100).toFixed(2)}%</strong>
+                    <span>Wheel bonus</span><strong>{((sim.wheelBonusTriggerRate ?? 0) * 100).toFixed(2)}%</strong>
+                    <span>Buy bonus RTP</span><strong>{sim.buyBonusRtp ? `${(sim.buyBonusRtp * 100).toFixed(2)}%` : "N/A"}</strong>
                   </div>
                 ) : (
                   <p className="muted">Run simulation to inspect rough observed RTP.</p>

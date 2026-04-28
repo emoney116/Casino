@@ -1,4 +1,4 @@
-import { Gauge, Info, ShoppingBag, Volume2, Zap } from "lucide-react";
+import { Gauge, Info, Menu, Minus, Plus, Settings, ShoppingBag, Volume2, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
@@ -11,10 +11,11 @@ import { recordSpinProgress } from "../progression/progressionService";
 import { playBigWin, playBonus, playClick, playSpin, playWin, setMuted } from "../feedback/feedbackService";
 import { BonusModal } from "./BonusModal";
 import { GameLogo } from "./GameLogo";
+import { Modal } from "../components/Modal";
 import { PaytableModal } from "./PaytableModal";
 import { recordRecentGame } from "./recentGames";
 import { nextFreeSpinTotal } from "./slotSession";
-import { creditPickBonus, generateGrid, spinSlot } from "./slotEngine";
+import { buyBonusFeature, creditPickBonus, generateGrid, spinSlot } from "./slotEngine";
 import { SymbolTile } from "./SymbolTile";
 import type { SlotConfig, SlotSpinResult } from "./types";
 
@@ -43,6 +44,7 @@ export function SlotMachine({ game }: { game: SlotConfig }) {
   const [freeSpinTotal, setFreeSpinTotal] = useState(0);
   const [bonusMeter, setBonusMeter] = useState(0);
   const [paytableOpen, setPaytableOpen] = useState(false);
+  const [buyBonusOpen, setBuyBonusOpen] = useState(false);
   const [bonusResult, setBonusResult] = useState<SlotSpinResult | null>(null);
   const [uiState, setUiState] = useState<SlotUiState>("Idle");
   const [anticipating, setAnticipating] = useState(false);
@@ -52,6 +54,8 @@ export function SlotMachine({ game }: { game: SlotConfig }) {
   const currentUser = user;
   const balance = getBalance(currentUser.id, currency);
   const canSpin = !spinning && (freeSpins > 0 || balance >= betAmount);
+  const buyBonusCost = game.buyBonus?.enabled ? Math.round(betAmount * game.buyBonus.costMultiplier) : 0;
+  const canBuyBonus = !spinning && Boolean(game.buyBonus?.enabled) && balance >= buyBonusCost;
   const lastResult = history[0];
   const scatterCount = grid.flat().filter((symbol) => symbol === game.scatterSymbol).length;
   const bonusCount = grid.flat().filter((symbol) => symbol === game.bonusSymbol).length;
@@ -153,11 +157,58 @@ export function SlotMachine({ game }: { game: SlotConfig }) {
     }, delay);
   }
 
+  function resolveBuyBonus() {
+    try {
+      setSpinning(true);
+      setUiState("Bonus Triggered");
+      const result = buyBonusFeature({ user: currentUser, game, currency, betAmount });
+      setGrid(result.grid);
+      setHistory((current) => [result, ...current].slice(0, 8));
+      setOverlayResult(result.payout > 0 ? result : null);
+      setBonusResult(result.triggeredPickBonus ? result : null);
+      setUiState(
+        result.triggeredHoldAndWin
+          ? "Bonus Triggered"
+          : result.triggeredWheelBonus
+            ? "Bonus Triggered"
+            : result.triggeredFreeSpins
+              ? "Free Spins"
+              : result.payout > 0
+                ? "Win"
+                : "Idle",
+      );
+      refreshUser();
+      recordRecentGame(game.id);
+      setSessionStats((stats) => nextSessionStats(stats, result.wager, result.payout));
+      notify(`Demo bonus buy resolved: ${formatCoins(result.payout)} virtual coins.`, "success");
+      playBonus();
+    } catch (caught) {
+      setUiState("Error/Insufficient Balance");
+      notify(caught instanceof Error ? caught.message : "Bonus buy failed.", "error");
+    } finally {
+      setBuyBonusOpen(false);
+      setSpinning(false);
+    }
+  }
+
   return (
     <section
-      className="slot-screen"
+      className={`slot-screen premium-slot-shell ${game.visual.background ?? ""}`}
       style={{ "--accent": game.visual.accent, "--secondary": game.visual.secondary, "--panel": game.visual.panel } as React.CSSProperties}
     >
+      <div className="jackpot-banner">
+        <span>Max {game.maxPayoutMultiplier}x</span>
+        {game.jackpotLabels ? (
+          <>
+            <strong>Grand {game.jackpotLabels.Grand}</strong>
+            <strong>Major {game.jackpotLabels.Major}</strong>
+            <strong>Minor {game.jackpotLabels.Minor}</strong>
+            <strong>Mini {game.jackpotLabels.Mini}</strong>
+          </>
+        ) : (
+          <strong>Demo progressive cap {game.maxPayoutMultiplier}x</strong>
+        )}
+      </div>
       <div className="slot-header">
         <div className="game-heading">
           <GameLogo game={game} small />
@@ -169,16 +220,31 @@ export function SlotMachine({ game }: { game: SlotConfig }) {
             </p>
           </div>
         </div>
-        <button className="ghost-button icon-button" onClick={() => setPaytableOpen(true)}>
-          <Info size={17} />
-          Paytable
-        </button>
+        <div className="slot-header-actions">
+          <button className="ghost-button icon-button" onClick={() => setPaytableOpen(true)}>
+            <Info size={17} />
+            Info
+          </button>
+          <button className="ghost-button icon-only" title="Settings placeholder">
+            <Settings size={17} />
+          </button>
+        </div>
       </div>
 
       <div className="slot-board">
+        <div className="slot-side-menu">
+          <button className="ghost-button icon-only" title="Menu"><Menu size={18} /></button>
+          <button className="ghost-button icon-only" onClick={() => setPaytableOpen(true)} title="Info"><Info size={18} /></button>
+          <button className={sound ? "ghost-button icon-only active" : "ghost-button icon-only"} onClick={() => setSound((value) => {
+            setMuted(value);
+            return !value;
+          })} title="Sound"><Volume2 size={18} /></button>
+        </div>
         <div className="slot-state-pill">
           <span>{uiState}</span>
           {anticipating && (scatterCount >= 2 || bonusCount >= 2) && <strong>Feature close...</strong>}
+          {lastResult?.holdAndWin && <strong>Hold and Win total {formatCoins(lastResult.holdAndWin.total)}</strong>}
+          {lastResult?.wheelBonus && <strong>Wheel landed {lastResult.wheelBonus.segment}</strong>}
         </div>
         <div className={`reel-stage ${lastResult?.payout ? "winning" : ""}`}>
           {game.paylines.map((payline) => (
@@ -204,8 +270,11 @@ export function SlotMachine({ game }: { game: SlotConfig }) {
           )}
           {overlayResult ? (
             <div className={`big-win-overlay ${overlayResult.winTier.toLowerCase()}`}>
-              {overlayResult.winTier === "MEGA" ? "Mega Win" : overlayResult.winTier === "BIG" ? "Big Win" : "Small Win"}
+              {overlayResult.triggeredHoldAndWin ? "Hold And Win" : overlayResult.triggeredWheelBonus ? "Wheel Bonus" : overlayResult.winTier === "MEGA" ? "Mega Win" : overlayResult.winTier === "BIG" ? "Big Win" : "Small Win"}
               <span>{formatCoins(overlayResult.payout)}</span>
+              {overlayResult.jackpotLabel && <small>{overlayResult.jackpotLabel} demo jackpot</small>}
+              {overlayResult.holdAndWin && <small>Respin rounds: {overlayResult.holdAndWin.respinRounds.length}</small>}
+              {overlayResult.wheelBonus && <small>Wheel segment: {overlayResult.wheelBonus.segment}</small>}
               {(overlayResult.winTier === "BIG" || overlayResult.winTier === "MEGA") && <div className="coin-burst" />}
               {overlayResult.winTier === "MEGA" && <div className="confetti-burst" />}
             </div>
@@ -232,10 +301,17 @@ export function SlotMachine({ game }: { game: SlotConfig }) {
               onChange={(event) => setBetAmount(Math.min(game.maxBet, Math.max(game.minBet, Number(event.target.value))))}
             />
           </label>
+          <div className="quick-bets">
+            {[game.minBet, game.minBet * 5, game.minBet * 10].filter((value) => value <= game.maxBet).map((value) => (
+              <button className={betAmount === value ? "active" : ""} onClick={() => setBetAmount(value)} key={value}>
+                {formatCoins(value)}
+              </button>
+            ))}
+          </div>
           <div className="bet-stepper">
             <button className="ghost-button" onClick={() => setBetAmount(game.minBet)}>Min</button>
-            <button className="ghost-button" onClick={() => setBetAmount((value) => Math.max(game.minBet, value - game.minBet))}>-</button>
-            <button className="ghost-button" onClick={() => setBetAmount((value) => Math.min(game.maxBet, value + game.minBet))}>+</button>
+            <button className="ghost-button" onClick={() => setBetAmount((value) => Math.max(game.minBet, value - game.minBet))}><Minus size={16} /></button>
+            <button className="ghost-button" onClick={() => setBetAmount((value) => Math.min(game.maxBet, value + game.minBet))}><Plus size={16} /></button>
             <button className="ghost-button" onClick={() => setBetAmount(game.maxBet)}>Max</button>
           </div>
           <div className="balance-line">Available: {formatCoins(balance)} {currency}</div>
@@ -252,6 +328,11 @@ export function SlotMachine({ game }: { game: SlotConfig }) {
           <button className="spin-button" disabled={!canSpin} onClick={spin}>
             {spinning ? uiState : freeSpins > 0 ? "Free Spin" : "Spin"}
           </button>
+          {game.buyBonus?.enabled && (
+            <button className="buy-bonus-button" disabled={!canBuyBonus} onClick={() => setBuyBonusOpen(true)}>
+              Buy Bonus {formatCoins(buyBonusCost)}
+            </button>
+          )}
           {balance < betAmount && freeSpins === 0 && <div className="error-box">Balance is too low for this bet.</div>}
           {balance < game.minBet && freeSpins === 0 && (
             <button className="primary-button icon-button" onClick={() => notify("Open Wallet to get more demo coins.", "info")}>
@@ -309,6 +390,21 @@ export function SlotMachine({ game }: { game: SlotConfig }) {
       </article>
 
       {paytableOpen && <PaytableModal game={game} onClose={() => setPaytableOpen(false)} />}
+      {buyBonusOpen && (
+        <Modal title="Demo Bonus Buy" onClose={() => setBuyBonusOpen(false)}>
+          <div className="modal-stack">
+            <p className="muted">Demo bonus buy only. Virtual coins have no cash value.</p>
+            <div className="notice-card">
+              Cost: {formatCoins(buyBonusCost)} {currency}. Feature: {game.buyBonus?.featureType.replaceAll("_", " ")}.
+            </div>
+            <p>No real money, withdrawals, prizes, redemptions, or cashout are available in this prototype.</p>
+            <div className="modal-actions">
+              <button className="ghost-button" onClick={() => setBuyBonusOpen(false)}>Cancel</button>
+              <button className="primary-button" disabled={!canBuyBonus} onClick={resolveBuyBonus}>Start Demo Bonus</button>
+            </div>
+          </div>
+        </Modal>
+      )}
       {bonusResult && (
         <BonusModal
           title={bonusResult.winType === "FREE_SPINS" ? "Free Spins Triggered" : "Pick Bonus"}

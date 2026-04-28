@@ -1,6 +1,6 @@
 import { creditCurrency, debitCurrency } from "../wallet/walletService";
 import type { Currency, User } from "../types";
-import type { SlotConfig, SlotSpinInput, SlotSpinResult } from "./types";
+import type { BonusFeatureType, HoldAndWinResult, SlotConfig, SlotSpinInput, SlotSpinResult, WheelBonusResult } from "./types";
 
 function pickWeightedSymbol(game: SlotConfig) {
   const total = game.symbols.reduce((sum, symbol) => sum + symbol.weight, 0);
@@ -20,6 +20,10 @@ export function generateGrid(game: SlotConfig) {
 
 function countInGrid(grid: string[][], symbol: string) {
   return grid.flat().filter((candidate) => candidate === symbol).length;
+}
+
+function maxWinFor(game: SlotConfig, betAmount: number) {
+  return Math.round(betAmount * game.maxPayoutMultiplier);
 }
 
 function payoutMultiplier(game: SlotConfig, symbol: string, count: number) {
@@ -84,6 +88,95 @@ function freeSpinAward(game: SlotConfig) {
   return range[0] + Math.floor(Math.random() * (range[1] - range[0] + 1));
 }
 
+function randomFrom<T>(items: T[]) {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function coinAward(game: SlotConfig, betAmount: number) {
+  const multipliers = game.volatility === "High" ? [1, 1, 2, 2, 3, 5, 8, 10, 15] : [1, 1, 1, 2, 2, 3, 5, 8];
+  return Math.round(betAmount * randomFrom(multipliers));
+}
+
+export function calculateHoldAndWinBonus(game: SlotConfig, betAmount: number): HoldAndWinResult {
+  const positions = game.reelCount * game.rowCount;
+  let lockedCoins = Math.min(positions, 3 + Math.floor(Math.random() * 3));
+  let total = Array.from({ length: lockedCoins }, () => coinAward(game, betAmount)).reduce((sum, value) => sum + value, 0);
+  let respinsRemaining = 3;
+  const respinRounds: HoldAndWinResult["respinRounds"] = [];
+
+  while (respinsRemaining > 0 && lockedCoins < positions) {
+    const empty = positions - lockedCoins;
+    const newCoins = Array.from({ length: empty }).filter(() => Math.random() < 0.18).length;
+    if (newCoins > 0) {
+      lockedCoins += newCoins;
+      total += Array.from({ length: newCoins }, () => coinAward(game, betAmount)).reduce((sum, value) => sum + value, 0);
+      respinsRemaining = 3;
+    } else {
+      respinsRemaining -= 1;
+    }
+    respinRounds.push({ respinsRemaining, newCoins, lockedCoins, total });
+  }
+
+  const filledAll = lockedCoins >= positions;
+  if (filledAll) {
+    total += Math.round(betAmount * 60);
+  }
+  return { total: Math.min(total, maxWinFor(game, betAmount)), respinRounds, filledAll };
+}
+
+export function calculateWheelBonus(game: SlotConfig, betAmount: number): WheelBonusResult {
+  const segments: WheelBonusResult[] = [
+    { segment: "5x", multiplier: 5, payout: betAmount * 5 },
+    { segment: "10x", multiplier: 10, payout: betAmount * 10 },
+    { segment: "25x", multiplier: 25, payout: betAmount * 25 },
+    { segment: "50x", multiplier: 50, payout: betAmount * 50 },
+    { segment: "Mini", multiplier: 10, payout: betAmount * 10, jackpotLabel: "Mini" },
+    { segment: "Major", multiplier: 50, payout: betAmount * 50, jackpotLabel: "Major" },
+    { segment: "Grand", multiplier: 80, payout: betAmount * 80, jackpotLabel: "Grand" },
+  ];
+  const weighted = [segments[0], segments[0], segments[1], segments[1], segments[2], segments[3], segments[4], segments[5], segments[6]];
+  const result = randomFrom(weighted);
+  const payout = Math.min(Math.round(result.payout), maxWinFor(game, betAmount));
+  return { ...result, payout };
+}
+
+function calculateDirectFeature(game: SlotConfig, betAmount: number, featureType: BonusFeatureType) {
+  if (featureType === "HOLD_AND_WIN") {
+    const holdAndWin = calculateHoldAndWinBonus(game, betAmount);
+    return {
+      bonusPayout: holdAndWin.total,
+      winType: "HOLD_AND_WIN" as const,
+      jackpotLabel: holdAndWin.filledAll ? ("Grand" as const) : undefined,
+      holdAndWin,
+    };
+  }
+  if (featureType === "WHEEL_BONUS") {
+    const wheelBonus = calculateWheelBonus(game, betAmount);
+    return {
+      bonusPayout: wheelBonus.payout,
+      winType: "WHEEL_BONUS" as const,
+      jackpotLabel: wheelBonus.jackpotLabel,
+      wheelBonus,
+    };
+  }
+  if (featureType === "FREE_SPINS") {
+    const spins = freeSpinAward(game);
+    let bonusPayout = 0;
+    for (let index = 0; index < spins; index += 1) {
+      bonusPayout += calculateSlotResult(game, betAmount, true).payout;
+    }
+    return {
+      bonusPayout: Math.min(bonusPayout, maxWinFor(game, betAmount)),
+      winType: "FREE_SPINS" as const,
+      freeSpinsAwarded: spins,
+    };
+  }
+  return {
+    bonusPayout: createPickBonusAwards(game, betAmount)[0] ?? 0,
+    winType: "PICK_BONUS" as const,
+  };
+}
+
 export function createPickBonusAwards(game: SlotConfig, betAmount: number) {
   const maxAward = Math.round(betAmount * game.maxPayoutMultiplier);
   const awards = game.pickBonus.awards.slice().sort(() => Math.random() - 0.5).slice(0, 6);
@@ -101,11 +194,19 @@ export function calculateSlotResult(
   const bonusCount = countInGrid(grid, game.bonusSymbol);
   const triggeredFreeSpins = scatterCount >= game.freeSpins.triggerCount;
   const triggeredPickBonus = bonusCount >= game.pickBonus.triggerCount;
+  const coinSymbol = game.specialSymbols?.coin;
+  const wheelSymbol = game.buyBonus?.featureType === "WHEEL_BONUS" ? game.bonusSymbol : game.specialSymbols?.multiplier;
+  const triggeredHoldAndWin = game.featureTypes?.includes("HOLD_AND_WIN") && coinSymbol ? countInGrid(grid, coinSymbol) >= 3 : false;
+  const triggeredWheelBonus = game.featureTypes?.includes("WHEEL_BONUS") && wheelSymbol ? countInGrid(grid, wheelSymbol) >= 3 : false;
   const lineWins = evaluatePaylines(game, grid, betAmount, freeSpin);
 
   let payout = lineWins.reduce((sum, line) => sum + line.payout, 0);
+  let bonusPayout = 0;
   let freeSpinsAwarded = 0;
   let pickBonusAwards: number[] | undefined;
+  let holdAndWin: HoldAndWinResult | undefined;
+  let wheelBonus: WheelBonusResult | undefined;
+  let jackpotLabel: SlotSpinResult["jackpotLabel"];
   let winType: SlotSpinResult["winType"] = payout > betAmount * 8 ? "BIG_WIN" : payout > 0 ? "LINE_WIN" : "LOSS";
 
   if (triggeredFreeSpins && (!freeSpin || game.freeSpins.retrigger)) {
@@ -118,9 +219,25 @@ export function calculateSlotResult(
     winType = "PICK_BONUS";
   }
 
+  if (triggeredHoldAndWin) {
+    holdAndWin = calculateHoldAndWinBonus(game, betAmount);
+    bonusPayout += holdAndWin.total;
+    jackpotLabel = holdAndWin.filledAll ? "Grand" : undefined;
+    winType = "HOLD_AND_WIN";
+  }
+
+  if (triggeredWheelBonus) {
+    wheelBonus = calculateWheelBonus(game, betAmount);
+    bonusPayout += wheelBonus.payout;
+    jackpotLabel = wheelBonus.jackpotLabel;
+    winType = "WHEEL_BONUS";
+  }
+
+  payout += bonusPayout;
   const uncappedPayout = payout;
-  const maxWin = Math.round(betAmount * game.maxPayoutMultiplier);
+  const maxWin = maxWinFor(game, betAmount);
   payout = Math.min(payout, maxWin);
+  bonusPayout = Math.min(bonusPayout, payout);
   const capped = uncappedPayout > payout;
   const multiplier = betAmount > 0 ? payout / betAmount : 0;
   const winTier: SlotSpinResult["winTier"] =
@@ -142,9 +259,15 @@ export function calculateSlotResult(
     freeSpinsAwarded,
     pickBonusAwards,
     pickBonusPicks: triggeredPickBonus ? game.pickBonus.picks : undefined,
-    triggeredBonus: triggeredFreeSpins || triggeredPickBonus,
+    triggeredBonus: triggeredFreeSpins || triggeredPickBonus || Boolean(triggeredHoldAndWin) || Boolean(triggeredWheelBonus),
     triggeredFreeSpins,
     triggeredPickBonus,
+    triggeredHoldAndWin,
+    triggeredWheelBonus,
+    bonusPayout,
+    jackpotLabel,
+    holdAndWin,
+    wheelBonus,
   };
 }
 
@@ -177,7 +300,7 @@ export function calculateNeonCascadeResult(game: SlotConfig, betAmount: number, 
   const triggeredFreeSpins = scatterCount >= game.freeSpins.triggerCount;
   const triggeredPickBonus = bonusCount >= game.pickBonus.triggerCount;
   const uncapped = totalPayout;
-  const maxWin = Math.round(betAmount * game.maxPayoutMultiplier);
+  const maxWin = maxWinFor(game, betAmount);
   totalPayout = Math.min(totalPayout, maxWin);
   const multiplier = betAmount > 0 ? totalPayout / betAmount : 0;
   const winTier: SlotSpinResult["winTier"] =
@@ -232,6 +355,79 @@ export function creditPickBonus({
   });
 }
 
+export function buyBonusFeature({
+  user,
+  game,
+  currency,
+  betAmount,
+}: {
+  user: User;
+  game: SlotConfig;
+  currency: Currency;
+  betAmount: number;
+}) {
+  if (!game.buyBonus?.enabled) throw new Error("Buy bonus is not available for this game.");
+  if (betAmount < game.minBet || betAmount > game.maxBet) throw new Error("Bet amount is outside this game's limits.");
+  const cost = Math.round(betAmount * game.buyBonus.costMultiplier);
+  debitCurrency({
+    userId: user.id,
+    type: "BUY_BONUS",
+    currency,
+    amount: cost,
+    metadata: {
+      gameId: game.id,
+      gameName: game.name,
+      featureType: game.buyBonus.featureType,
+      demoOnly: true,
+    },
+  });
+
+  const feature = calculateDirectFeature(game, betAmount, game.buyBonus.featureType);
+  const payout = Math.min(feature.bonusPayout, maxWinFor(game, betAmount));
+  const result: SlotSpinResult = {
+    gameId: game.id,
+    grid: generateGrid(game),
+    wager: cost,
+    payout,
+    multiplier: betAmount > 0 ? payout / betAmount : 0,
+    winType: "BUY_BONUS",
+    winTier: payout >= betAmount * 20 ? "MEGA" : payout >= betAmount * 8 ? "BIG" : payout > 0 ? "SMALL" : "NONE",
+    capped: feature.bonusPayout > payout,
+    lineWins: [],
+    winningPositions: [],
+    freeSpinsAwarded: feature.freeSpinsAwarded ?? 0,
+    triggeredBonus: true,
+    triggeredFreeSpins: game.buyBonus.featureType === "FREE_SPINS",
+    triggeredPickBonus: game.buyBonus.featureType === "PICK_BONUS",
+    triggeredHoldAndWin: game.buyBonus.featureType === "HOLD_AND_WIN",
+    triggeredWheelBonus: game.buyBonus.featureType === "WHEEL_BONUS",
+    bonusPayout: payout,
+    jackpotLabel: feature.jackpotLabel,
+    holdAndWin: feature.holdAndWin,
+    wheelBonus: feature.wheelBonus,
+  };
+
+  if (payout > 0) {
+    creditCurrency({
+      userId: user.id,
+      type: result.jackpotLabel ? "JACKPOT_WIN" : "BONUS_WIN",
+      currency,
+      amount: payout,
+      metadata: {
+        gameId: game.id,
+        gameName: game.name,
+        winType: game.buyBonus.featureType,
+        buyBonus: true,
+        demoOnly: true,
+        holdAndWin: result.holdAndWin,
+        wheelBonus: result.wheelBonus,
+      },
+    });
+  }
+
+  return result;
+}
+
 export function spinSlot(input: SlotSpinInput) {
   if (!Number.isFinite(input.betAmount) || input.betAmount < input.game.minBet) {
     throw new Error(`Minimum bet is ${input.game.minBet}.`);
@@ -257,7 +453,7 @@ export function spinSlot(input: SlotSpinInput) {
   if (result.payout > 0) {
     creditCurrency({
       userId: input.user.id,
-      type: "GAME_WIN",
+      type: result.bonusPayout && result.bonusPayout >= result.payout ? (result.jackpotLabel ? "JACKPOT_WIN" : "BONUS_WIN") : "GAME_WIN",
       currency: input.currency,
       amount: result.payout,
       metadata: {

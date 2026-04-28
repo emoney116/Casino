@@ -10,7 +10,10 @@ export type TransactionType =
   | "ADMIN_ADJUSTMENT"
   | "LEVEL_REWARD"
   | "MISSION_REWARD"
-  | "STREAK_REWARD";
+  | "STREAK_REWARD"
+  | "BUY_BONUS"
+  | "BONUS_WIN"
+  | "JACKPOT_WIN";
 export type TransactionStatus = "PENDING" | "COMPLETED" | "FAILED";
 
 export interface User {

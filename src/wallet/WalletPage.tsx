@@ -18,8 +18,8 @@ const filterMap: Record<Filter, TransactionType[]> = {
   ALL: [],
   PURCHASES: ["PURCHASE_FAKE"],
   BONUSES: ["DAILY_BONUS", "STREAK_REWARD", "MISSION_REWARD", "LEVEL_REWARD"],
-  BETS: ["GAME_BET"],
-  WINS: ["GAME_WIN"],
+  BETS: ["GAME_BET", "BUY_BONUS"],
+  WINS: ["GAME_WIN", "BONUS_WIN", "JACKPOT_WIN"],
   ADMIN: ["ADMIN_ADJUSTMENT"],
 };
 
