@@ -14,14 +14,17 @@ export function SymbolTile({
   compact?: boolean;
 }) {
   const symbol = game.symbols.find((candidate) => candidate.id === symbolId);
+  const label = symbol?.label ?? symbolId;
+  const color = symbol?.color ?? game.visual.accent;
+
   return (
     <div
       className={`symbol-tile ${active ? "win" : ""} ${spinning ? "spinning" : ""} ${compact ? "compact" : ""}`}
-      style={{ "--symbol": symbol?.color ?? game.visual.accent } as React.CSSProperties}
-      title={symbol?.label ?? symbolId}
+      style={{ "--symbol": color } as React.CSSProperties}
+      title={label}
     >
-      <span>{symbol?.icon ?? "?"}</span>
-      {!compact && <small>{symbol?.label ?? symbolId}</small>}
+      {symbol?.image ? <img src={symbol.image} alt={label} /> : <span>{symbol?.icon ?? "?"}</span>}
+      {!compact && <small>{label}</small>}
     </div>
   );
 }

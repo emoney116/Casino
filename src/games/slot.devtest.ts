@@ -44,6 +44,35 @@ creditCurrency({ userId: user.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", am
 if (exposedSlotConfigs.length !== 1 || exposedSlotConfigs[0].id !== "frontier-fortune") {
   throw new Error("Expected only Frontier Fortune to be exposed.");
 }
+const requiredFrontierAssets = [
+  "sun_hawk.png",
+  "canyon_ram.png",
+  "sand_fox.png",
+  "crystal_scorpion.png",
+  "desert_relic.png",
+  "oasis_gem.png",
+  "dust_spirit.png",
+  "mirage_wild.png",
+  "oasis_scatter.png",
+  "coin_100.png",
+  "coin_250.png",
+  "coin_500.png",
+  "coin_1000.png",
+  "A.png",
+  "K.png",
+  "Q.png",
+  "J.png",
+  "10.png",
+];
+for (const filename of requiredFrontierAssets) {
+  const assetPath = `/assets/symbols/frontier/${filename}`;
+  if (!exposedSlotConfigs[0].symbols.some((symbol) => symbol.image === assetPath)) {
+    throw new Error(`Missing Frontier Fortune symbol config asset: ${filename}`);
+  }
+}
+if (exposedSlotConfigs[0].symbols.some((symbol) => !symbol.image)) {
+  throw new Error("Expected exposed Frontier Fortune symbols to use image assets.");
+}
 
 const game = slotConfigs.find((candidate) => candidate.id === "neon-fortune") ?? slotConfigs[0];
 const result = spinSlot({ user, game, currency: "GOLD", betAmount: game.minBet });
@@ -169,15 +198,26 @@ if (holdState.respinsRemaining !== 3 || holdState.values.filter((value) => value
   throw new Error("Expected Hold and Win to start with locked coins and 3 respins.");
 }
 const resetCandidate = { ...holdState, values: holdState.values.map((value, index) => index < 10 ? value ?? frontier.minBet : null), respinsRemaining: 1, finished: false };
-let sawReset = false;
-for (let index = 0; index < 200; index += 1) {
+const originalRandom = Math.random;
+const resetRolls = [0, 0, 0.99, 0.99, 0.99, 0.99];
+Math.random = () => resetRolls.shift() ?? 0.99;
+try {
   const stepped = stepHoldAndWinBonus(frontier, frontier.minBet, resetCandidate);
-  if (stepped.lastNewCoins.length > 0 && stepped.respinsRemaining === 3) {
-    sawReset = true;
-    break;
+  if (stepped.lastNewCoins.length === 0 || stepped.respinsRemaining !== 3) {
+    throw new Error("Expected new Hold and Win coins to reset respins to 3.");
   }
+} finally {
+  Math.random = originalRandom;
 }
-if (!sawReset) throw new Error("Expected new Hold and Win coins to reset respins to 3.");
+Math.random = () => 0.99;
+try {
+  const noCoinStep = stepHoldAndWinBonus(frontier, frontier.minBet, resetCandidate);
+  if (noCoinStep.lastNewCoins.length !== 0 || noCoinStep.respinsRemaining !== resetCandidate.respinsRemaining - 1) {
+    throw new Error("Expected no Hold and Win coins to reduce respins by 1.");
+  }
+} finally {
+  Math.random = originalRandom;
+}
 for (let index = 0; index < 60 && !holdState.finished; index += 1) {
   holdState = stepHoldAndWinBonus(frontier, frontier.minBet, holdState);
 }
@@ -186,6 +226,9 @@ const holdCreditBefore = getTransactions(debitOnlyUser.id).filter((tx) => tx.typ
 creditHoldAndWinBonus({ user: debitOnlyUser, game: frontier, currency: "GOLD", betAmount: frontier.minBet, state: holdState, buyBonus: true });
 if (getTransactions(debitOnlyUser.id).filter((tx) => tx.type === "BONUS_WIN" || tx.type === "JACKPOT_WIN").length !== holdCreditBefore + 1) {
   throw new Error("Expected final Hold and Win credit ledger entry.");
+}
+if (!creditHoldAndWinBonus || !stepHoldAndWinBonus) {
+  throw new Error("Expected Hold and Win mode helpers to exist.");
 }
 try {
   buyBonusFeature({ user, game: frontier, currency: "BONUS", betAmount: frontier.minBet });

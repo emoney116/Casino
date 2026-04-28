@@ -567,6 +567,300 @@ th { color: #a9b4c7; font-size: 0.78rem; text-transform: uppercase; }
   .toast { width: 100%; }
 }
 
+/* Frontier playability polish: symbol-first tiles and real slot controls. */
+.frontier .slot-controls > .spin-button {
+  display: none;
+}
+
+.slot-control-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) 86px;
+  gap: 10px;
+  align-items: center;
+}
+
+.control-readout,
+.bet-readout {
+  min-height: 76px;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  padding: 10px;
+  border-radius: 14px;
+  color: #f8fafc;
+  background: linear-gradient(180deg, rgba(15,23,42,0.82), rgba(30,41,59,0.72));
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: inset 0 0 22px rgba(255,255,255,0.04);
+}
+
+.control-readout span,
+.bet-readout span {
+  color: #93c5fd;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.control-readout strong,
+.bet-readout strong {
+  font-size: clamp(1.1rem, 2.4vw, 1.65rem);
+  line-height: 1;
+}
+
+.control-readout small {
+  color: #cbd5e1;
+  font-weight: 800;
+}
+
+.bet-readout > div {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  gap: 6px;
+  align-items: center;
+}
+
+.bet-readout strong {
+  text-align: center;
+}
+
+.round-control {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #f8fafc;
+  background: radial-gradient(circle at 35% 25%, rgba(255,255,255,0.22), rgba(34,211,238,0.18));
+  border: 1px solid rgba(103,232,249,0.28);
+}
+
+.slot-main-action {
+  width: 86px;
+  height: 86px;
+  display: grid;
+  place-items: center;
+  gap: 0;
+  border-radius: 50%;
+  color: #07111f;
+  font-size: 2.2rem;
+  font-weight: 1000;
+  background:
+    radial-gradient(circle at 35% 24%, rgba(255,255,255,0.72), transparent 22%),
+    conic-gradient(from 20deg, #22c55e, #bef264, #facc15, #22c55e);
+  border: 6px solid rgba(254,240,138,0.75);
+  box-shadow: 0 0 36px rgba(250,204,21,0.42), inset 0 -10px 18px rgba(21,128,61,0.34);
+}
+
+.slot-main-action span {
+  margin-top: -8px;
+  font-size: 0.58rem;
+  text-transform: uppercase;
+}
+
+.slot-main-action.respin {
+  background:
+    radial-gradient(circle at 35% 24%, rgba(255,255,255,0.72), transparent 22%),
+    conic-gradient(from 20deg, #22d3ee, #a78bfa, #f0abfc, #22d3ee);
+  border-color: rgba(103,232,249,0.72);
+  box-shadow: 0 0 36px rgba(34,211,238,0.42), inset 0 -10px 18px rgba(30,64,175,0.34);
+}
+
+.frontier .frontier-reel-stage {
+  align-items: stretch;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  grid-auto-flow: row;
+}
+
+.frontier .symbol-tile {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 34% 18%, rgba(255,255,255,0.86), transparent 19%),
+    radial-gradient(circle at 50% 100%, color-mix(in srgb, var(--symbol) 30%, transparent), transparent 56%),
+    linear-gradient(150deg, rgba(248,250,252,0.96), rgba(148,163,184,0.88) 58%, rgba(51,65,85,0.86));
+  border: 2px solid color-mix(in srgb, var(--symbol) 58%, rgba(255,255,255,0.3));
+  box-shadow:
+    inset 0 0 18px rgba(255,255,255,0.28),
+    inset 0 -18px 30px rgba(15,23,42,0.2),
+    0 10px 22px rgba(0,0,0,0.32);
+}
+
+.frontier .symbol-tile span {
+  display: grid;
+  place-items: center;
+  width: 82%;
+  height: 82%;
+  color: var(--symbol);
+  font-size: clamp(3rem, 8vw, 5.2rem);
+  line-height: 1;
+  filter: drop-shadow(0 6px 10px rgba(0,0,0,0.42));
+  text-shadow: 0 0 18px color-mix(in srgb, var(--symbol) 78%, transparent);
+}
+
+.frontier .symbol-tile img {
+  width: 94%;
+  height: 94%;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 10px rgba(0,0,0,0.46));
+}
+
+.frontier .symbol-tile small {
+  display: none;
+}
+
+.frontier .hold-cell img {
+  width: 82%;
+  height: 82%;
+  object-fit: contain;
+}
+
+.frontier .symbol-tile.win {
+  animation: frontierWinPulse 720ms ease-in-out infinite alternate;
+  transform: scale(1.02);
+}
+
+@keyframes frontierWinPulse {
+  from {
+    box-shadow: inset 0 0 18px rgba(255,255,255,0.28), 0 0 0 rgba(250,204,21,0);
+  }
+  to {
+    box-shadow: inset 0 0 26px rgba(255,255,255,0.44), 0 0 34px color-mix(in srgb, var(--symbol) 72%, transparent);
+  }
+}
+
+.frontier .big-win-overlay {
+  max-width: min(520px, calc(100% - 28px));
+  max-height: calc(100% - 28px);
+  inset: 14px;
+  margin: auto;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(250,204,21,0.34), transparent 38%),
+    linear-gradient(180deg, rgba(15,23,42,0.82), rgba(0,0,0,0.72));
+  border: 1px solid rgba(253,224,71,0.45);
+  font-size: clamp(1.7rem, 6vw, 3.4rem);
+  animation: bonusIntro 260ms ease both;
+}
+
+.frontier .big-win-overlay span {
+  font-size: clamp(2rem, 8vw, 4.6rem);
+  color: #fef3c7;
+}
+
+.hold-hint {
+  color: #dbeafe;
+  text-align: center;
+  font-size: 0.86rem;
+}
+
+@media (max-width: 720px) {
+  .flagship-game-page .premium-slot-shell {
+    grid-template-rows: auto auto minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .frontier .slot-board {
+    grid-template-rows: auto auto auto;
+    align-content: start;
+  }
+
+  .frontier .frontier-reel-stage {
+    height: min(36dvh, 320px) !important;
+    aspect-ratio: 5 / 3;
+    max-height: 46dvh;
+    min-height: 0;
+    align-self: center;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+  }
+
+  .frontier .slot-controls {
+    position: sticky;
+    bottom: 0;
+    grid-template-columns: 1fr;
+    padding: 8px;
+    background:
+      linear-gradient(180deg, rgba(15,23,42,0.92), rgba(8,13,25,0.98));
+    box-shadow: 0 -16px 36px rgba(0,0,0,0.32);
+  }
+
+  .frontier .slot-control-bar {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr) 78px;
+    gap: 7px;
+  }
+
+  .frontier .control-readout,
+  .frontier .bet-readout {
+    min-height: 66px;
+    padding: 8px;
+  }
+
+  .frontier .control-readout strong,
+  .frontier .bet-readout strong {
+    font-size: clamp(1rem, 5vw, 1.45rem);
+  }
+
+  .frontier .round-control {
+    width: 30px;
+    height: 30px;
+  }
+
+  .frontier .slot-main-action {
+    width: 76px;
+    height: 76px;
+    border-width: 5px;
+    font-size: 2rem;
+  }
+
+  .frontier .segmented,
+  .frontier .balance-line,
+  .frontier .bet-stepper,
+  .frontier .spin-button {
+    display: none;
+  }
+
+  .frontier .buy-bonus-button {
+    min-height: 38px;
+    font-size: 0.88rem;
+  }
+
+  .frontier .symbol-tile span {
+    width: 86%;
+    height: 86%;
+    font-size: clamp(2.45rem, 14vw, 5.4rem);
+  }
+
+  .hold-and-win-board {
+    height: 100%;
+    align-content: center;
+  }
+}
+
+@media (max-width: 360px) {
+  .frontier .slot-control-bar {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 68px;
+  }
+
+  .frontier .control-readout,
+  .frontier .bet-readout {
+    min-height: 60px;
+  }
+
+  .frontier .slot-main-action {
+    width: 66px;
+    height: 66px;
+    font-size: 1.75rem;
+  }
+
+  .frontier .symbol-tile span {
+    font-size: clamp(2.75rem, 15vw, 4.6rem);
+  }
+}
+
 /* Frontier-only focused game mode. */
 .game-mode .main-panel {
   padding: 0;
@@ -2051,5 +2345,190 @@ body {
   .modal-actions button {
     width: 100%;
     min-width: 0;
+  }
+}
+
+/* Final Frontier overrides sit last so older slot-system rules cannot shrink the game. */
+.frontier .slot-controls > .spin-button,
+.frontier .segmented,
+.frontier .balance-line {
+  display: none;
+}
+
+.frontier .symbol-tile {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  place-items: center;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 2px solid color-mix(in srgb, var(--symbol) 58%, rgba(255,255,255,0.3));
+  background:
+    radial-gradient(circle at 34% 18%, rgba(255,255,255,0.86), transparent 19%),
+    radial-gradient(circle at 50% 100%, color-mix(in srgb, var(--symbol) 30%, transparent), transparent 56%),
+    linear-gradient(150deg, rgba(248,250,252,0.96), rgba(148,163,184,0.88) 58%, rgba(51,65,85,0.86));
+  box-shadow:
+    inset 0 0 18px rgba(255,255,255,0.28),
+    inset 0 -18px 30px rgba(15,23,42,0.2),
+    0 10px 22px rgba(0,0,0,0.32);
+}
+
+.frontier .symbol-tile span {
+  display: grid;
+  place-items: center;
+  width: 82%;
+  height: 82%;
+  color: var(--symbol);
+  font-size: clamp(3rem, 8vw, 5.2rem);
+  line-height: 1;
+  filter: drop-shadow(0 6px 10px rgba(0,0,0,0.42));
+  text-shadow: 0 0 18px color-mix(in srgb, var(--symbol) 78%, transparent);
+}
+
+.frontier .symbol-tile small {
+  display: none;
+}
+
+.frontier .symbol-tile.win {
+  animation: frontierWinPulse 720ms ease-in-out infinite alternate;
+}
+
+.frontier .slot-control-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) 86px;
+  gap: 10px;
+  align-items: center;
+}
+
+.frontier .control-readout,
+.frontier .bet-readout {
+  min-height: 76px;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  padding: 10px;
+  border-radius: 14px;
+  color: #f8fafc;
+  background: linear-gradient(180deg, rgba(15,23,42,0.82), rgba(30,41,59,0.72));
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+.frontier .control-readout span,
+.frontier .bet-readout span {
+  color: #93c5fd;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.frontier .control-readout strong,
+.frontier .bet-readout strong {
+  font-size: clamp(1.1rem, 2.4vw, 1.65rem);
+  line-height: 1;
+}
+
+.frontier .bet-readout > div {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  gap: 6px;
+  align-items: center;
+}
+
+.frontier .slot-main-action {
+  width: 86px;
+  height: 86px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #07111f;
+  font-size: 2.2rem;
+  font-weight: 1000;
+  background:
+    radial-gradient(circle at 35% 24%, rgba(255,255,255,0.72), transparent 22%),
+    conic-gradient(from 20deg, #22c55e, #bef264, #facc15, #22c55e);
+  border: 6px solid rgba(254,240,138,0.75);
+  box-shadow: 0 0 36px rgba(250,204,21,0.42), inset 0 -10px 18px rgba(21,128,61,0.34);
+}
+
+.frontier .slot-main-action span {
+  margin-top: -8px;
+  font-size: 0.58rem;
+  text-transform: uppercase;
+}
+
+.frontier .slot-main-action.respin {
+  background:
+    radial-gradient(circle at 35% 24%, rgba(255,255,255,0.72), transparent 22%),
+    conic-gradient(from 20deg, #22d3ee, #a78bfa, #f0abfc, #22d3ee);
+  border-color: rgba(103,232,249,0.72);
+}
+
+.frontier .big-win-overlay {
+  max-width: min(520px, calc(100% - 28px));
+  max-height: calc(100% - 28px);
+  inset: 14px;
+  margin: auto;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(250,204,21,0.34), transparent 38%),
+    linear-gradient(180deg, rgba(15,23,42,0.82), rgba(0,0,0,0.72));
+  border: 1px solid rgba(253,224,71,0.45);
+  font-size: clamp(1.7rem, 6vw, 3.4rem);
+  animation: bonusIntro 260ms ease both;
+}
+
+.frontier .big-win-overlay span {
+  font-size: clamp(2rem, 8vw, 4.6rem);
+  color: #fef3c7;
+}
+
+@media (max-width: 720px) {
+  .flagship-game-page .frontier.premium-slot-shell {
+    height: 100dvh;
+    overflow: hidden;
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+
+  .frontier .slot-board {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    align-content: stretch;
+  }
+
+  .frontier .frontier-reel-stage {
+    height: auto;
+    min-height: 0;
+    align-self: stretch;
+  }
+
+  .frontier .slot-controls {
+    position: sticky;
+    bottom: 0;
+    grid-template-columns: 1fr;
+    padding: 8px;
+    background: linear-gradient(180deg, rgba(15,23,42,0.92), rgba(8,13,25,0.98));
+    box-shadow: 0 -16px 36px rgba(0,0,0,0.32);
+  }
+
+  .frontier .slot-control-bar {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr) 78px;
+    gap: 7px;
+  }
+
+  .frontier .control-readout,
+  .frontier .bet-readout {
+    min-height: 66px;
+    padding: 8px;
+  }
+
+  .frontier .slot-main-action {
+    width: 76px;
+    height: 76px;
+    border-width: 5px;
+    font-size: 2rem;
+  }
+
+  .frontier .symbol-tile span {
+    width: 86%;
+    height: 86%;
+    font-size: clamp(3.2rem, 16vw, 5.4rem);
   }
 }

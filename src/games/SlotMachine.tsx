@@ -30,6 +30,13 @@ type SlotUiState =
   | "Hold And Win"
   | "Error/Insufficient Balance";
 
+function coinImageFor(value: number) {
+  if (value >= 1000) return "/assets/symbols/frontier/coin_1000.png";
+  if (value >= 500) return "/assets/symbols/frontier/coin_500.png";
+  if (value >= 250) return "/assets/symbols/frontier/coin_250.png";
+  return "/assets/symbols/frontier/coin_100.png";
+}
+
 export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () => void }) {
   const { user, refreshUser } = useAuth();
   const notify = useToast();
@@ -77,6 +84,12 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
     setHoldState(null);
     setHoldBought(false);
   }, [game]);
+
+  useEffect(() => {
+    if (!overlayResult || overlayResult.triggeredHoldAndWin) return;
+    const timeout = window.setTimeout(() => setOverlayResult(null), overlayResult.winTier === "MEGA" ? 2600 : 1800);
+    return () => window.clearTimeout(timeout);
+  }, [overlayResult]);
 
   function updateAfterSpin(result: SlotSpinResult, usedFreeSpin: boolean) {
     setGrid(result.grid);
@@ -240,6 +253,8 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
           setSessionStats((stats) => nextSessionStats(stats, 0, next.total));
           notify(`Hold and Win paid ${formatCoins(next.total)} virtual coins.`, "success");
           playBigWin();
+          setHoldState(null);
+          setHoldBought(false);
         } catch (caught) {
           notify(caught instanceof Error ? caught.message : "Bonus credit failed.", "error");
         }
@@ -326,7 +341,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
                   <div className={`hold-cell ${value ? "locked" : ""} ${holdState.lastNewCoins.includes(index) ? "new" : ""}`} key={index}>
                     {value ? (
                       <>
-                        <span>🪙</span>
+                        <img src={coinImageFor(value)} alt="" />
                         <strong>{formatCoins(value)}</strong>
                       </>
                     ) : (
@@ -339,14 +354,9 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
                 <span>Bonus Total</span>
                 <strong>{formatCoins(holdState.total)}</strong>
               </div>
-              <button className="spin-button" disabled={bonusBusy || holdState.finished} onClick={respinHoldAndWin}>
-                {bonusBusy ? "Respinning" : holdState.finished ? "Complete" : "Respin"}
-              </button>
-              {holdState.finished && (
-                <button className="primary-button" onClick={closeHoldAndWin}>
-                  Collect
-                </button>
-              )}
+              <div className="hold-hint">
+                Press RESPIN in the control bar. New relic coins reset respins to 3.
+              </div>
             </div>
           ) : (
             <>
@@ -378,7 +388,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
           )}
           {overlayResult ? (
             <button className={`big-win-overlay ${overlayResult.winTier.toLowerCase()}`} onClick={() => setOverlayResult(null)}>
-              {overlayResult.triggeredHoldAndWin ? "Hold And Win" : overlayResult.triggeredWheelBonus ? "Wheel Bonus" : overlayResult.winTier === "MEGA" ? "Mega Win" : overlayResult.winTier === "BIG" ? "Big Win" : "Small Win"}
+              {overlayResult.triggeredHoldAndWin ? (overlayResult.payout > 0 ? "Hold And Win Complete" : "Bonus Triggered") : overlayResult.triggeredWheelBonus ? "Wheel Bonus" : overlayResult.winTier === "MEGA" ? "Mega Win" : overlayResult.winTier === "BIG" ? "Big Win" : "Win"}
               <span>{formatCoins(overlayResult.payout)}</span>
               {overlayResult.jackpotLabel && <small>{overlayResult.jackpotLabel} demo jackpot</small>}
               {overlayResult.holdAndWin && <small>Respin rounds: {overlayResult.holdAndWin.respinRounds.length}</small>}
@@ -390,6 +400,33 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
         </div>
 
         <aside className="slot-controls card">
+          <div className="slot-control-bar">
+            <div className="control-readout">
+              <span>Balance</span>
+              <strong>{formatCoins(balance)}</strong>
+              <small>{currency}</small>
+            </div>
+            <div className="bet-readout">
+              <span>Bet</span>
+              <div>
+                <button className="round-control" disabled={inHoldAndWin} onClick={() => setBetAmount((value) => Math.max(game.minBet, value - game.minBet))}>
+                  <Minus size={16} />
+                </button>
+                <strong>{formatCoins(betAmount)}</strong>
+                <button className="round-control" disabled={inHoldAndWin} onClick={() => setBetAmount((value) => Math.min(game.maxBet, value + game.minBet))}>
+                  <Plus size={16} />
+                </button>
+              </div>
+            </div>
+            <button
+              className={`slot-main-action ${inHoldAndWin ? "respin" : ""}`}
+              disabled={inHoldAndWin ? bonusBusy : !canSpin}
+              onClick={inHoldAndWin ? respinHoldAndWin : spin}
+            >
+              {inHoldAndWin ? (bonusBusy ? "..." : "↻") : spinning ? "..." : "▶"}
+              <span>{inHoldAndWin ? "Respin" : "Spin"}</span>
+            </button>
+          </div>
           <div className="segmented small">
             <button className={currency === "GOLD" ? "active" : ""} onClick={() => setCurrency("GOLD")}>
               Gold
@@ -433,8 +470,8 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
               <span>Total won: {formatCoins(freeSpinTotal)}</span>
             </div>
           )}
-          <button className="spin-button" disabled={!canSpin} onClick={spin}>
-            {spinning ? uiState : freeSpins > 0 ? "Free Spin" : "Spin"}
+          <button className="spin-button" disabled={inHoldAndWin ? bonusBusy : !canSpin} onClick={inHoldAndWin ? respinHoldAndWin : spin}>
+            {inHoldAndWin ? (bonusBusy ? "Respinning" : "Respin") : spinning ? uiState : freeSpins > 0 ? "Free Spin" : "Spin"}
           </button>
           {game.buyBonus?.enabled && (
             <button className="buy-bonus-button" disabled={!canBuyBonus} onClick={() => setBuyBonusOpen(true)}>

@@ -7,6 +7,7 @@ export interface SlotSymbol {
   id: string;
   label: string;
   icon: string;
+  image?: string;
   weight: number;
   kind?: "regular" | "wild" | "scatter" | "bonus" | "coin" | "multiplier" | "collector";
   color?: string;
