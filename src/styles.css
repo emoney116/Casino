@@ -3294,3 +3294,262 @@ body {
   place-items: center;
   background: url("/assets/ui/frontier/bonus-total-panel.png") center / contain no-repeat;
 }
+
+/* Frontier bonus clarity and payout line polish. */
+.frontier.bonus-active {
+  background-blend-mode: multiply, normal, normal, normal, normal, normal;
+}
+
+.frontier.bonus-active .frontier-reel-stage {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(250,204,21,0.16), transparent 42%),
+    linear-gradient(180deg, rgba(2,6,23,0.96), rgba(3,7,18,0.98));
+  box-shadow:
+    inset 0 0 0 999px rgba(0,0,0,0.26),
+    inset 0 0 44px rgba(250,204,21,0.22),
+    0 0 44px rgba(250,204,21,0.18);
+}
+
+.frontier .slot-board {
+  grid-template-rows: auto auto auto auto;
+  grid-template-areas:
+    "state"
+    "bonus"
+    "reels"
+    "controls";
+}
+
+.frontier .hold-bonus-panel {
+  grid-area: bonus;
+  width: min(100%, 840px);
+  justify-self: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(120px, 0.48fr);
+  gap: 8px;
+  align-items: center;
+  animation: bonusIntro 280ms ease both;
+}
+
+.frontier .hold-bonus-banner,
+.frontier .hold-bonus-total {
+  min-height: clamp(48px, 8vw, 78px);
+  display: grid;
+  place-items: center;
+  text-align: center;
+  color: #fff7ad;
+  text-transform: uppercase;
+  text-shadow: 0 3px 14px rgba(0,0,0,0.76);
+  border-radius: 14px;
+}
+
+.frontier .hold-bonus-banner {
+  background:
+    radial-gradient(circle at 50% 15%, rgba(253,224,71,0.22), transparent 42%),
+    linear-gradient(180deg, rgba(127,29,29,0.92), rgba(45,18,9,0.94));
+  border: 1px solid rgba(253,224,71,0.62);
+  box-shadow: inset 0 0 18px rgba(250,204,21,0.16), 0 0 24px rgba(250,204,21,0.16);
+}
+
+.frontier .hold-bonus-banner strong {
+  font-size: clamp(1.05rem, 4vw, 2rem);
+  line-height: 1;
+}
+
+.frontier .hold-bonus-banner span,
+.frontier .hold-bonus-total span {
+  font-size: clamp(0.64rem, 1.9vw, 0.82rem);
+  font-weight: 1000;
+}
+
+.frontier .hold-bonus-total {
+  background:
+    radial-gradient(circle at 50% 12%, rgba(253,224,71,0.18), transparent 42%),
+    linear-gradient(180deg, rgba(20,83,45,0.9), rgba(5,46,22,0.96));
+  border: 1px solid rgba(74,222,128,0.5);
+}
+
+.frontier .hold-bonus-total strong {
+  font-size: clamp(1.15rem, 4vw, 2.1rem);
+  color: #fde047;
+  line-height: 1;
+}
+
+.frontier .hold-bonus-panel p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #fff7ad;
+  font-size: clamp(0.74rem, 2.4vw, 0.98rem);
+  font-weight: 1000;
+  text-align: center;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.72);
+}
+
+.frontier .slot-state-pill.bonus {
+  color: #fff7ad;
+  background: linear-gradient(180deg, rgba(127,29,29,0.88), rgba(59,7,100,0.78));
+  border-color: rgba(253,224,71,0.62);
+  box-shadow: 0 0 22px rgba(250,204,21,0.24);
+}
+
+.frontier .hold-and-win-board {
+  grid-template-rows: minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  animation: holdBoardIn 320ms ease both;
+}
+
+@keyframes holdBoardIn {
+  from { opacity: 0; transform: scale(0.965); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.frontier .hold-grid {
+  height: 100%;
+}
+
+.frontier .hold-cell {
+  position: relative;
+  overflow: hidden;
+}
+
+.frontier .hold-cell em {
+  color: rgba(255,255,255,0.28);
+  font-size: clamp(0.62rem, 2vw, 0.9rem);
+  font-style: normal;
+  font-weight: 1000;
+  text-transform: uppercase;
+}
+
+.frontier .hold-and-win-board.respinning .hold-cell:not(.locked) {
+  animation: emptyRespinFlip 520ms ease both;
+}
+
+@keyframes emptyRespinFlip {
+  0% { opacity: 0.55; transform: rotateY(0deg); }
+  50% { opacity: 0.2; transform: rotateY(78deg); }
+  100% { opacity: 0.62; transform: rotateY(0deg); }
+}
+
+.frontier .hold-cell.locked::after {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(253,224,71,0.46);
+  box-shadow: 0 0 18px rgba(250,204,21,0.22);
+  pointer-events: none;
+  animation: coinLockPulse 1.4s ease-in-out infinite alternate;
+}
+
+.frontier .hold-cell.new img,
+.frontier .hold-cell.new strong {
+  animation: coinPop 560ms cubic-bezier(.2, 1.5, .45, 1) both;
+}
+
+@keyframes coinPop {
+  0% { opacity: 0; transform: scale(0.45) translateY(12%); }
+  58% { opacity: 1; transform: scale(1.18) translateY(-4%); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes coinLockPulse {
+  from { opacity: 0.45; transform: scale(0.96); }
+  to { opacity: 0.88; transform: scale(1.04); }
+}
+
+.frontier .hold-title,
+.frontier .hold-total,
+.frontier .hold-hint {
+  display: none;
+}
+
+.frontier .payline-overlay {
+  position: absolute;
+  inset: 7px;
+  z-index: 3;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.frontier .payline-overlay polyline {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.frontier .payline-overlay polyline.active {
+  stroke: #fde047;
+  filter: drop-shadow(0 0 8px rgba(253,224,71,0.94)) drop-shadow(0 0 18px rgba(34,211,238,0.6));
+  animation: paylineDraw 700ms ease both;
+}
+
+@keyframes paylineDraw {
+  from { stroke-dasharray: 18 32; opacity: 0; }
+  to { stroke-dasharray: 900 0; opacity: 1; }
+}
+
+.frontier .big-win-overlay {
+  inset: 10px;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  animation: winOverlayPop 320ms ease both;
+}
+
+.frontier .big-win-overlay span {
+  animation: winAmountCount 900ms ease-out both;
+  transform-origin: center;
+}
+
+@keyframes winOverlayPop {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes winAmountCount {
+  0% { opacity: 0; transform: scale(0.72); filter: blur(2px); }
+  55% { opacity: 1; transform: scale(1.12); filter: blur(0); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.frontier.bonus-active .premium-buy-bonus,
+.frontier.bonus-active .currency-mini button,
+.frontier.bonus-active .premium-quick-bets button,
+.frontier.bonus-active .round-control {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.frontier.bonus-active .slot-main-action {
+  width: clamp(104px, 24vw, 154px);
+  border-radius: 24px;
+}
+
+@media (max-width: 720px) {
+  .frontier .slot-board {
+    grid-template-rows: auto auto auto auto !important;
+  }
+
+  .frontier .hold-bonus-panel {
+    grid-template-columns: minmax(0, 1fr) minmax(104px, 0.5fr);
+    gap: 5px;
+  }
+
+  .frontier .hold-bonus-banner,
+  .frontier .hold-bonus-total {
+    min-height: 46px;
+  }
+
+  .frontier .hold-bonus-panel p {
+    font-size: 0.72rem;
+  }
+
+  .frontier.bonus-active .slot-main-action {
+    width: 86px;
+    border-radius: 22px;
+  }
+}
