@@ -6,6 +6,8 @@ import type { User } from "../types";
 import { clearRecentGames, getRecentGames, recordRecentGame } from "./recentGames";
 import { dismissOnboarding, hasDismissedOnboarding } from "../app/onboarding";
 import { frontierUiAssets, requiredFrontierUiAssetKeys } from "./frontierAssets";
+import { getBonusChanceTier } from "./SlotMachine";
+import { getSpinDuration, slotAnimation } from "./slotAnimation";
 import { nextFreeSpinTotal } from "./slotSession";
 import { getProgression, recordSpinProgress } from "../progression/progressionService";
 import { claimStreak, getStreak, resetStreak } from "../streaks/streakService";
@@ -80,6 +82,19 @@ if (requiredFrontierUiAssetKeys.length !== 29 || requiredUiAssetValues.size !== 
 }
 if (!frontierUiAssets.backgroundMobile.includes("/assets/ui/frontier/") || !frontierUiAssets.spinButton.includes("/assets/ui/frontier/")) {
   throw new Error("Expected Frontier Fortune UI assets to point at the sliced public asset folder.");
+}
+if (slotAnimation.normal.reelStopMs.length !== 5 || slotAnimation.fast.reelStopMs.length !== 5) {
+  throw new Error("Expected animation config to define stop timing for all five reels.");
+}
+if (!slotAnimation.normal.reelStopMs.every((stopMs, index, stops) => index === 0 || stopMs > stops[index - 1])) {
+  throw new Error("Expected normal spin reels to stop left-to-right.");
+}
+if (getSpinDuration("fast") >= getSpinDuration("normal") / 2) {
+  throw new Error("Expected fast spin duration to be much shorter than normal spin.");
+}
+const bonusStateCheck: import("./slotAnimation").SlotAnimationState = "bonusRespinning";
+if (bonusStateCheck !== "bonusRespinning") {
+  throw new Error("Expected bonus respinning animation state to exist.");
 }
 
 const game = slotConfigs.find((candidate) => candidate.id === "neon-fortune") ?? slotConfigs[0];
@@ -163,6 +178,15 @@ if (!Number.isFinite(sim.holdAndWinTriggerRate ?? 0) || !Number.isFinite(sim.whe
 
 const frontier = slotConfigs.find((candidate) => candidate.id === "frontier-fortune");
 if (!frontier) throw new Error("Expected Frontier Fortune config.");
+if (getBonusChanceTier(frontier.minBet, frontier) !== "Low") {
+  throw new Error("Expected minimum bet to show low bonus boost tier.");
+}
+if (getBonusChanceTier(frontier.maxBet, frontier) !== "Best") {
+  throw new Error("Expected max bet to show best bonus boost tier.");
+}
+if (getBonusChanceTier(Math.round((frontier.minBet + frontier.maxBet) / 2), frontier) !== "Better") {
+  throw new Error("Expected middle bet to show better bonus boost tier.");
+}
 const holdBonus = calculateHoldAndWinBonus(frontier, frontier.minBet);
 if (!Number.isFinite(holdBonus.total) || holdBonus.respinRounds.length === 0) {
   throw new Error("Expected hold-and-win respins to calculate.");

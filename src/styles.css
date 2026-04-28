@@ -3245,6 +3245,168 @@ body {
     linear-gradient(180deg, #7c2d12, #111827);
 }
 
+.frontier .bonus-feature-row {
+  grid-column: 1;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+
+.frontier .bonus-feature-icon {
+  width: clamp(64px, 14vw, 92px);
+  min-height: clamp(62px, 10vw, 78px);
+  border-radius: 18px;
+  border: 1px solid rgba(250,204,21,0.68);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 1px;
+  color: #fef3c7;
+  background:
+    radial-gradient(circle at 42% 24%, rgba(254,240,138,0.55), transparent 22%),
+    linear-gradient(155deg, rgba(120,53,15,0.96), rgba(24,24,27,0.98) 58%, rgba(3,7,18,0.98));
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.08),
+    0 0 24px rgba(245,158,11,0.2),
+    0 12px 24px rgba(0,0,0,0.32);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.frontier .bonus-feature-icon:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.frontier .bonus-feature-icon:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.frontier .bonus-feature-art {
+  width: 38px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #451a03;
+  background:
+    radial-gradient(circle at 35% 24%, #fff7ad, transparent 24%),
+    linear-gradient(180deg, #facc15, #b45309);
+  box-shadow: 0 0 16px rgba(250,204,21,0.48), inset 0 -4px 9px rgba(120,53,15,0.5);
+}
+
+.frontier .bonus-feature-icon strong {
+  font-size: clamp(0.66rem, 1.8vw, 0.84rem);
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.frontier .bonus-feature-icon small {
+  color: #fde68a;
+  font-weight: 900;
+  font-size: clamp(0.64rem, 1.7vw, 0.78rem);
+  white-space: nowrap;
+}
+
+.frontier .bonus-boost-panel {
+  min-width: 0;
+  flex: 1;
+  border-radius: 16px;
+  border: 1px solid rgba(125,211,252,0.22);
+  background: linear-gradient(180deg, rgba(15,23,42,0.82), rgba(3,7,18,0.9));
+  overflow: hidden;
+}
+
+.frontier .bonus-boost-summary {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: transparent;
+  color: #dbeafe;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.frontier .bonus-boost-summary span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.frontier .bonus-boost-summary strong {
+  color: #67e8f9;
+}
+
+.frontier .bonus-boost-details {
+  display: grid;
+  gap: 6px;
+  padding: 0 10px 10px;
+  color: #cbd5e1;
+  font-size: 0.78rem;
+}
+
+.frontier .bonus-boost-details p {
+  margin: 0;
+  line-height: 1.25;
+}
+
+.frontier .bonus-boost-details div:not(.bonus-boost-actions) {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.frontier .bonus-boost-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.frontier .bonus-boost-actions button {
+  min-height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(250,204,21,0.34);
+  background: rgba(250,204,21,0.12);
+  color: #fef3c7;
+  font-weight: 900;
+}
+
+.frontier .premium-bonus-modal {
+  text-align: center;
+}
+
+.frontier .bonus-modal-token {
+  width: 74px;
+  height: 74px;
+  margin: 0 auto;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #451a03;
+  background:
+    radial-gradient(circle at 35% 24%, #fff7ad, transparent 24%),
+    linear-gradient(180deg, #facc15, #b45309);
+  box-shadow: 0 0 28px rgba(250,204,21,0.42), inset 0 -8px 16px rgba(120,53,15,0.48);
+}
+
+.frontier .bonus-cost-card {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+}
+
+.frontier .bonus-cost-card strong {
+  font-size: 1.35rem;
+  color: #fef3c7;
+}
+
 .frontier .premium-control-icons .icon-only {
   position: relative;
   overflow: hidden;
@@ -3517,6 +3679,7 @@ body {
 }
 
 .frontier.bonus-active .premium-buy-bonus,
+.frontier.bonus-active .bonus-feature-row,
 .frontier.bonus-active .currency-mini button,
 .frontier.bonus-active .premium-quick-bets button,
 .frontier.bonus-active .round-control {
@@ -3551,5 +3714,189 @@ body {
   .frontier.bonus-active .slot-main-action {
     width: 86px;
     border-radius: 22px;
+  }
+}
+
+/* Frontier final animation polish overrides. */
+.frontier .symbol-tile.spinning {
+  animation: none;
+  filter: saturate(1.25);
+}
+
+.frontier .symbol-tile.spinning img,
+.frontier .symbol-tile.spinning span {
+  animation: frontierReelCycle 180ms linear infinite;
+  filter: blur(1.8px) saturate(1.4) drop-shadow(0 8px 9px rgba(0,0,0,0.58));
+}
+
+.frontier .symbol-tile.settling img,
+.frontier .symbol-tile.settling span {
+  animation: frontierSymbolSettle 260ms cubic-bezier(.2, 1.35, .42, 1) both;
+}
+
+.frontier .symbol-tile.stopped img,
+.frontier .symbol-tile.stopped span {
+  animation: frontierSymbolStopGlow 320ms ease both;
+}
+
+.frontier .symbol-tile.spinning:nth-of-type(5n + 1) img { animation-duration: 150ms; }
+.frontier .symbol-tile.spinning:nth-of-type(5n + 2) img { animation-duration: 165ms; }
+.frontier .symbol-tile.spinning:nth-of-type(5n + 3) img { animation-duration: 180ms; }
+.frontier .symbol-tile.spinning:nth-of-type(5n + 4) img { animation-duration: 195ms; }
+.frontier .symbol-tile.spinning:nth-of-type(5n) img { animation-duration: 210ms; }
+
+@keyframes frontierReelCycle {
+  0% { transform: translate3d(-4%, -34%, 0) scale(0.96); opacity: 0.55; }
+  48% { transform: translate3d(2%, 8%, 0) scale(1.02); opacity: 0.86; }
+  100% { transform: translate3d(6%, 48%, 0) scale(0.98); opacity: 0.55; }
+}
+
+@keyframes frontierSymbolSettle {
+  0% { transform: translate3d(-12%, 20%, 0) scale(0.92) rotate(-1deg); filter: blur(1px) brightness(1.15); }
+  62% { transform: translate3d(4%, -5%, 0) scale(1.05) rotate(0.7deg); }
+  100% { transform: translate3d(0, 0, 0) scale(1) rotate(0); filter: drop-shadow(0 8px 9px rgba(0,0,0,0.58)); }
+}
+
+@keyframes frontierSymbolStopGlow {
+  0% { filter: brightness(1.45) drop-shadow(0 0 18px rgba(253,224,71,0.42)); }
+  100% { filter: drop-shadow(0 8px 9px rgba(0,0,0,0.58)); }
+}
+
+.frontier .slot-main-action.respin,
+.frontier.bonus-active .slot-main-action {
+  width: clamp(82px, 19vw, 126px);
+  height: clamp(82px, 19vw, 126px);
+  border-radius: 50%;
+  background-image:
+    url("/assets/ui/frontier/spin-button.png"),
+    radial-gradient(circle at 35% 24%, rgba(255,255,255,0.72), transparent 22%),
+    radial-gradient(circle at 50% 52%, #16a34a 0 42%, #166534 43% 68%, #713f12 70%);
+  background-size: 100% 100%, auto, auto;
+  border-color: rgba(250,204,21,0.88);
+}
+
+.frontier.animation-bonusRespinning .slot-main-action,
+.frontier .slot-main-action:disabled {
+  filter: saturate(0.86) brightness(0.92);
+}
+
+.frontier .speed-toggle {
+  min-height: 42px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid rgba(125,211,252,0.34);
+  background: linear-gradient(180deg, rgba(15,23,42,0.92), rgba(3,7,18,0.88));
+  color: #dbeafe;
+  font-weight: 900;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05), 0 8px 20px rgba(0,0,0,0.28);
+}
+
+.frontier .speed-toggle.active {
+  color: #fef3c7;
+  border-color: rgba(250,204,21,0.64);
+  box-shadow: 0 0 22px rgba(245,158,11,0.22), inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+
+.frontier .speed-toggle:disabled {
+  opacity: 0.5;
+}
+
+.frontier.animation-bonusRespinning .hold-cell:not(.locked) {
+  animation: emptyRespinFlip 540ms ease both, frontierBlankCycle 170ms linear infinite;
+}
+
+.frontier.animation-bonusReveal .hold-cell.new,
+.frontier .hold-cell.new {
+  animation: coinPop 620ms cubic-bezier(.2, 1.25, .4, 1) both, coinLockPulse 1.25s ease-in-out infinite alternate;
+}
+
+.frontier .hold-cell.locked:not(.new) {
+  animation: coinLockPulse 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes frontierBlankCycle {
+  0%, 100% { background-color: rgba(15,23,42,0.56); }
+  50% { background-color: rgba(120,53,15,0.48); box-shadow: inset 0 0 24px rgba(250,204,21,0.16); }
+}
+
+.frontier.animation-bonusRespinning .hold-bonus-panel p {
+  color: #fde68a;
+  animation: bonusStatusPulse 540ms ease infinite alternate;
+}
+
+.frontier.animation-bonusReveal .hold-bonus-panel p {
+  color: #bbf7d0;
+}
+
+.frontier.animation-bonusComplete .hold-bonus-panel {
+  box-shadow: 0 0 34px rgba(250,204,21,0.32), inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+
+@keyframes bonusStatusPulse {
+  from { transform: scale(1); text-shadow: 0 0 0 rgba(250,204,21,0); }
+  to { transform: scale(1.03); text-shadow: 0 0 18px rgba(250,204,21,0.42); }
+}
+
+@media (max-width: 720px) {
+  .toast-stack {
+    top: 14px;
+    bottom: auto;
+    left: 14px;
+    right: 14px;
+    z-index: 3000;
+  }
+
+  .toast {
+    width: 100%;
+  }
+
+  .frontier .speed-toggle {
+    min-height: 36px;
+    padding: 7px 10px;
+    font-size: 0.72rem;
+  }
+
+  .frontier .bonus-feature-row {
+    gap: 6px;
+  }
+
+  .frontier .bonus-feature-icon {
+    width: 66px;
+    min-height: 62px;
+    border-radius: 14px;
+  }
+
+  .frontier .bonus-feature-icon strong {
+    font-size: 0.58rem;
+  }
+
+  .frontier .bonus-feature-icon small {
+    font-size: 0.62rem;
+  }
+
+  .frontier .bonus-feature-art {
+    width: 32px;
+    height: 28px;
+  }
+
+  .frontier .bonus-boost-summary {
+    min-height: 36px;
+    padding: 6px 8px;
+    font-size: 0.72rem;
+  }
+
+  .frontier .bonus-boost-details {
+    font-size: 0.7rem;
+    padding: 0 8px 8px;
+  }
+
+  .frontier.bonus-active .slot-main-action,
+  .frontier .slot-main-action.respin {
+    width: 74px;
+    height: 74px;
+    border-radius: 50%;
   }
 }
