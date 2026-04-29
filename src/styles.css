@@ -1419,6 +1419,495 @@ th { color: #a9b4c7; font-size: 0.78rem; text-transform: uppercase; }
   }
 }
 
+/* Simple Blackjack UI restart. Uses existing mechanics with a clean mobile card-game layout. */
+.blackjack-simple {
+  width: min(100%, 480px);
+  max-width: 100%;
+  min-height: 100svh;
+  margin: 0 auto;
+  padding: 10px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  overflow: hidden;
+  color: #f8fafc;
+  background:
+    radial-gradient(circle at 50% 22%, rgba(34,197,94,0.12), transparent 260px),
+    linear-gradient(180deg, #07111f, #030712);
+}
+
+.bj-topbar {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bj-back {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  color: #f8fafc;
+  background: rgba(15,23,42,0.88);
+  border: 1px solid rgba(255,255,255,0.14);
+}
+
+.bj-title {
+  min-width: 0;
+  flex: 1;
+}
+
+.bj-title h1 {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: clamp(1.35rem, 5vw, 1.9rem);
+  line-height: 1;
+}
+
+.bj-title span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #bbf7d0;
+  font-size: 0.74rem;
+}
+
+.bj-currency {
+  width: clamp(104px, 34vw, 140px);
+  flex: 0 0 auto;
+  gap: 3px;
+  color: #cbd5e1;
+  font-size: 0.66rem;
+}
+
+.bj-currency select {
+  min-height: 36px;
+  padding: 0 8px;
+  border-radius: 10px;
+  background: #0f172a;
+  border: 1px solid rgba(148,163,184,0.36);
+}
+
+.bj-table {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  gap: 8px;
+  padding: 10px;
+  overflow: hidden;
+  border-radius: 18px;
+  background:
+    radial-gradient(ellipse at center, rgba(22,163,74,0.28), transparent 55%),
+    linear-gradient(180deg, #064e3b, #022c22);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: inset 0 0 34px rgba(0,0,0,0.28);
+}
+
+.bj-hand-row,
+.bj-player-hand,
+.bj-empty-hand {
+  min-width: 0;
+}
+
+.bj-row-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.bj-row-heading strong {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  color: #d9f99d;
+}
+
+.bj-row-heading span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: #e0f2fe;
+  background: rgba(15,23,42,0.55);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.bj-cards {
+  min-height: clamp(64px, 13vh, 94px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.bj-card,
+.bj-card-placeholder {
+  width: clamp(46px, 12vw, 64px);
+  aspect-ratio: 0.72;
+  display: grid;
+  align-content: space-between;
+  padding: 7px;
+  border-radius: 8px;
+  color: #111827;
+  background: linear-gradient(180deg, #ffffff, #e5e7eb);
+  border: 1px solid rgba(255,255,255,0.82);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.24);
+  animation: bjDeal 480ms cubic-bezier(.2, .9, .2, 1) both;
+  animation-delay: var(--card-delay, 0ms);
+}
+
+.bj-card strong {
+  font-size: clamp(1rem, 4vw, 1.25rem);
+}
+
+.bj-card span {
+  justify-self: center;
+  font-size: clamp(1.35rem, 5vw, 1.75rem);
+}
+
+.bj-card.red {
+  color: #dc2626;
+}
+
+.bj-card-back {
+  place-items: center;
+  align-content: center;
+  color: #fef3c7;
+  font-weight: 900;
+  letter-spacing: 0;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(250,204,21,0.18), transparent 35%),
+    repeating-linear-gradient(45deg, rgba(250,204,21,0.2) 0 2px, transparent 2px 8px),
+    linear-gradient(145deg, #172554, #020617);
+  border-color: rgba(250,204,21,0.52);
+}
+
+.bj-card-placeholder {
+  place-items: center;
+  align-content: center;
+  color: #94a3b8;
+  background: rgba(15,23,42,0.42);
+  border: 1px dashed rgba(255,255,255,0.18);
+  box-shadow: none;
+}
+
+.bj-player-area {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 8px;
+  align-items: center;
+}
+
+.bj-player-hand,
+.bj-empty-hand {
+  display: grid;
+  align-content: center;
+  padding: 8px;
+  border-radius: 14px;
+  background: rgba(4,120,87,0.28);
+  border: 1px solid rgba(187,247,208,0.12);
+}
+
+.bj-player-hand.active {
+  border-color: rgba(96,165,250,0.7);
+  box-shadow: inset 0 0 18px rgba(96,165,250,0.12), 0 0 18px rgba(96,165,250,0.16);
+}
+
+.bj-player-hand small {
+  text-align: center;
+  color: #bbf7d0;
+  font-weight: 800;
+}
+
+.bj-empty-hand {
+  min-height: 94px;
+  place-items: center;
+  color: #bbf7d0;
+}
+
+.bj-inline-offer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 6px;
+  align-items: center;
+  padding: 7px;
+  border-radius: 12px;
+  background: rgba(120,53,15,0.86);
+  border: 1px solid rgba(250,204,21,0.45);
+}
+
+.bj-inline-offer strong,
+.bj-inline-offer span {
+  display: block;
+}
+
+.bj-inline-offer span {
+  color: #fde68a;
+  font-size: 0.68rem;
+}
+
+.bj-inline-offer button {
+  min-width: 42px;
+  min-height: 32px;
+  border-radius: 9px;
+  color: #fff;
+  background: #166534;
+  font-weight: 900;
+}
+
+.bj-inline-offer button:last-child {
+  background: #991b1b;
+}
+
+.bj-bet-display {
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(15,23,42,0.72);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+.bj-bet-display strong {
+  font-size: clamp(1rem, 4vw, 1.25rem);
+}
+
+.bj-mini-stack {
+  width: 48px;
+  height: 28px;
+  position: relative;
+}
+
+.bj-mini-stack span {
+  --chip-color: #16a34a;
+  position: absolute;
+  left: calc(8px + (var(--stack-index) * 8px));
+  top: calc(3px - (var(--stack-index) * 1px));
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, var(--chip-color), color-mix(in srgb, var(--chip-color) 55%, #020617));
+  border: 3px solid color-mix(in srgb, var(--chip-color) 72%, #fff);
+  box-shadow: 0 5px 9px rgba(0,0,0,0.32), inset 0 0 0 3px rgba(15,23,42,0.36);
+}
+
+.bj-result {
+  justify-self: center;
+  max-width: 100%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  text-align: center;
+  background: rgba(15,23,42,0.82);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+.bj-result strong {
+  display: block;
+  color: #86efac;
+  font-size: 1.05rem;
+}
+
+.bj-result.loss strong {
+  color: #fca5a5;
+}
+
+.bj-result span {
+  color: #cbd5e1;
+  font-size: 0.76rem;
+}
+
+.bj-controls {
+  display: grid;
+  gap: 7px;
+  padding: 8px;
+  border-radius: 16px;
+  background: rgba(15,23,42,0.94);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.bj-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
+  gap: 7px;
+}
+
+.bj-primary,
+.bj-secondary,
+.bj-utility button {
+  min-height: 42px;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 900;
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+.bj-primary {
+  background: linear-gradient(180deg, #16a34a, #15803d);
+}
+
+.bj-deal {
+  grid-column: 1 / -1;
+  background: linear-gradient(180deg, #2563eb, #1d4ed8);
+}
+
+.bj-secondary {
+  background: linear-gradient(180deg, #ca8a04, #92400e);
+}
+
+.bj-secondary.blue {
+  background: linear-gradient(180deg, #2563eb, #1d4ed8);
+}
+
+.bj-secondary.purple {
+  background: linear-gradient(180deg, #9333ea, #6b21a8);
+}
+
+.bj-chip-row {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.bj-chip {
+  --chip-color: #e5e7eb;
+  aspect-ratio: 1;
+  min-height: 38px;
+  border-radius: 50%;
+  color: #fff;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255,255,255,0.2), transparent 28%),
+    repeating-conic-gradient(rgba(255,255,255,0.92) 0 10deg, transparent 10deg 30deg),
+    radial-gradient(circle, var(--chip-color), color-mix(in srgb, var(--chip-color) 54%, #020617));
+  border: 3px solid color-mix(in srgb, var(--chip-color) 76%, #fff);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.3), inset 0 0 0 4px rgba(15,23,42,0.38);
+  font-weight: 1000;
+  text-shadow: 0 1px 5px rgba(0,0,0,0.78);
+}
+
+.bj-chip.chip-1 { --chip-color: #e5e7eb; color: #111827; text-shadow: none; }
+.bj-chip.chip-5 { --chip-color: #dc2626; }
+.bj-chip.chip-10 { --chip-color: #2563eb; }
+.bj-chip.chip-25 { --chip-color: #16a34a; }
+.bj-chip.chip-100 { --chip-color: #7c3aed; }
+.bj-chip.chip-500 { --chip-color: #111827; color: #fef3c7; }
+
+.bj-utility {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.bj-utility button {
+  background: rgba(255,255,255,0.08);
+}
+
+.bj-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #a9b4c7;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+}
+
+.bj-footer strong {
+  color: #f8fafc;
+}
+
+@keyframes bjDeal {
+  0% { opacity: 0; transform: translate3d(24px, -24px, 0) rotate(4deg) scale(0.92); }
+  65% { opacity: 1; transform: translate3d(-2px, 3px, 0) rotate(-1deg) scale(1.03); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+}
+
+@media (max-width: 720px) {
+  .blackjack-game-host {
+    margin: -16px;
+  }
+
+  .blackjack-simple {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100svh;
+    min-height: 100svh;
+    padding: 8px;
+  }
+}
+
+@media (max-width: 360px) {
+  .blackjack-simple {
+    padding: 6px;
+    gap: 6px;
+  }
+
+  .bj-topbar {
+    gap: 7px;
+  }
+
+  .bj-back {
+    width: 34px;
+    height: 34px;
+  }
+
+  .bj-currency {
+    width: 98px;
+  }
+
+  .bj-currency select {
+    min-height: 32px;
+    padding-inline: 6px;
+    font-size: 0.72rem;
+  }
+
+  .bj-table {
+    padding: 7px;
+    gap: 5px;
+  }
+
+  .bj-cards {
+    min-height: 54px;
+    gap: 6px;
+  }
+
+  .bj-card,
+  .bj-card-placeholder {
+    width: 40px;
+    padding: 5px;
+  }
+
+  .bj-row-heading span {
+    padding: 4px 6px;
+    font-size: 0.68rem;
+  }
+
+  .bj-chip {
+    min-height: 32px;
+    border-width: 2px;
+    font-size: 0.68rem;
+  }
+
+  .bj-primary,
+  .bj-secondary,
+  .bj-utility button {
+    min-height: 37px;
+  }
+
+  .bj-footer {
+    font-size: 0.6rem;
+  }
+}
+
 /* Blackjack mockup-inspired mobile layout refresh. */
 .blackjack-game-host {
   gap: 0;

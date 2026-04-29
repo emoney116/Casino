@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from "react";
-import { ArrowLeft, HelpCircle } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
 import { formatCoins } from "../lib/format";
@@ -36,6 +36,7 @@ export const blackjackInlineUxMarkers = {
   compactTable: true,
   fixedMobileActions: true,
   integratedHeader: true,
+  simpleUi: true,
 };
 
 export function BlackjackPage({ onExit }: { onExit?: () => void }) {
@@ -47,6 +48,7 @@ export function BlackjackPage({ onExit }: { onExit?: () => void }) {
   const [round, setRound] = useState<BlackjackRound | null>(null);
   if (!user) return null;
   const currentUser = user;
+
   const balance = getBalance(currentUser.id, currency);
   const activeRound = round?.status === "PLAYER_TURN";
   const activeHand = round ? activeBlackjackHand(round) : null;
@@ -117,101 +119,74 @@ export function BlackjackPage({ onExit }: { onExit?: () => void }) {
   }
 
   return (
-    <section className="table-play-screen blackjack-table blackjack-premium">
-      <div className="blackjack-topbar">
-        <div className="blackjack-title-group">
-          <button className="blackjack-back" onClick={onExit} aria-label="Back to table games">
-            <ArrowLeft size={18} />
-          </button>
-          <div className="blackjack-title-copy">
-            <h1>Blackjack</h1>
-            <span>Single Player • Virtual Coins Only</span>
-          </div>
+    <section className="blackjack-simple">
+      <header className="bj-topbar">
+        <button className="bj-back" onClick={onExit} aria-label="Back to table games">
+          <ArrowLeft size={18} />
+        </button>
+        <div className="bj-title">
+          <h1>Blackjack</h1>
+          <span>Virtual Coins Only</span>
         </div>
-        <label className="blackjack-currency">
+        <label className="bj-currency">
           <span>Currency</span>
           <select value={currency} disabled={activeRound} onChange={(event) => setCurrency(event.target.value as Currency)}>
-            <option value="GOLD">Gold Coins</option>
-            <option value="BONUS">Bonus Coins</option>
+            <option value="GOLD">Gold</option>
+            <option value="BONUS">Bonus</option>
           </select>
         </label>
-        <div className="blackjack-help" aria-hidden="true">
-          <HelpCircle size={18} />
-        </div>
-      </div>
+      </header>
 
-      <article className="blackjack-felt">
-        <section className="blackjack-table-row dealer-row">
-          <Hand
-            label="Dealer"
-            cards={round?.dealerCards ?? []}
-            total={round ? visibleDealerValue(round) : 0}
-            totalLabel={round?.dealerRevealed ? "Dealer Total" : "Upcard Total"}
-            hideHoleCard={Boolean(round && !round.dealerRevealed)}
-          />
-        </section>
+      <main className="bj-table">
+        <HandRow
+          label="Dealer"
+          cards={round?.dealerCards ?? []}
+          totalLabel={round?.dealerRevealed ? "Total" : "Upcard"}
+          total={round ? visibleDealerValue(round) : 0}
+          hideHoleCard={Boolean(round && !round.dealerRevealed)}
+        />
 
         {offerInsurance && (
-          <InlineOffer
-            title="Insurance?"
-            text="Dealer shows Ace. Insurance costs half your bet."
-            yesLabel="Yes"
-            noLabel="No"
-            onYes={() => insurance(true)}
-            onNo={() => insurance(false)}
-          />
+          <InlineOffer title="Insurance?" text="Dealer shows Ace." onYes={() => insurance(true)} onNo={() => insurance(false)} />
         )}
-
         {offerEvenMoney && (
-          <InlineOffer
-            title="Even Money?"
-            text="You have blackjack. Take a 1:1 win now?"
-            yesLabel="Yes"
-            noLabel="No"
-            onYes={() => evenMoney(true)}
-            onNo={() => evenMoney(false)}
-          />
+          <InlineOffer title="Even Money?" text="Take a 1:1 win now?" onYes={() => evenMoney(true)} onNo={() => evenMoney(false)} />
         )}
 
-        <section className="blackjack-player-zone">
+        <section className="bj-player-area">
           {(round?.playerHands ?? []).length === 0 ? (
-            <div className="blackjack-empty-hand">Place chips, then deal.</div>
+            <div className="bj-empty-hand">Place a bet to start.</div>
           ) : (
             round!.playerHands.map((hand, index) => (
-              <PlayerHand
-                key={hand.id}
-                hand={hand}
-                active={round!.status === "PLAYER_TURN" && index === round!.activeHandIndex}
-                index={index}
-              />
+              <PlayerHand key={hand.id} hand={hand} active={round!.status === "PLAYER_TURN" && index === round!.activeHandIndex} index={index} />
             ))
           )}
         </section>
 
-        <BetStack amount={betAmount} active={activeRound} />
+        <BetDisplay amount={betAmount} />
         {round?.result && <ResultBanner round={round} />}
-      </article>
+      </main>
 
-      <section className="blackjack-control-deck">
-        <div className="blackjack-actions">
-          {!activeRound && <span className="blackjack-action-hint">Choose chips, then deal.</span>}
+      <footer className="bj-controls">
+        <div className="bj-actions">
+          {!activeRound && <button className="bj-primary bj-deal" disabled={!canDeal} onClick={deal}>Deal</button>}
           {activeRound && activeHand && !actionBlocked && (
             <>
-              <button className="primary-button" onClick={() => action("hit")}>Hit</button>
-              <button className="ghost-button" onClick={() => action("stand")}>Stand</button>
-              {round && canDoubleBlackjack(round, currentUser.id) && <button className="ghost-button" onClick={() => action("double")}>Double</button>}
-              {round && canSplitBlackjack(round, currentUser.id) && <button className="ghost-button" onClick={() => action("split")}>Split</button>}
+              <button className="bj-primary" onClick={() => action("hit")}>Hit</button>
+              <button className="bj-secondary" onClick={() => action("stand")}>Stand</button>
+              {round && canDoubleBlackjack(round, currentUser.id) && <button className="bj-secondary blue" onClick={() => action("double")}>Double</button>}
+              {round && canSplitBlackjack(round, currentUser.id) && <button className="bj-secondary purple" onClick={() => action("split")}>Split</button>}
             </>
           )}
         </div>
 
         {!activeRound && (
-          <div className="chip-betting">
-            <div className="chip-rack" aria-label="Chip betting">
+          <>
+            <div className="bj-chip-row" aria-label="Chip betting">
               {chipValues.map((value) => (
                 <button
                   key={value}
-                  className={`casino-chip chip-${value}`}
+                  className={`bj-chip chip-${value}`}
                   disabled={betAmount + value > blackjackConfig.maxBet || betAmount + value > balance}
                   onClick={() => addChip(value)}
                 >
@@ -219,110 +194,47 @@ export function BlackjackPage({ onExit }: { onExit?: () => void }) {
                 </button>
               ))}
             </div>
-          </div>
+            <div className="bj-utility">
+              <button onClick={clearBet}>Clear</button>
+              <button onClick={rebet}>Rebet</button>
+            </div>
+          </>
         )}
 
-        {!activeRound && (
-          <div className="blackjack-utility-row">
-            <button className="ghost-button" onClick={clearBet}>Clear</button>
-            <button className="primary-button deal-button" disabled={!canDeal} onClick={deal}>Deal</button>
-            <button className="ghost-button" onClick={rebet}>Rebet</button>
-          </div>
-        )}
-
-        <div className="blackjack-status-panel">
-          <div>
-            <span>Balance</span>
-            <strong>{formatCoins(balance)}</strong>
-            <small>{currency}</small>
-          </div>
-          <div>
-            <span>Bet Limits</span>
-            <strong>{blackjackConfig.minBet} / {blackjackConfig.maxBet}</strong>
-            <small>Virtual coins only</small>
-          </div>
+        <div className="bj-footer">
+          <span>Balance <strong>{formatCoins(balance)}</strong> {currency}</span>
+          <span>Min {blackjackConfig.minBet} / Max {blackjackConfig.maxBet}</span>
         </div>
-      </section>
+      </footer>
     </section>
   );
 }
 
-function InlineOffer({
-  title,
-  text,
-  yesLabel,
-  noLabel,
-  onYes,
-  onNo,
-}: {
-  title: string;
-  text: string;
-  yesLabel: string;
-  noLabel: string;
-  onYes: () => void;
-  onNo: () => void;
-}) {
-  return (
-    <div className="blackjack-inline-offer">
-      <div>
-        <strong>{title}</strong>
-        <span>{text}</span>
-      </div>
-      <div>
-        <button className="primary-button" onClick={onYes}>{yesLabel}</button>
-        <button className="ghost-button" onClick={onNo}>{noLabel}</button>
-      </div>
-    </div>
-  );
-}
-
-function BetStack({ amount, active }: { amount: number; active: boolean }) {
-  const chips = chipValues
-    .slice()
-    .sort((a, b) => b - a)
-    .flatMap((value) => Array.from({ length: Math.min(4, Math.floor(amount / value)) }, () => value))
-    .slice(0, 5);
-  return (
-    <div className={active ? "blackjack-bet-stack live" : "blackjack-bet-stack"}>
-      <div className="stacked-chips" aria-hidden="true">
-        {(chips.length ? chips : [1]).map((chip, index) => (
-          <span
-            key={`${chip}-${index}`}
-            className={`mini-chip chip-${chip}`}
-            style={{ "--chip-offset": `${index * -7}px` } as CSSProperties}
-          />
-        ))}
-      </div>
-      <strong>BET {formatCoins(amount)}</strong>
-    </div>
-  );
-}
-
-function Hand({
+function HandRow({
   label,
   cards,
+  totalLabel,
   total,
-  totalLabel = "Total",
   hideHoleCard,
 }: {
   label: string;
   cards: PlayingCard[];
+  totalLabel: string;
   total: number;
-  totalLabel?: string;
   hideHoleCard?: boolean;
 }) {
   return (
-    <div className="card-hand blackjack-hand">
-      <div className="blackjack-row-label">
-        <h3>{label}</h3>
-        <span>{totalLabel} <strong>{cards.length ? total : "-"}</strong></span>
+    <section className="bj-hand-row">
+      <div className="bj-row-heading">
+        <strong>{label}</strong>
+        <span>{totalLabel}: {cards.length ? total : "-"}</span>
       </div>
-      <div className="playing-cards blackjack-cards">
-        {cards.length === 0 ? <div className="empty-state">Cards will appear here.</div> : cards.map((card, index) => (
+      <div className="bj-cards">
+        {cards.length === 0 ? <div className="bj-card-placeholder">Cards</div> : cards.map((card, index) => (
           <CardView key={`${card.rank}${card.suit}${index}`} card={card} hidden={hideHoleCard && index === 1} index={index} />
         ))}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -330,29 +242,48 @@ function PlayerHand({ hand, active, index }: { hand: BlackjackHand; active: bool
   const total = handValue(hand.cards).total;
   const natural = hand.cards.length === 2 && total === 21;
   return (
-    <div className={active ? "player-hand active" : "player-hand"}>
-      <div className="blackjack-row-label">
-        <h3>Hand {index + 1}</h3>
-        <span>{hand.status === "BUST" ? "BUST" : natural ? "BLACKJACK" : `Total ${total}`}</span>
+    <section className={active ? "bj-player-hand active" : "bj-player-hand"}>
+      <div className="bj-row-heading">
+        <strong>{hand.splitFromPair ? `Hand ${index + 1}` : "Player"}</strong>
+        <span>{hand.status === "BUST" ? "BUST" : natural ? "BLACKJACK" : `Total: ${total}`}</span>
       </div>
-      <div className="playing-cards blackjack-cards">
+      <div className="bj-cards">
         {hand.cards.map((card, cardIndex) => <CardView key={`${hand.id}${cardIndex}`} card={card} index={cardIndex} />)}
       </div>
-      <div className="hand-footer">
-        <span>Bet {formatCoins(hand.betAmount)}</span>
-        {hand.result && <strong>{hand.result.result}</strong>}
+      <small>Bet {formatCoins(hand.betAmount)} {hand.result ? `• ${hand.result.result}` : ""}</small>
+    </section>
+  );
+}
+
+function InlineOffer({ title, text, onYes, onNo }: { title: string; text: string; onYes: () => void; onNo: () => void }) {
+  return (
+    <div className="bj-inline-offer">
+      <div>
+        <strong>{title}</strong>
+        <span>{text}</span>
       </div>
+      <button onClick={onYes}>Yes</button>
+      <button onClick={onNo}>No</button>
+    </div>
+  );
+}
+
+function BetDisplay({ amount }: { amount: number }) {
+  return (
+    <div className="bj-bet-display">
+      <div className="bj-mini-stack" aria-hidden="true">
+        {[0, 1, 2].map((index) => <span key={index} style={{ "--stack-index": index } as CSSProperties} />)}
+      </div>
+      <strong>Bet: {formatCoins(amount)}</strong>
     </div>
   );
 }
 
 function CardView({ card, hidden, index }: { card: PlayingCard; hidden?: boolean; index: number }) {
-  if (hidden) {
-    return <div className="playing-card card-back" style={{ "--card-delay": `${index * 90}ms` } as CSSProperties}><span>Casino</span></div>;
-  }
+  if (hidden) return <div className="bj-card bj-card-back" style={{ "--card-delay": `${index * 120}ms` } as CSSProperties}>BJ</div>;
   const red = card.suit === "H" || card.suit === "D";
   return (
-    <div className={red ? "playing-card red" : "playing-card"} style={{ "--card-delay": `${index * 90}ms` } as CSSProperties}>
+    <div className={red ? "bj-card red" : "bj-card"} style={{ "--card-delay": `${index * 120}ms` } as CSSProperties}>
       <strong>{card.rank}</strong>
       <span>{suitMarks[card.suit]}</span>
     </div>
@@ -360,18 +291,13 @@ function CardView({ card, hidden, index }: { card: PlayingCard; hidden?: boolean
 }
 
 function ResultBanner({ round }: { round: BlackjackRound }) {
-  const label = round.playerHands.some((hand) => hand.cards.length === 2 && handValue(hand.cards).total === 21 && hand.result?.result === "WIN")
-    ? "Blackjack"
-    : round.result?.result === "LOSS"
-      ? "Dealer Wins"
-      : round.result?.result ?? "Resolved";
+  const blackjack = round.playerHands.some((hand) => hand.cards.length === 2 && handValue(hand.cards).total === 21 && hand.result?.result === "WIN");
+  const bust = round.playerHands.every((hand) => hand.status === "RESOLVED" && handValue(hand.cards).total > 21);
+  const label = blackjack ? "Blackjack" : bust ? "Bust" : round.result?.result === "LOSS" ? "Dealer Wins" : round.result?.result ?? "Resolved";
   return (
-    <div className={`table-result ${(round.result?.result ?? "push").toLowerCase()}`}>
+    <div className={`bj-result ${(round.result?.result ?? "push").toLowerCase()}`}>
       <strong>{label}</strong>
       <span>{round.result?.message}</span>
-      {round.playerHands.length > 1 && (
-        <small>{round.playerHands.map((hand, index) => `Hand ${index + 1}: ${hand.result?.result ?? "-"}`).join(" | ")}</small>
-      )}
     </div>
   );
 }
