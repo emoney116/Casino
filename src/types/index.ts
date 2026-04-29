@@ -13,7 +13,12 @@ export type TransactionType =
   | "STREAK_REWARD"
   | "BUY_BONUS"
   | "BONUS_WIN"
-  | "JACKPOT_WIN";
+  | "JACKPOT_WIN"
+  | "TABLE_BET"
+  | "TABLE_WIN"
+  | "TABLE_PUSH"
+  | "TABLE_LOSS"
+  | "TABLE_REFUND";
 export type TransactionStatus = "PENDING" | "COMPLETED" | "FAILED";
 
 export interface User {

@@ -19,6 +19,9 @@ import { missionDefs } from "../missions/missionDefs";
 import { streakRewards } from "../streaks/streakService";
 import { QAChecklist } from "./QAChecklist";
 import { SupabaseDebugPanel } from "../components/SupabaseDebugPanel";
+import { tableGameConfigs } from "../tableGames/configs";
+import { getTableMathWarnings, simulateTableGame } from "../tableGames/tableMath";
+import type { TableGameId, TableSimulationResult } from "../tableGames/types";
 
 export function AdminPage() {
   const { logout } = useAuth();
@@ -28,6 +31,7 @@ export function AdminPage() {
   const [currency, setCurrency] = useState<Currency>("GOLD");
   const [amount, setAmount] = useState(1000);
   const [simulations, setSimulations] = useState<Record<string, SimulationResult>>({});
+  const [tableSimulations, setTableSimulations] = useState<Record<string, TableSimulationResult>>({});
   const data = readData();
 
   function refresh() {
@@ -68,10 +72,17 @@ export function AdminPage() {
     setSimulations((current) => ({ ...current, [gameId]: result }));
   }
 
+  function runTableSimulation(gameId: TableGameId) {
+    const result = simulateTableGame(gameId, 100000);
+    setTableSimulations((current) => ({ ...current, [gameId]: result }));
+  }
+
   const allTransactions = getTransactions();
   const suspiciousGames = slotConfigs.flatMap((game) => getMathWarnings(game, simulations[game.id]));
+  const suspiciousTableGames = tableGameConfigs.flatMap((game) => getTableMathWarnings(game, tableSimulations[game.id]));
   const economyWarnings = [
     ...suspiciousGames,
+    ...suspiciousTableGames,
     ...(missionDefs.some((mission) => mission.rewardAmount > 5000) ? ["Mission rewards are high for demo economy."] : []),
     ...(streakRewards.some((reward) => reward.bonus > 6000 || reward.gold > 1000) ? ["Streak rewards are high for demo economy."] : []),
     ...(slotConfigs.some((game) => game.maxPayoutMultiplier > 75) ? ["A max payout cap is high."] : []),
@@ -185,6 +196,39 @@ export function AdminPage() {
                 )}
                 {warnings.map((warning) => <div className="warning" key={warning}>{warning}</div>)}
                 <button className="ghost-button" onClick={() => runSimulation(game.id)}>Simulate</button>
+              </article>
+            );
+          })}
+        </div>
+      </article>
+
+      <article className="card">
+        <div className="section-title">
+          <h2>Table Game Math Simulator</h2>
+          <span>100,000 rounds</span>
+        </div>
+        <div className="sim-grid">
+          {tableGameConfigs.map((game) => {
+            const sim = tableSimulations[game.id];
+            const warnings = getTableMathWarnings(game, sim);
+            return (
+              <article className="sim-card" key={game.id}>
+                <h3>{game.name}</h3>
+                <small>Target house edge {(game.houseEdgeTarget * 100).toFixed(2)}%</small>
+                {sim ? (
+                  <div className="detail-list compact-detail">
+                    <span>Total wagered</span><strong>{formatCoins(sim.totalWagered)}</strong>
+                    <span>Total paid</span><strong>{formatCoins(sim.totalPaid)}</strong>
+                    <span>Observed RTP</span><strong>{(sim.observedRtp * 100).toFixed(2)}%</strong>
+                    <span>House edge</span><strong>{(sim.houseEdge * 100).toFixed(2)}%</strong>
+                    <span>Biggest win</span><strong>{formatCoins(sim.biggestWin)}</strong>
+                    <span>Cap hits</span><strong>{formatCoins(sim.maxPayoutCapHits)}</strong>
+                  </div>
+                ) : (
+                  <p className="muted">Run simulation to inspect table game math.</p>
+                )}
+                {warnings.map((warning) => <div className="warning" key={warning}>{warning}</div>)}
+                <button className="ghost-button" onClick={() => runTableSimulation(game.id as TableGameId)}>Simulate</button>
               </article>
             );
           })}

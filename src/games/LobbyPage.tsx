@@ -15,8 +15,19 @@ import { ProgressionBar } from "../progression/ProgressionBar";
 import { StreakCard } from "../streaks/StreakCard";
 import { MissionsPanel } from "../missions/MissionsPanel";
 import { getFavorites, toggleFavorite } from "./favorites";
+import { tableGameConfigs } from "../tableGames/configs";
+import { TableGameCard } from "../tableGames/TableGameCard";
+import type { TableGameId } from "../tableGames/types";
 
-export function LobbyPage({ onPlay, onWallet }: { onPlay: (gameId: string) => void; onWallet: () => void }) {
+export function LobbyPage({
+  onPlay,
+  onTablePlay,
+  onWallet,
+}: {
+  onPlay: (gameId: string) => void;
+  onTablePlay: (gameId: TableGameId) => void;
+  onWallet: () => void;
+}) {
   const { user, refreshUser } = useAuth();
   const notify = useToast();
   const [search, setSearch] = useState("");
@@ -104,11 +115,26 @@ export function LobbyPage({ onPlay, onWallet }: { onPlay: (gameId: string) => vo
         <>
           <GameSection title="Favorites" games={favorites.map((id) => exposedSlotConfigs.find((game) => game.id === id)).filter(Boolean) as SlotConfig[]} onPlay={onPlay} emptyText="No favorites yet. Tap the star on any game tile." favorites={favorites} onToggleFavorite={(id) => { toggleFavorite(currentUser.id, id); setVersion((value) => value + 1); }} />
           <GameSection title="Featured Flagship" games={exposedSlotConfigs} onPlay={onPlay} favorites={favorites} onToggleFavorite={(id) => { toggleFavorite(currentUser.id, id); setVersion((value) => value + 1); }} />
+          <TableGameSection onPlay={onTablePlay} />
           <GameSection title="Hold and Win" games={exposedSlotConfigs.filter((game) => game.featureTypes?.includes("HOLD_AND_WIN"))} onPlay={onPlay} />
           <GameSection title="Bonus Game" games={exposedSlotConfigs.filter((game) => game.buyBonus?.enabled)} onPlay={onPlay} />
           <GameSection title="Recently Played" games={recent} onPlay={onPlay} emptyText="No recently played games yet. Pick a game to start your history." />
         </>
       )}
+    </section>
+  );
+}
+
+function TableGameSection({ onPlay }: { onPlay: (gameId: TableGameId) => void }) {
+  return (
+    <section className="page-stack">
+      <div className="section-title">
+        <h2>Table Games</h2>
+        <span>{tableGameConfigs.length} games</span>
+      </div>
+      <div className="game-grid table-game-grid">
+        {tableGameConfigs.map((game) => <TableGameCard key={game.id} game={game} onPlay={onPlay} />)}
+      </div>
     </section>
   );
 }

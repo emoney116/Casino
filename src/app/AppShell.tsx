@@ -13,11 +13,24 @@ import { BrandIcon, visibleNavItems } from "./navigation";
 import { MobileTabBar } from "./MobileTabBar";
 import { Modal } from "../components/Modal";
 import { dismissOnboarding, hasDismissedOnboarding } from "./onboarding";
+import { TableGamesPage } from "../tableGames/TableGamesPage";
+import type { TableGameId } from "../tableGames/types";
+
+function getInitialRoute(): { view: AppView; tableGameId: TableGameId | null } {
+  const path = window.location.pathname;
+  if (path.startsWith("/table-games/blackjack")) return { view: "tableGames", tableGameId: "blackjack" };
+  if (path.startsWith("/table-games/roulette")) return { view: "tableGames", tableGameId: "roulette" };
+  if (path.startsWith("/table-games/dice")) return { view: "tableGames", tableGameId: "dice" };
+  if (path.startsWith("/table-games")) return { view: "tableGames", tableGameId: null };
+  return { view: "lobby", tableGameId: null };
+}
 
 export function AppShell() {
   const { user } = useAuth();
-  const [activeView, setActiveView] = useState<AppView>("lobby");
+  const initialRoute = getInitialRoute();
+  const [activeView, setActiveView] = useState<AppView>(initialRoute.view);
   const [activeGameId, setActiveGameId] = useState<string | null>(null);
+  const [activeTableGameId, setActiveTableGameId] = useState<TableGameId | null>(initialRoute.tableGameId);
   const [showOnboarding, setShowOnboarding] = useState(() => (user ? !hasDismissedOnboarding(user.id) : false));
 
   if (!user) return null;
@@ -29,8 +42,23 @@ export function AppShell() {
     setActiveView("games");
   }
 
+  function setView(view: AppView) {
+    setActiveView(view);
+    if (view !== "tableGames") setActiveTableGameId(null);
+    const route = view === "tableGames" ? "/table-games" : "/";
+    window.history.pushState(null, "", route);
+  }
+
+  function playTableGame(gameId: TableGameId) {
+    setActiveTableGameId(gameId);
+    setActiveView("tableGames");
+    window.history.pushState(null, "", `/table-games/${gameId}`);
+  }
+
+  const hideMobileNav = activeView === "games" || (activeView === "tableGames" && activeTableGameId);
+
   return (
-    <div className={`shell ${activeView === "games" ? "game-mode" : ""}`}>
+    <div className={`shell ${hideMobileNav ? "game-mode" : ""}`}>
       <aside className="sidebar">
         <div className="shell-brand">
           <BrandIcon />
@@ -46,7 +74,7 @@ export function AppShell() {
               <button
                 key={item.id}
                 className={activeView === item.id ? "active" : ""}
-                onClick={() => setActiveView(item.id)}
+                onClick={() => setView(item.id)}
               >
                 <Icon size={19} />
                 {item.label}
@@ -72,9 +100,20 @@ export function AppShell() {
           <BalancePill label="Bonus Coins" amount={balances.BONUS} tone="bonus" />
         </div>
 
-        {activeView === "lobby" && <LobbyPage onPlay={playGame} onWallet={() => setActiveView("wallet")} />}
+        {activeView === "lobby" && <LobbyPage onPlay={playGame} onTablePlay={playTableGame} onWallet={() => setView("wallet")} />}
         {activeView === "games" && (
-          <GamesPage activeGameId={activeGameId} onGameChange={setActiveGameId} onExit={() => setActiveView("lobby")} />
+          <GamesPage activeGameId={activeGameId} onGameChange={setActiveGameId} onExit={() => setView("lobby")} />
+        )}
+        {activeView === "tableGames" && (
+          <TableGamesPage
+            activeGameId={activeTableGameId}
+            onGameChange={playTableGame}
+            onExit={() => {
+              setActiveTableGameId(null);
+              setActiveView("tableGames");
+              window.history.pushState(null, "", "/table-games");
+            }}
+          />
         )}
         {activeView === "wallet" && <WalletPage />}
         {activeView === "account" && <AccountPage />}
@@ -84,7 +123,7 @@ export function AppShell() {
         </div>
       </main>
 
-      {activeView !== "games" && <MobileTabBar activeView={activeView} roles={user.roles} onChange={setActiveView} />}
+      {!hideMobileNav && <MobileTabBar activeView={activeView} roles={user.roles} onChange={setView} />}
       {showOnboarding && (
         <Modal title="Welcome to the Demo Casino" onClose={() => undefined}>
           <div className="modal-stack">

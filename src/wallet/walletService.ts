@@ -70,6 +70,38 @@ export function creditCurrency(input: LedgerInput): Transaction {
   return tx;
 }
 
+export function recordWalletEvent(input: LedgerInput): Transaction {
+  if (input.amount !== 0) throw new Error("Wallet event amount must be zero.");
+
+  let created: Transaction | undefined;
+  updateData((data) => {
+    const wallet = data.walletBalances[input.userId] ?? { ...emptyBalances };
+    data.walletBalances[input.userId] = wallet;
+
+    created = {
+      id: createId("txn"),
+      userId: input.userId,
+      type: input.type,
+      currency: input.currency,
+      amount: 0,
+      balanceAfter: wallet[input.currency],
+      status: "COMPLETED",
+      createdAt: new Date().toISOString(),
+      metadata: input.metadata ?? {},
+    };
+    data.transactions.push(created);
+  });
+
+  const tx = created as Transaction;
+  const balances = getBalance(input.userId);
+  mirrorToBackend(async () => {
+    const repository = getRepository();
+    await repository.syncWalletBalance(input.userId, balances);
+    await repository.syncWalletTransaction(tx);
+  });
+  return tx;
+}
+
 export function debitCurrency(input: LedgerInput): Transaction {
   if (input.amount <= 0) throw new Error("Debit amount must be positive.");
 
