@@ -1,4 +1,5 @@
 import { useState, type CSSProperties } from "react";
+import { ArrowLeft, HelpCircle } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
 import { formatCoins } from "../lib/format";
@@ -32,9 +33,10 @@ export const blackjackInlineUxMarkers = {
   inlineEvenMoney: true,
   chipStack: true,
   fixedMobileActions: true,
+  integratedHeader: true,
 };
 
-export function BlackjackPage() {
+export function BlackjackPage({ onExit }: { onExit?: () => void }) {
   const { user } = useAuth();
   const notify = useToast();
   const [currency, setCurrency] = useState<Currency>("GOLD");
@@ -114,19 +116,26 @@ export function BlackjackPage() {
 
   return (
     <section className="table-play-screen blackjack-table blackjack-premium">
-      <div className="table-game-heading blackjack-heading">
-        <div>
-          <p className="eyebrow">Virtual blackjack</p>
-          <h1>Blackjack</h1>
-          <p className="muted">Dealer hole card stays hidden until resolution. Virtual coins only.</p>
+      <div className="blackjack-topbar">
+        <div className="blackjack-title-group">
+          <button className="blackjack-back" onClick={onExit} aria-label="Back to table games">
+            <ArrowLeft size={18} />
+          </button>
+          <div className="blackjack-title-copy">
+            <h1>Blackjack</h1>
+            <span>Single Player • Virtual Coins Only</span>
+          </div>
         </div>
         <label className="blackjack-currency">
-          Currency
+          <span>Currency</span>
           <select value={currency} disabled={activeRound} onChange={(event) => setCurrency(event.target.value as Currency)}>
             <option value="GOLD">Gold Coins</option>
             <option value="BONUS">Bonus Coins</option>
           </select>
         </label>
+        <div className="blackjack-help" aria-hidden="true">
+          <HelpCircle size={18} />
+        </div>
       </div>
 
       <article className="felt-table blackjack-felt">
@@ -135,6 +144,7 @@ export function BlackjackPage() {
             label="Dealer"
             cards={round?.dealerCards ?? []}
             total={round ? visibleDealerValue(round) : 0}
+            totalLabel={round?.dealerRevealed ? "Dealer Total" : "Upcard Total"}
             hideHoleCard={Boolean(round && !round.dealerRevealed)}
           />
         </section>
@@ -286,18 +296,20 @@ function Hand({
   label,
   cards,
   total,
+  totalLabel = "Total",
   hideHoleCard,
 }: {
   label: string;
   cards: PlayingCard[];
   total: number;
+  totalLabel?: string;
   hideHoleCard?: boolean;
 }) {
   return (
     <div className="card-hand blackjack-hand">
       <div className="section-title">
         <h3>{label}</h3>
-        <span>Total {cards.length ? total : "-"}</span>
+        <span>{totalLabel} {cards.length ? total : "-"}</span>
       </div>
       <div className="playing-cards blackjack-cards">
         {cards.length === 0 ? <div className="empty-state">Cards will appear here.</div> : cards.map((card, index) => (
@@ -309,11 +321,13 @@ function Hand({
 }
 
 function PlayerHand({ hand, active, index }: { hand: BlackjackHand; active: boolean; index: number }) {
+  const total = handValue(hand.cards).total;
+  const natural = hand.cards.length === 2 && total === 21;
   return (
     <div className={active ? "player-hand active" : "player-hand"}>
       <div className="section-title">
         <h3>Hand {index + 1}</h3>
-        <span>{hand.status === "BUST" ? "Bust" : `Total ${handValue(hand.cards).total}`}</span>
+        <span>{hand.status === "BUST" ? "BUST" : natural ? "BLACKJACK" : `Total ${total}`}</span>
       </div>
       <div className="playing-cards blackjack-cards">
         {hand.cards.map((card, cardIndex) => <CardView key={`${hand.id}${cardIndex}`} card={card} index={cardIndex} />)}

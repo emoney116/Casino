@@ -16,9 +16,9 @@ export function TableGamesPage({
 }) {
   if (activeGameId) {
     return (
-      <section className="page-stack">
-        <button className="ghost-button table-back-button" onClick={onExit}>Back to Table Games</button>
-        {activeGameId === "blackjack" && <BlackjackPage />}
+      <section className={activeGameId === "blackjack" ? "page-stack blackjack-game-host" : "page-stack"}>
+        {activeGameId !== "blackjack" && <button className="ghost-button table-back-button" onClick={onExit}>Back to Table Games</button>}
+        {activeGameId === "blackjack" && <BlackjackPage onExit={onExit} />}
         {activeGameId === "roulette" && <RoulettePage />}
         {activeGameId === "dice" && <DicePage />}
       </section>
