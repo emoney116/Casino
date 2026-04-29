@@ -22,6 +22,7 @@ import { getDiceReturnMultiplier, resolveDiceBet } from "./diceEngine";
 import { assertTableBet } from "./ledger";
 import { simulateTableGame } from "./tableMath";
 import type { PlayingCard } from "./types";
+import { blackjackInlineUxMarkers } from "./BlackjackPage";
 
 const memory: Record<string, string> = {};
 globalThis.localStorage = {
@@ -242,6 +243,15 @@ for (const gameId of ["blackjack", "roulette", "dice"] as const) {
 
 if (blackjackConfig.minBetGold !== 1 || rouletteConfig.minBetRealCentsPlaceholder !== 1 || diceConfig.minBetRealCentsPlaceholder !== 1) {
   throw new Error("Expected table configs to preserve one-cent future placeholder minimums.");
+}
+
+if (
+  !blackjackInlineUxMarkers.inlineInsurance ||
+  !blackjackInlineUxMarkers.inlineEvenMoney ||
+  !blackjackInlineUxMarkers.chipStack ||
+  !blackjackInlineUxMarkers.fixedMobileActions
+) {
+  throw new Error("Expected blackjack mobile UX markers for inline offers, chip stack, and fixed actions.");
 }
 
 console.log("tableGames.devtest passed");

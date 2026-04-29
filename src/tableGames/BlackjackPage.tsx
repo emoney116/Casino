@@ -1,5 +1,4 @@
 import { useState, type CSSProperties } from "react";
-import { Modal } from "../components/Modal";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
 import { formatCoins } from "../lib/format";
@@ -27,6 +26,13 @@ import type { BlackjackHand, BlackjackRound, PlayingCard } from "./types";
 
 const chipValues = [1, 5, 10, 25, 100, 500];
 const suitMarks: Record<PlayingCard["suit"], string> = { S: "♠", H: "♥", D: "♦", C: "♣" };
+
+export const blackjackInlineUxMarkers = {
+  inlineInsurance: true,
+  inlineEvenMoney: true,
+  chipStack: true,
+  fixedMobileActions: true,
+};
 
 export function BlackjackPage() {
   const { user } = useAuth();
@@ -133,6 +139,28 @@ export function BlackjackPage() {
           />
         </section>
 
+        {offerInsurance && (
+          <InlineOffer
+            title="Insurance?"
+            text="Dealer shows Ace. Insurance costs half your bet."
+            yesLabel="Yes"
+            noLabel="No"
+            onYes={() => insurance(true)}
+            onNo={() => insurance(false)}
+          />
+        )}
+
+        {offerEvenMoney && (
+          <InlineOffer
+            title="Even Money?"
+            text="You have blackjack. Take a 1:1 win now?"
+            yesLabel="Yes"
+            noLabel="No"
+            onYes={() => evenMoney(true)}
+            onNo={() => evenMoney(false)}
+          />
+        )}
+
         <section className="blackjack-player-zone">
           {(round?.playerHands ?? []).length === 0 ? (
             <div className="blackjack-empty-hand">Place chips, then deal.</div>
@@ -148,6 +176,7 @@ export function BlackjackPage() {
           )}
         </section>
 
+        <BetStack amount={betAmount} active={activeRound} />
         {round?.result && <ResultBanner round={round} />}
       </article>
 
@@ -165,6 +194,18 @@ export function BlackjackPage() {
           </div>
         </div>
 
+        <div className="blackjack-actions">
+          {!activeRound && <button className="primary-button" disabled={!canDeal} onClick={deal}>Deal</button>}
+          {activeRound && activeHand && !actionBlocked && (
+            <>
+              <button className="primary-button" onClick={() => action("hit")}>Hit</button>
+              <button className="ghost-button" onClick={() => action("stand")}>Stand</button>
+              {round && canDoubleBlackjack(round, currentUser.id) && <button className="ghost-button" onClick={() => action("double")}>Double</button>}
+              {round && canSplitBlackjack(round, currentUser.id) && <button className="ghost-button" onClick={() => action("split")}>Split</button>}
+            </>
+          )}
+        </div>
+
         {!activeRound && (
           <div className="chip-betting">
             <div className="chip-rack" aria-label="Chip betting">
@@ -180,51 +221,64 @@ export function BlackjackPage() {
               ))}
             </div>
             <div className="chip-actions">
-              <button className="ghost-button" onClick={clearBet}>Clear Bet</button>
+              <button className="ghost-button" onClick={clearBet}>Clear</button>
               <button className="ghost-button" onClick={rebet}>Rebet</button>
             </div>
           </div>
         )}
-
-        <div className="blackjack-actions">
-          {!activeRound && <button className="primary-button" disabled={!canDeal} onClick={deal}>Deal</button>}
-          {activeRound && activeHand && !actionBlocked && (
-            <>
-              <button className="primary-button" onClick={() => action("hit")}>Hit</button>
-              <button className="ghost-button" onClick={() => action("stand")}>Stand</button>
-              {round && canDoubleBlackjack(round, currentUser.id) && <button className="ghost-button" onClick={() => action("double")}>Double</button>}
-              {round && canSplitBlackjack(round, currentUser.id) && <button className="ghost-button" onClick={() => action("split")}>Split</button>}
-            </>
-          )}
-        </div>
       </section>
-
-      {offerInsurance && round && (
-        <Modal title="Insurance?" onClose={() => insurance(false)}>
-          <div className="modal-stack">
-            <p>Dealer shows an Ace. Insurance costs up to half your original wager and pays 2:1 if the dealer has blackjack.</p>
-            <div className="notice-card">Virtual coins only. No cash value.</div>
-            <div className="top-actions">
-              <button className="primary-button" onClick={() => insurance(true)}>Take Insurance</button>
-              <button className="ghost-button" onClick={() => insurance(false)}>No Insurance</button>
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {offerEvenMoney && round && (
-        <Modal title="Even Money?" onClose={() => evenMoney(false)}>
-          <div className="modal-stack">
-            <p>You have blackjack and the dealer shows an Ace. Take even money to lock a 1:1 win now.</p>
-            <div className="notice-card">Virtual coins only. No cash value.</div>
-            <div className="top-actions">
-              <button className="primary-button" onClick={() => evenMoney(true)}>Take Even Money</button>
-              <button className="ghost-button" onClick={() => evenMoney(false)}>Play It Out</button>
-            </div>
-          </div>
-        </Modal>
-      )}
     </section>
+  );
+}
+
+function InlineOffer({
+  title,
+  text,
+  yesLabel,
+  noLabel,
+  onYes,
+  onNo,
+}: {
+  title: string;
+  text: string;
+  yesLabel: string;
+  noLabel: string;
+  onYes: () => void;
+  onNo: () => void;
+}) {
+  return (
+    <div className="blackjack-inline-offer">
+      <div>
+        <strong>{title}</strong>
+        <span>{text}</span>
+      </div>
+      <div>
+        <button className="primary-button" onClick={onYes}>{yesLabel}</button>
+        <button className="ghost-button" onClick={onNo}>{noLabel}</button>
+      </div>
+    </div>
+  );
+}
+
+function BetStack({ amount, active }: { amount: number; active: boolean }) {
+  const chips = chipValues
+    .slice()
+    .sort((a, b) => b - a)
+    .flatMap((value) => Array.from({ length: Math.min(4, Math.floor(amount / value)) }, () => value))
+    .slice(0, 5);
+  return (
+    <div className={active ? "blackjack-bet-stack live" : "blackjack-bet-stack"}>
+      <div className="stacked-chips" aria-hidden="true">
+        {(chips.length ? chips : [1]).map((chip, index) => (
+          <span
+            key={`${chip}-${index}`}
+            className={`mini-chip chip-${chip}`}
+            style={{ "--chip-offset": `${index * -7}px` } as CSSProperties}
+          />
+        ))}
+      </div>
+      <strong>BET {formatCoins(amount)}</strong>
+    </div>
   );
 }
 

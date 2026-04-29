@@ -1185,6 +1185,7 @@ th { color: #a9b4c7; font-size: 0.78rem; text-transform: uppercase; }
 /* Blackjack focused UX pass: chips, legal actions, hidden dealer card, mobile table fit. */
 .blackjack-premium {
   gap: 10px;
+  min-width: 0;
 }
 
 .blackjack-heading {
@@ -1205,9 +1206,11 @@ th { color: #a9b4c7; font-size: 0.78rem; text-transform: uppercase; }
 .blackjack-felt {
   min-height: clamp(320px, 52vh, 520px);
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   gap: clamp(8px, 1.8vw, 14px);
   padding: clamp(10px, 2.4vw, 22px);
+  max-width: 100%;
+  overflow: hidden;
   background:
     radial-gradient(circle at 50% 20%, rgba(134,239,172,0.16), transparent 32%),
     repeating-linear-gradient(90deg, rgba(255,255,255,0.035) 0 1px, transparent 1px 42px),
@@ -1223,6 +1226,49 @@ th { color: #a9b4c7; font-size: 0.78rem; text-transform: uppercase; }
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px;
   align-items: stretch;
+}
+
+.blackjack-inline-offer {
+  width: min(100%, 620px);
+  justify-self: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 8px;
+  color: #fef3c7;
+  background: linear-gradient(180deg, rgba(120,53,15,0.92), rgba(69,26,3,0.88));
+  border: 1px solid rgba(250,204,21,0.42);
+  box-shadow: 0 0 22px rgba(250,204,21,0.14);
+}
+
+.blackjack-inline-offer strong,
+.blackjack-inline-offer span {
+  display: block;
+}
+
+.blackjack-inline-offer strong {
+  font-size: 0.92rem;
+}
+
+.blackjack-inline-offer span {
+  color: #fde68a;
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.blackjack-inline-offer > div:last-child {
+  display: flex;
+  gap: 6px;
+}
+
+.blackjack-inline-offer .primary-button,
+.blackjack-inline-offer .ghost-button {
+  width: auto;
+  min-width: 48px;
+  min-height: 36px;
+  padding: 0 10px;
 }
 
 .blackjack-empty-hand,
@@ -1250,7 +1296,7 @@ th { color: #a9b4c7; font-size: 0.78rem; text-transform: uppercase; }
 
 .blackjack-cards .playing-card {
   width: clamp(54px, 10vw, 84px);
-  animation: dealCard 260ms ease both;
+  animation: dealCard 520ms cubic-bezier(.18, .9, .2, 1) both, cardFaceReveal 620ms ease both;
   animation-delay: var(--card-delay, 0ms);
   transform-origin: bottom center;
 }
@@ -1280,6 +1326,51 @@ th { color: #a9b4c7; font-size: 0.78rem; text-transform: uppercase; }
   font-weight: 800;
 }
 
+.blackjack-bet-stack {
+  justify-self: center;
+  min-width: min(260px, 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: #fef3c7;
+  background: rgba(15,23,42,0.78);
+  border: 1px solid rgba(250,204,21,0.36);
+  box-shadow: inset 0 0 18px rgba(250,204,21,0.08);
+}
+
+.blackjack-bet-stack.live {
+  box-shadow: inset 0 0 18px rgba(250,204,21,0.12), 0 0 24px rgba(250,204,21,0.16);
+}
+
+.blackjack-bet-stack strong {
+  font-size: clamp(1rem, 3vw, 1.35rem);
+  white-space: nowrap;
+}
+
+.stacked-chips {
+  width: 72px;
+  height: 34px;
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.mini-chip {
+  position: absolute;
+  left: calc(18px + var(--chip-offset, 0px));
+  top: calc(4px + (var(--chip-offset, 0px) * -0.2));
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background:
+    repeating-conic-gradient(rgba(255,255,255,0.9) 0 14deg, transparent 14deg 34deg),
+    radial-gradient(circle, var(--chip-color), color-mix(in srgb, var(--chip-color) 60%, #020617));
+  border: 3px solid color-mix(in srgb, var(--chip-color) 72%, #fff);
+  box-shadow: 0 7px 13px rgba(0,0,0,0.34);
+}
+
 .blackjack-control-deck {
   position: sticky;
   bottom: 10px;
@@ -1287,6 +1378,7 @@ th { color: #a9b4c7; font-size: 0.78rem; text-transform: uppercase; }
   display: grid;
   gap: 10px;
   padding: 12px;
+  max-width: 100%;
   border-radius: 8px;
   background: linear-gradient(180deg, rgba(15,23,42,0.96), rgba(3,7,18,0.98));
   border: 1px solid rgba(255,255,255,0.12);
@@ -1324,7 +1416,9 @@ th { color: #a9b4c7; font-size: 0.78rem; text-transform: uppercase; }
 
 .chip-betting {
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
+  align-items: center;
 }
 
 .chip-rack {
@@ -1357,7 +1451,7 @@ th { color: #a9b4c7; font-size: 0.78rem; text-transform: uppercase; }
 
 .chip-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(58px, 1fr));
   gap: 8px;
 }
 
@@ -1375,14 +1469,21 @@ th { color: #a9b4c7; font-size: 0.78rem; text-transform: uppercase; }
 }
 
 @keyframes dealCard {
-  from { opacity: 0; transform: translate3d(36px, -28px, 0) rotate(5deg) scale(0.92); }
-  to { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+  0% { opacity: 0; transform: translate3d(42px, -34px, 0) rotate(7deg) scale(0.9); }
+  62% { opacity: 1; transform: translate3d(-3px, 4px, 0) rotate(-1deg) scale(1.02); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+}
+
+@keyframes cardFaceReveal {
+  0%, 42% { filter: brightness(0.82) saturate(0.92); }
+  100% { filter: brightness(1) saturate(1); }
 }
 
 @media (max-width: 720px) {
   .blackjack-premium {
     margin: -8px;
     gap: 7px;
+    padding-bottom: 218px;
   }
 
   .blackjack-heading {
@@ -1394,7 +1495,7 @@ th { color: #a9b4c7; font-size: 0.78rem; text-transform: uppercase; }
   }
 
   .blackjack-currency {
-    width: 128px;
+    width: min(38vw, 136px);
   }
 
   .blackjack-currency select {
@@ -1402,7 +1503,9 @@ th { color: #a9b4c7; font-size: 0.78rem; text-transform: uppercase; }
   }
 
   .blackjack-felt {
-    min-height: calc(100svh - 314px);
+    min-height: calc(100svh - 292px);
+    gap: 6px;
+    padding: 8px;
   }
 
   .blackjack-player-zone {
@@ -1412,17 +1515,17 @@ th { color: #a9b4c7; font-size: 0.78rem; text-transform: uppercase; }
 
   .blackjack-empty-hand,
   .player-hand {
-    min-height: 112px;
+    min-height: 96px;
     padding: 8px;
   }
 
   .blackjack-cards {
-    min-height: 76px;
+    min-height: 68px;
     gap: 6px;
   }
 
   .blackjack-cards .playing-card {
-    width: clamp(46px, 15vw, 62px);
+    width: clamp(42px, 14vw, 58px);
     padding: 7px;
   }
 
@@ -1432,9 +1535,14 @@ th { color: #a9b4c7; font-size: 0.78rem; text-transform: uppercase; }
   }
 
   .blackjack-control-deck {
-    bottom: 8px;
+    position: fixed;
+    left: max(8px, env(safe-area-inset-left));
+    right: max(8px, env(safe-area-inset-right));
+    bottom: max(8px, env(safe-area-inset-bottom));
     padding: 8px;
     gap: 7px;
+    max-width: calc(100vw - 16px);
+    margin: 0 auto;
   }
 
   .blackjack-status-panel > div {
@@ -1447,7 +1555,7 @@ th { color: #a9b4c7; font-size: 0.78rem; text-transform: uppercase; }
   }
 
   .casino-chip {
-    min-height: 38px;
+    min-height: 40px;
     border-width: 3px;
     font-size: 0.76rem;
   }
@@ -1457,6 +1565,38 @@ th { color: #a9b4c7; font-size: 0.78rem; text-transform: uppercase; }
   .blackjack-actions .ghost-button {
     min-height: 42px;
     padding-inline: 8px;
+  }
+
+  .chip-betting {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .chip-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .blackjack-inline-offer {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 6px;
+    gap: 6px;
+  }
+
+  .blackjack-inline-offer span {
+    font-size: 0.68rem;
+  }
+
+  .blackjack-inline-offer .primary-button,
+  .blackjack-inline-offer .ghost-button {
+    min-width: 42px;
+    min-height: 32px;
+    padding: 0 8px;
+    font-size: 0.78rem;
+  }
+
+  .blackjack-bet-stack {
+    min-width: min(220px, 100%);
+    padding: 6px 10px;
   }
 }
 
@@ -1468,6 +1608,19 @@ th { color: #a9b4c7; font-size: 0.78rem; text-transform: uppercase; }
 
   .blackjack-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .blackjack-inline-offer {
+    grid-template-columns: 1fr;
+  }
+
+  .blackjack-inline-offer > div:last-child {
+    justify-content: stretch;
+  }
+
+  .blackjack-inline-offer .primary-button,
+  .blackjack-inline-offer .ghost-button {
+    flex: 1;
   }
 }
 
