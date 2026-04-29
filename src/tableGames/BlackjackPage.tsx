@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, BadgePlus, CirclePlay, Hand, RotateCcw, Scissors, X } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
 import { formatCoins } from "../lib/format";
@@ -26,7 +26,12 @@ import {
 import type { BlackjackHand, BlackjackRound, PlayingCard } from "./types";
 
 const chipValues = [1, 5, 10, 25, 100, 500];
-const suitMarks: Record<PlayingCard["suit"], string> = { S: "♠", H: "♥", D: "♦", C: "♣" };
+const suitMarks: Record<PlayingCard["suit"], string> = {
+  S: "\u2660",
+  H: "\u2665",
+  D: "\u2666",
+  C: "\u2663",
+};
 
 export const blackjackInlineUxMarkers = {
   inlineInsurance: true,
@@ -37,6 +42,9 @@ export const blackjackInlineUxMarkers = {
   fixedMobileActions: true,
   integratedHeader: true,
   simpleUi: true,
+  iconOnlyControls: true,
+  singleChipSelector: true,
+  cardDealAnimation: true,
 };
 
 export function BlackjackPage({ onExit }: { onExit?: () => void }) {
@@ -45,10 +53,12 @@ export function BlackjackPage({ onExit }: { onExit?: () => void }) {
   const [currency, setCurrency] = useState<Currency>("GOLD");
   const [betAmount, setBetAmount] = useState(blackjackConfig.minBet);
   const [lastBet, setLastBet] = useState(blackjackConfig.minBet);
+  const [selectedChipIndex, setSelectedChipIndex] = useState(3);
   const [round, setRound] = useState<BlackjackRound | null>(null);
   if (!user) return null;
   const currentUser = user;
 
+  const selectedChip = chipValues[selectedChipIndex];
   const balance = getBalance(currentUser.id, currency);
   const activeRound = round?.status === "PLAYER_TURN";
   const activeHand = round ? activeBlackjackHand(round) : null;
@@ -57,9 +67,13 @@ export function BlackjackPage({ onExit }: { onExit?: () => void }) {
   const actionBlocked = offerInsurance || offerEvenMoney;
   const canDeal = !activeRound && betAmount >= blackjackConfig.minBet && betAmount <= blackjackConfig.maxBet && balance >= betAmount;
 
-  function addChip(value: number) {
+  function cycleChip() {
+    if (!activeRound) setSelectedChipIndex((index) => (index + 1) % chipValues.length);
+  }
+
+  function addSelectedChip() {
     if (activeRound) return;
-    setBetAmount((current) => Math.min(blackjackConfig.maxBet, Math.min(balance, current + value)));
+    setBetAmount((current) => Math.min(blackjackConfig.maxBet, Math.min(balance, current + selectedChip)));
   }
 
   function clearBet() {
@@ -119,16 +133,16 @@ export function BlackjackPage({ onExit }: { onExit?: () => void }) {
   }
 
   return (
-    <section className="blackjack-simple">
-      <header className="bj-topbar">
-        <button className="bj-back" onClick={onExit} aria-label="Back to table games">
+    <section className="bj-game">
+      <header className="bj-game-header">
+        <button className="bj-icon-button" onClick={onExit} aria-label="Back to table games">
           <ArrowLeft size={18} />
         </button>
-        <div className="bj-title">
+        <div className="bj-game-title">
           <h1>Blackjack</h1>
           <span>Virtual Coins Only</span>
         </div>
-        <label className="bj-currency">
+        <label className="bj-game-currency">
           <span>Currency</span>
           <select value={currency} disabled={activeRound} onChange={(event) => setCurrency(event.target.value as Currency)}>
             <option value="GOLD">Gold</option>
@@ -137,71 +151,77 @@ export function BlackjackPage({ onExit }: { onExit?: () => void }) {
         </label>
       </header>
 
-      <main className="bj-table">
+      <main className="bj-felt">
+        <div className="bj-deck" aria-hidden="true">Deck</div>
         <HandRow
           label="Dealer"
           cards={round?.dealerCards ?? []}
           totalLabel={round?.dealerRevealed ? "Total" : "Upcard"}
           total={round ? visibleDealerValue(round) : 0}
           hideHoleCard={Boolean(round && !round.dealerRevealed)}
+          lane="dealer"
         />
 
-        {offerInsurance && (
-          <InlineOffer title="Insurance?" text="Dealer shows Ace." onYes={() => insurance(true)} onNo={() => insurance(false)} />
-        )}
-        {offerEvenMoney && (
-          <InlineOffer title="Even Money?" text="Take a 1:1 win now?" onYes={() => evenMoney(true)} onNo={() => evenMoney(false)} />
-        )}
+        {offerInsurance && <InlineOffer title="Insurance?" onYes={() => insurance(true)} onNo={() => insurance(false)} />}
+        {offerEvenMoney && <InlineOffer title="Even Money?" onYes={() => evenMoney(true)} onNo={() => evenMoney(false)} />}
 
-        <section className="bj-player-area">
+        <section className="bj-player-zone">
           {(round?.playerHands ?? []).length === 0 ? (
-            <div className="bj-empty-hand">Place a bet to start.</div>
+            <div className="bj-waiting">Place your bet.</div>
           ) : (
-            round!.playerHands.map((hand, index) => (
-              <PlayerHand key={hand.id} hand={hand} active={round!.status === "PLAYER_TURN" && index === round!.activeHandIndex} index={index} />
-            ))
+            <>
+              {round!.playerHands.length > 1 && (
+                <div className="bj-hand-tabs">
+                  {round!.playerHands.map((_, index) => (
+                    <span key={index} className={index === round!.activeHandIndex && round!.status === "PLAYER_TURN" ? "active" : ""}>
+                      Hand {index + 1}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className={round!.playerHands.length > 1 ? "bj-split-hands" : "bj-single-hand"}>
+                {round!.playerHands.map((hand, index) => (
+                  <PlayerHand key={hand.id} hand={hand} active={round!.status === "PLAYER_TURN" && index === round!.activeHandIndex} index={index} split={round!.playerHands.length > 1} />
+                ))}
+              </div>
+            </>
           )}
         </section>
 
-        <BetDisplay amount={betAmount} />
+        <BetSpot amount={betAmount} />
         {round?.result && <ResultBanner round={round} />}
       </main>
 
-      <footer className="bj-controls">
-        <div className="bj-actions">
-          {!activeRound && <button className="bj-primary bj-deal" disabled={!canDeal} onClick={deal}>Deal</button>}
+      <footer className="bj-bottom">
+        {!activeRound && (
+          <div className="bj-bet-tools">
+            <button className={`bj-chip-token chip-${selectedChip}`} onClick={cycleChip} aria-label="Cycle chip value">
+              {selectedChip}
+            </button>
+            <button className="bj-tool" onClick={addSelectedChip}>Add Chip</button>
+            <button className="bj-tool icon" onClick={clearBet} aria-label="Clear bet"><X size={18} /></button>
+            <button className="bj-tool icon" onClick={rebet} aria-label="Rebet"><RotateCcw size={18} /></button>
+          </div>
+        )}
+
+        <div className="bj-action-row">
+          {!activeRound && (
+            <button className="bj-main-action" disabled={!canDeal} onClick={deal}>
+              <CirclePlay size={22} />
+              <span>Deal</span>
+            </button>
+          )}
           {activeRound && activeHand && !actionBlocked && (
             <>
-              <button className="bj-primary" onClick={() => action("hit")}>Hit</button>
-              <button className="bj-secondary" onClick={() => action("stand")}>Stand</button>
-              {round && canDoubleBlackjack(round, currentUser.id) && <button className="bj-secondary blue" onClick={() => action("double")}>Double</button>}
-              {round && canSplitBlackjack(round, currentUser.id) && <button className="bj-secondary purple" onClick={() => action("split")}>Split</button>}
+              <button className="bj-action hit" onClick={() => action("hit")} aria-label="Hit"><BadgePlus size={21} /><span>Hit</span></button>
+              <button className="bj-action stand" onClick={() => action("stand")} aria-label="Stand"><Hand size={21} /><span>Stand</span></button>
+              {round && canDoubleBlackjack(round, currentUser.id) && <button className="bj-action double" onClick={() => action("double")} aria-label="Double"><strong>2x</strong><span>Double</span></button>}
+              {round && canSplitBlackjack(round, currentUser.id) && <button className="bj-action split" onClick={() => action("split")} aria-label="Split"><Scissors size={21} /><span>Split</span></button>}
             </>
           )}
         </div>
 
-        {!activeRound && (
-          <>
-            <div className="bj-chip-row" aria-label="Chip betting">
-              {chipValues.map((value) => (
-                <button
-                  key={value}
-                  className={`bj-chip chip-${value}`}
-                  disabled={betAmount + value > blackjackConfig.maxBet || betAmount + value > balance}
-                  onClick={() => addChip(value)}
-                >
-                  {value}
-                </button>
-              ))}
-            </div>
-            <div className="bj-utility">
-              <button onClick={clearBet}>Clear</button>
-              <button onClick={rebet}>Rebet</button>
-            </div>
-          </>
-        )}
-
-        <div className="bj-footer">
+        <div className="bj-game-footer">
           <span>Balance <strong>{formatCoins(balance)}</strong> {currency}</span>
           <span>Min {blackjackConfig.minBet} / Max {blackjackConfig.maxBet}</span>
         </div>
@@ -216,74 +236,88 @@ function HandRow({
   totalLabel,
   total,
   hideHoleCard,
+  lane,
 }: {
   label: string;
   cards: PlayingCard[];
   totalLabel: string;
   total: number;
   hideHoleCard?: boolean;
+  lane: "dealer" | "player";
 }) {
   return (
-    <section className="bj-hand-row">
-      <div className="bj-row-heading">
+    <section className={`bj-hand-row ${lane}`}>
+      <div className="bj-hand-meta">
         <strong>{label}</strong>
         <span>{totalLabel}: {cards.length ? total : "-"}</span>
       </div>
-      <div className="bj-cards">
-        {cards.length === 0 ? <div className="bj-card-placeholder">Cards</div> : cards.map((card, index) => (
-          <CardView key={`${card.rank}${card.suit}${index}`} card={card} hidden={hideHoleCard && index === 1} index={index} />
+      <div className="bj-card-row">
+        {cards.length === 0 ? <div className="bj-card-empty">Cards</div> : cards.map((card, index) => (
+          <CardView key={`${card.rank}${card.suit}${index}`} card={card} hidden={hideHoleCard && index === 1} index={index} lane={lane} />
         ))}
       </div>
     </section>
   );
 }
 
-function PlayerHand({ hand, active, index }: { hand: BlackjackHand; active: boolean; index: number }) {
+function PlayerHand({ hand, active, index, split }: { hand: BlackjackHand; active: boolean; index: number; split: boolean }) {
   const total = handValue(hand.cards).total;
   const natural = hand.cards.length === 2 && total === 21;
   return (
     <section className={active ? "bj-player-hand active" : "bj-player-hand"}>
-      <div className="bj-row-heading">
-        <strong>{hand.splitFromPair ? `Hand ${index + 1}` : "Player"}</strong>
-        <span>{hand.status === "BUST" ? "BUST" : natural ? "BLACKJACK" : `Total: ${total}`}</span>
+      <div className="bj-hand-meta">
+        <strong>{split ? `Hand ${index + 1}` : "Player"}</strong>
+        <span>{hand.status === "BUST" ? "Bust" : natural ? "Blackjack" : `Total: ${total}`}</span>
       </div>
-      <div className="bj-cards">
-        {hand.cards.map((card, cardIndex) => <CardView key={`${hand.id}${cardIndex}`} card={card} index={cardIndex} />)}
+      <div className="bj-card-row">
+        {hand.cards.map((card, cardIndex) => <CardView key={`${hand.id}${cardIndex}`} card={card} index={cardIndex} lane="player" glow={Boolean(hand.result?.result === "WIN" || hand.status === "BUST" || natural)} />)}
       </div>
-      <small>Bet {formatCoins(hand.betAmount)} {hand.result ? `• ${hand.result.result}` : ""}</small>
+      <small>Bet {formatCoins(hand.betAmount)}{hand.result ? ` - ${hand.result.result}` : ""}</small>
     </section>
   );
 }
 
-function InlineOffer({ title, text, onYes, onNo }: { title: string; text: string; onYes: () => void; onNo: () => void }) {
+function InlineOffer({ title, onYes, onNo }: { title: string; onYes: () => void; onNo: () => void }) {
   return (
-    <div className="bj-inline-offer">
-      <div>
-        <strong>{title}</strong>
-        <span>{text}</span>
-      </div>
+    <div className="bj-offer">
+      <strong>{title}</strong>
       <button onClick={onYes}>Yes</button>
       <button onClick={onNo}>No</button>
     </div>
   );
 }
 
-function BetDisplay({ amount }: { amount: number }) {
+function BetSpot({ amount }: { amount: number }) {
   return (
-    <div className="bj-bet-display">
-      <div className="bj-mini-stack" aria-hidden="true">
-        {[0, 1, 2].map((index) => <span key={index} style={{ "--stack-index": index } as CSSProperties} />)}
+    <div className="bj-bet-spot">
+      <div className="bj-bet-chips" aria-hidden="true">
+        <span />
+        <span />
+        <span />
       </div>
-      <strong>Bet: {formatCoins(amount)}</strong>
+      <strong>Bet {formatCoins(amount)}</strong>
     </div>
   );
 }
 
-function CardView({ card, hidden, index }: { card: PlayingCard; hidden?: boolean; index: number }) {
-  if (hidden) return <div className="bj-card bj-card-back" style={{ "--card-delay": `${index * 120}ms` } as CSSProperties}>BJ</div>;
+function CardView({
+  card,
+  hidden,
+  index,
+  lane,
+  glow,
+}: {
+  card: PlayingCard;
+  hidden?: boolean;
+  index: number;
+  lane: "dealer" | "player";
+  glow?: boolean;
+}) {
+  const style = { "--card-delay": `${index * 110}ms` } as CSSProperties;
+  if (hidden) return <div className={`bj-playing-card back ${lane}`} style={style}>BJ</div>;
   const red = card.suit === "H" || card.suit === "D";
   return (
-    <div className={red ? "bj-card red" : "bj-card"} style={{ "--card-delay": `${index * 120}ms` } as CSSProperties}>
+    <div className={`${red ? "bj-playing-card red" : "bj-playing-card"} ${lane} ${glow ? "glow" : ""}`} style={style}>
       <strong>{card.rank}</strong>
       <span>{suitMarks[card.suit]}</span>
     </div>
@@ -293,11 +327,12 @@ function CardView({ card, hidden, index }: { card: PlayingCard; hidden?: boolean
 function ResultBanner({ round }: { round: BlackjackRound }) {
   const blackjack = round.playerHands.some((hand) => hand.cards.length === 2 && handValue(hand.cards).total === 21 && hand.result?.result === "WIN");
   const bust = round.playerHands.every((hand) => hand.status === "RESOLVED" && handValue(hand.cards).total > 21);
+  const insurance = round.insuranceResult ? ` Insurance ${round.insuranceResult.result}` : "";
   const label = blackjack ? "Blackjack" : bust ? "Bust" : round.result?.result === "LOSS" ? "Dealer Wins" : round.result?.result ?? "Resolved";
   return (
-    <div className={`bj-result ${(round.result?.result ?? "push").toLowerCase()}`}>
+    <div className={`bj-result-pill ${(round.result?.result ?? "push").toLowerCase()}`}>
       <strong>{label}</strong>
-      <span>{round.result?.message}</span>
+      <span>{round.result?.message}{insurance}</span>
     </div>
   );
 }
