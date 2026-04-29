@@ -3300,24 +3300,41 @@ body {
 }
 
 .frontier .bonus-feature-icon {
-  width: clamp(64px, 14vw, 92px);
-  min-height: clamp(62px, 10vw, 78px);
-  border-radius: 18px;
-  border: 1px solid rgba(250,204,21,0.68);
+  width: clamp(54px, 13vw, 78px);
+  height: clamp(54px, 13vw, 78px);
+  min-height: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(250,204,21,0.88);
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 1px;
   color: #fef3c7;
   background:
-    radial-gradient(circle at 42% 24%, rgba(254,240,138,0.55), transparent 22%),
-    linear-gradient(155deg, rgba(120,53,15,0.96), rgba(24,24,27,0.98) 58%, rgba(3,7,18,0.98));
+    radial-gradient(circle at 34% 24%, rgba(255,255,255,0.85), transparent 18%),
+    conic-gradient(from 12deg, #fef08a, #f59e0b, #7c2d12, #22d3ee, #a855f7, #fef08a);
   box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.08),
-    0 0 24px rgba(245,158,11,0.2),
-    0 12px 24px rgba(0,0,0,0.32);
+    inset 0 0 0 3px rgba(69,26,3,0.72),
+    inset 0 -9px 14px rgba(69,26,3,0.45),
+    0 0 18px rgba(250,204,21,0.48),
+    0 0 34px rgba(34,211,238,0.2),
+    0 12px 24px rgba(0,0,0,0.34);
   cursor: pointer;
   touch-action: manipulation;
+  position: relative;
+  isolation: isolate;
+  animation: bonusIconFlash 1.65s ease-in-out infinite alternate;
+}
+
+.frontier .bonus-feature-icon::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border-radius: inherit;
+  background: conic-gradient(from 0deg, transparent, rgba(250,204,21,0.7), transparent, rgba(34,211,238,0.52), transparent);
+  filter: blur(5px);
+  opacity: 0.68;
+  z-index: -1;
+  animation: bonusIconSpin 2.8s linear infinite;
 }
 
 .frontier .bonus-feature-icon:active {
@@ -3330,8 +3347,8 @@ body {
 }
 
 .frontier .bonus-feature-art {
-  width: 38px;
-  height: 32px;
+  width: 76%;
+  height: 76%;
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -3340,6 +3357,21 @@ body {
     radial-gradient(circle at 35% 24%, #fff7ad, transparent 24%),
     linear-gradient(180deg, #facc15, #b45309);
   box-shadow: 0 0 16px rgba(250,204,21,0.48), inset 0 -4px 9px rgba(120,53,15,0.5);
+}
+
+.frontier .bonus-feature-art svg {
+  width: 58%;
+  height: 58%;
+  filter: drop-shadow(0 2px 3px rgba(69,26,3,0.45));
+}
+
+@keyframes bonusIconFlash {
+  from { transform: translateY(0) scale(1); filter: saturate(1); }
+  to { transform: translateY(-1px) scale(1.04); filter: saturate(1.24) brightness(1.08); }
+}
+
+@keyframes bonusIconSpin {
+  to { transform: rotate(360deg); }
 }
 
 .frontier .bonus-feature-icon strong {
@@ -3472,14 +3504,12 @@ body {
 
 .frontier .big-win-overlay.big {
   background:
-    url("/assets/ui/frontier/win-big.png") center / min(86%, 420px) auto no-repeat,
     radial-gradient(circle at 50% 35%, rgba(253,224,71,0.44), transparent 30%),
     linear-gradient(180deg, rgba(5,8,20,0.72), rgba(5,8,20,0.5));
 }
 
 .frontier .big-win-overlay.mega {
   background:
-    url("/assets/ui/frontier/win-mega.png") center / min(88%, 460px) auto no-repeat,
     radial-gradient(circle at 50% 35%, rgba(253,224,71,0.44), transparent 30%),
     linear-gradient(180deg, rgba(5,8,20,0.72), rgba(5,8,20,0.5));
 }
@@ -3950,5 +3980,197 @@ body {
     width: 74px;
     height: 74px;
     border-radius: 50%;
+  }
+}
+
+/* Frontier compact control cleanup. */
+.frontier .slot-board {
+  grid-template-rows: auto auto auto auto;
+  grid-template-areas:
+    "state"
+    "reels"
+    "bonus"
+    "controls";
+}
+
+.frontier .reel-bonus-action {
+  grid-area: bonus;
+  display: flex;
+  justify-content: center;
+  min-height: clamp(48px, 8vh, 70px);
+  align-items: center;
+  margin-top: clamp(-2px, -0.4vh, 0px);
+}
+
+.frontier .reel-bonus-action:empty {
+  display: none;
+}
+
+.frontier .reel-bonus-action .bonus-feature-icon {
+  width: clamp(58px, 13vw, 82px);
+  height: clamp(58px, 13vw, 82px);
+  min-height: 0;
+  padding: 0;
+}
+
+.frontier .reel-bonus-action .bonus-feature-art {
+  width: 74%;
+  height: 74%;
+}
+
+.frontier .bet-readout {
+  position: relative;
+}
+
+.frontier .bet-readout > div:first-of-type {
+  display: grid;
+  grid-template-columns: clamp(30px, 8vw, 44px) minmax(0, 1fr) clamp(30px, 8vw, 44px);
+  gap: 6px;
+  align-items: center;
+}
+
+.frontier .bet-readout > .premium-bet-menu {
+  display: block;
+  position: static;
+}
+
+.frontier .bet-amount-trigger {
+  min-width: 0;
+  min-height: clamp(32px, 8vw, 46px);
+  padding: 0 5px;
+  border: 0;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(255,255,255,0.16), transparent 28%),
+    linear-gradient(180deg, rgba(15,23,42,0.1), rgba(15,23,42,0.34));
+  color: #fff;
+  font-size: clamp(1.45rem, 6.8vw, 3.15rem);
+  font-weight: 1000;
+  line-height: 1;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  word-break: keep-all;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 3px 12px rgba(0,0,0,0.5);
+  cursor: pointer;
+}
+
+.frontier .bet-amount-trigger:focus-visible,
+.frontier .bet-amount-trigger:hover {
+  outline: 2px solid rgba(250,204,21,0.7);
+  box-shadow: 0 0 18px rgba(250,204,21,0.22);
+}
+
+.frontier .bet-size-popover {
+  left: 50%;
+  bottom: calc(100% + 8px);
+}
+
+.frontier .slot-controls.card {
+  grid-template-columns: 1fr;
+}
+
+.frontier .slot-control-bar {
+  grid-column: 1;
+}
+
+.frontier .premium-control-icons {
+  grid-column: 1;
+  justify-content: center;
+  flex-wrap: nowrap;
+}
+
+.frontier .slot-main-action {
+  overflow: hidden;
+}
+
+.frontier .slot-main-action svg {
+  grid-area: 1 / 1;
+}
+
+.frontier .slot-main-action span {
+  grid-area: 1 / 1;
+  align-self: end;
+  margin: 0 0 17%;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(254,240,138,0.72);
+  line-height: 1.1;
+}
+
+@media (max-width: 720px) {
+  .frontier .slot-board {
+    grid-template-rows: auto auto auto auto !important;
+    gap: 6px;
+  }
+
+  .frontier .reel-bonus-action {
+    min-height: 46px;
+  }
+
+  .frontier .reel-bonus-action .bonus-feature-icon {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+  }
+
+  .frontier .slot-controls.card {
+    gap: 6px;
+  }
+
+  .frontier .slot-control-bar {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.18fr) 76px;
+    gap: 6px;
+  }
+
+  .frontier .control-readout,
+  .frontier .bet-readout {
+    min-height: 76px;
+  }
+
+  .frontier .bet-amount-trigger {
+    font-size: clamp(1.15rem, 5.4vw, 1.55rem);
+  }
+
+  .frontier .premium-control-icons {
+    gap: 6px;
+  }
+}
+
+@media (max-width: 360px) {
+  .frontier .slot-control-bar {
+    grid-template-columns: minmax(0, 0.98fr) minmax(0, 1.1fr) 70px;
+  }
+
+  .frontier .reel-bonus-action .bonus-feature-icon {
+    width: 52px;
+    height: 52px;
+  }
+
+  .frontier .bet-readout > div:first-of-type {
+    grid-template-columns: 28px minmax(0, 1fr) 28px;
+    gap: 4px;
+  }
+
+  .frontier .round-control {
+    width: 28px;
+    height: 28px;
+  }
+
+  .frontier .premium-control-icons .icon-only {
+    width: 36px;
+    height: 36px;
+  }
+
+  .frontier .speed-toggle {
+    max-width: 116px;
+  }
+
+  .frontier .bet-amount-trigger {
+    font-size: 1.18rem;
+    padding-inline: 2px;
   }
 }

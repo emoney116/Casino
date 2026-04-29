@@ -90,7 +90,6 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
   const [holdFeedback, setHoldFeedback] = useState("");
   const [animationState, setAnimationState] = useState<SlotAnimationState>("idle");
   const [reelStates, setReelStates] = useState<ReelVisualState[]>(() => Array.from({ length: game.reelCount }, () => "idle"));
-  const [bonusBoostOpen, setBonusBoostOpen] = useState(false);
   const [betMenuOpen, setBetMenuOpen] = useState(false);
 
   if (!user) return null;
@@ -105,7 +104,6 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
   const bonusCount = grid.flat().filter((symbol) => symbol === game.bonusSymbol).length;
   const betOptions = getBetOptions(game);
   const activePaylines = new Set(lastResult?.lineWins.map((win) => win.paylineId) ?? []);
-  const bonusChanceTier = getBonusChanceTier(betAmount, game);
   const modeLabel =
     animationState === "bonusRespinning"
       ? "Respinning"
@@ -134,12 +132,14 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
     setAnimationState("idle");
     setReelStates(Array.from({ length: game.reelCount }, () => "idle"));
     setBetMenuOpen(false);
-    setBonusBoostOpen(false);
   }, [game]);
 
   useEffect(() => {
-    if (!overlayResult || (overlayResult.triggeredHoldAndWin && overlayResult.payout === 0)) return;
-    const timeout = window.setTimeout(() => setOverlayResult(null), overlayResult.winTier === "MEGA" ? 2800 : 2000);
+    if (!overlayResult) return;
+    const timeout = window.setTimeout(
+      () => setOverlayResult(null),
+      overlayResult.triggeredHoldAndWin && overlayResult.payout === 0 ? 1600 : overlayResult.winTier === "MEGA" ? 2800 : 2000,
+    );
     return () => window.clearTimeout(timeout);
   }, [overlayResult]);
 
@@ -306,6 +306,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
     if (!holdState || holdState.finished || bonusBusy) return;
     setBonusBusy(true);
     setAnimationState("bonusRespinning");
+    setOverlayResult(null);
     setHoldFeedback("RESPINNING...");
     window.setTimeout(() => {
       const next = stepHoldAndWinBonus(game, betAmount, holdState);
@@ -503,13 +504,33 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
             <button className={`big-win-overlay ${overlayResult.winTier.toLowerCase()}`} onClick={() => setOverlayResult(null)}>
               {overlayResult.triggeredHoldAndWin ? (overlayResult.payout > 0 ? "Hold And Win Complete" : "Bonus Triggered") : overlayResult.triggeredWheelBonus ? "Wheel Bonus" : overlayResult.winTier === "MEGA" ? "Mega Win" : overlayResult.winTier === "BIG" ? "Big Win" : "Win"}
               <span>{formatCoins(overlayResult.payout)}</span>
-              {overlayResult.jackpotLabel && <small>{overlayResult.jackpotLabel} demo jackpot</small>}
               {overlayResult.holdAndWin && <small>Respin rounds: {overlayResult.holdAndWin.respinRounds.length}</small>}
               {overlayResult.wheelBonus && <small>Wheel segment: {overlayResult.wheelBonus.segment}</small>}
               {(overlayResult.winTier === "BIG" || overlayResult.winTier === "MEGA") && <div className="coin-burst" />}
               {overlayResult.winTier === "MEGA" && <div className="confetti-burst" />}
             </button>
           ) : null}
+        </div>
+
+        <div className="reel-bonus-action">
+          {game.buyBonus?.enabled && !inHoldAndWin && (
+            <button
+              className="bonus-feature-icon"
+              disabled={spinning}
+              onClick={() => {
+                if (!canBuyBonus) {
+                  notify("Insufficient balance for this demo bonus buy.", "error");
+                  return;
+                }
+                setBuyBonusOpen(true);
+              }}
+              aria-label={`Bonus ${formatCoins(buyBonusCost)}`}
+            >
+              <span className="bonus-feature-art" aria-hidden="true">
+                <Coins size={24} />
+              </span>
+            </button>
+          )}
         </div>
 
         <aside className="slot-controls card">
@@ -529,15 +550,14 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
                 <button className="round-control" disabled={inHoldAndWin} onClick={() => setBetAmount((value) => Math.max(game.minBet, value - game.minBet))}>
                   <Minus size={16} />
                 </button>
-                <strong>{formatCoins(betAmount)}</strong>
+                <button className="bet-amount-trigger" disabled={inHoldAndWin} onClick={() => setBetMenuOpen((value) => !value)}>
+                  {formatCoins(betAmount)}
+                </button>
                 <button className="round-control" disabled={inHoldAndWin} onClick={() => setBetAmount((value) => Math.min(game.maxBet, value + game.minBet))}>
                   <Plus size={16} />
                 </button>
               </div>
-              <div className="premium-bet-menu">
-                <button className={betMenuOpen ? "bet-menu-trigger active" : "bet-menu-trigger"} disabled={inHoldAndWin} onClick={() => setBetMenuOpen((value) => !value)}>
-                  Bet Size
-                </button>
+              <div className="premium-bet-menu" aria-hidden={!betMenuOpen}>
                 {betMenuOpen && (
                   <div className="bet-size-popover">
                     {betOptions.map((value) => (
@@ -565,50 +585,6 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
               {inHoldAndWin ? (bonusBusy ? "..." : <RotateCw size={42} />) : spinning ? "..." : <RotateCw size={42} />}
               <span>{inHoldAndWin ? "Respin" : "Spin"}</span>
             </button>
-          </div>
-          <div className="bonus-feature-row">
-            {game.buyBonus?.enabled && !inHoldAndWin && (
-              <button
-                className="bonus-feature-icon"
-                disabled={spinning}
-                onClick={() => {
-                  if (!canBuyBonus) {
-                    notify("Insufficient balance for this demo bonus buy.", "error");
-                    return;
-                  }
-                  setBuyBonusOpen(true);
-                }}
-                aria-label={`Bonus ${formatCoins(buyBonusCost)}`}
-              >
-                <span className="bonus-feature-art" aria-hidden="true">
-                  <Coins size={24} />
-                </span>
-                <strong>Bonus</strong>
-                <small>{formatCoins(buyBonusCost)}</small>
-              </button>
-            )}
-            {game.buyBonus?.enabled && !inHoldAndWin && (
-              <div className={bonusBoostOpen ? "bonus-boost-panel open" : "bonus-boost-panel"}>
-              <button className="bonus-boost-summary" onClick={() => setBonusBoostOpen((value) => !value)}>
-                  <span>Bonus Boost</span>
-                  <strong>{bonusChanceTier}</strong>
-                </button>
-                {bonusBoostOpen && (
-                  <div className="bonus-boost-details">
-                    <p>Higher bets improve bonus feature odds.</p>
-                    <div>
-                      <span>Current bet</span>
-                      <strong>{formatCoins(betAmount)}</strong>
-                    </div>
-                    <div className="bonus-boost-actions">
-                      <button onClick={() => setBetAmount((value) => Math.min(game.maxBet, value + game.minBet))}>+ Bet</button>
-                      <button onClick={() => setBetAmount(game.maxBet)}>Max Bet</button>
-                    </div>
-                    <small>Virtual coins only. No cash value.</small>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
           <div className="premium-control-icons">
             <button className={turbo ? "speed-toggle active" : "speed-toggle"} disabled={inHoldAndWin || spinning} onClick={() => setTurbo((value) => !value)}>
