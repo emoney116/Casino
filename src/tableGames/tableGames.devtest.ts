@@ -22,7 +22,7 @@ import { getDiceReturnMultiplier, resolveDiceBet } from "./diceEngine";
 import { assertTableBet } from "./ledger";
 import { simulateTableGame } from "./tableMath";
 import type { PlayingCard } from "./types";
-import { blackjackInlineUxMarkers } from "./BlackjackPage";
+import { blackjackCleanUxMarkers } from "./BlackjackPageClean";
 
 const memory: Record<string, string> = {};
 globalThis.localStorage = {
@@ -246,16 +246,13 @@ if (blackjackConfig.minBetGold !== 1 || rouletteConfig.minBetRealCentsPlaceholde
 }
 
 if (
-  !blackjackInlineUxMarkers.inlineInsurance ||
-  !blackjackInlineUxMarkers.inlineEvenMoney ||
-  !blackjackInlineUxMarkers.chipStack ||
-  !blackjackInlineUxMarkers.cssChips ||
-  !blackjackInlineUxMarkers.compactTable ||
-  !blackjackInlineUxMarkers.fixedMobileActions ||
-  !blackjackInlineUxMarkers.integratedHeader ||
-  !blackjackInlineUxMarkers.iconOnlyControls
+  !blackjackCleanUxMarkers.cleanPage ||
+  !blackjackCleanUxMarkers.noChipSystem ||
+  !blackjackCleanUxMarkers.numericBetControls ||
+  !blackjackCleanUxMarkers.inlineInsurance ||
+  !blackjackCleanUxMarkers.hiddenDealerCard
 ) {
-  throw new Error("Expected blackjack mobile UX markers for inline offers, CSS chips, compact table, icon controls, and fixed actions.");
+  throw new Error("Expected clean blackjack UI markers for numeric betting, inline offers, hidden dealer card, and no chip system.");
 }
 
 console.log("tableGames.devtest passed");
