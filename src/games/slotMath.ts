@@ -15,6 +15,8 @@ export function simulateSlot(game: SlotConfig, spins = 100000, betAmount = game.
   let pickBonusTriggers = 0;
   let holdAndWinTriggers = 0;
   let wheelBonusTriggers = 0;
+  let cappedResults = 0;
+  let holdAndWinPaid = 0;
 
   for (let index = 0; index < spins; index += 1) {
     const result = game.id === "neon-fortune" ? calculateNeonCascadeResult(game, betAmount) : calculateSlotResult(game, betAmount);
@@ -28,6 +30,8 @@ export function simulateSlot(game: SlotConfig, spins = 100000, betAmount = game.
     }
     const pickAward = result.pickBonusAwards?.[0] ?? 0;
     const holdAward = result.triggeredHoldAndWin ? calculateHoldAndWinBonus(game, betAmount).total : 0;
+    if (result.capped || holdAward >= betAmount * game.maxPayoutMultiplier) cappedResults += 1;
+    holdAndWinPaid += holdAward;
     const totalResultPaid = result.payout + pickAward + holdAward + freeSpinPaid;
     totalPaid += totalResultPaid;
     if (totalResultPaid > 0) hits += 1;
@@ -40,9 +44,11 @@ export function simulateSlot(game: SlotConfig, spins = 100000, betAmount = game.
   }
 
   let buyBonusRtp: number | undefined;
+  let buyBonusAveragePayout: number | undefined;
   if (game.buyBonus?.enabled) {
     let buyPaid = 0;
     let buyCost = 0;
+    let buyCapHits = 0;
     const simUser: User = {
       id: `sim-${game.id}-${Date.now()}`,
       email: "sim@demo.local",
@@ -53,13 +59,17 @@ export function simulateSlot(game: SlotConfig, spins = 100000, betAmount = game.
       accountStatus: "ACTIVE",
     };
     const cost = Math.round(betAmount * game.buyBonus.costMultiplier);
-    creditCurrency({ userId: simUser.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: cost * 25, metadata: { simulation: true } });
-    for (let index = 0; index < Math.min(25, spins); index += 1) {
+    const buySpins = Math.min(250, spins);
+    creditCurrency({ userId: simUser.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: cost * buySpins, metadata: { simulation: true } });
+    for (let index = 0; index < buySpins; index += 1) {
       const buy = buyBonusFeature({ user: simUser, game, currency: "GOLD", betAmount });
       buyCost += cost;
       buyPaid += buy.payout;
+      if (buy.capped) buyCapHits += 1;
     }
     buyBonusRtp = buyPaid / buyCost;
+    buyBonusAveragePayout = buyPaid / buySpins;
+    cappedResults += buyCapHits;
   }
 
   return {
@@ -75,6 +85,9 @@ export function simulateSlot(game: SlotConfig, spins = 100000, betAmount = game.
     holdAndWinTriggerRate: holdAndWinTriggers / spins,
     wheelBonusTriggerRate: wheelBonusTriggers / spins,
     buyBonusRtp,
+    buyBonusAveragePayout,
+    holdAndWinAveragePayout: holdAndWinTriggers > 0 ? holdAndWinPaid / holdAndWinTriggers : 0,
+    capHitRate: cappedResults / (spins + (game.buyBonus?.enabled ? Math.min(250, spins) : 0)),
   };
 }
 
@@ -95,6 +108,12 @@ export function getMathWarnings(game: SlotConfig, simulation?: SimulationResult)
   }
   if (simulation?.buyBonusRtp && simulation.buyBonusRtp > simulation.observedRtp + 0.12) {
     warnings.push("Buy bonus RTP is materially higher than base game RTP.");
+  }
+  if (simulation?.buyBonusRtp && simulation.buyBonusRtp > 0.96) {
+    warnings.push("Buy bonus RTP is above 96%; increase cost or reduce bonus awards.");
+  }
+  if (simulation?.capHitRate && simulation.capHitRate > 0.08) {
+    warnings.push("Max win cap is triggering frequently; review bet range or max payout.");
   }
   return warnings;
 }

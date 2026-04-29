@@ -48,6 +48,21 @@ export function getBonusChanceTier(betAmount: number, game: SlotConfig) {
   return "Low";
 }
 
+export function getBuyBonusCost(betAmount: number, game: SlotConfig) {
+  return game.buyBonus?.enabled ? Math.round(betAmount * game.buyBonus.costMultiplier) : 0;
+}
+
+export function getBetOptions(game: SlotConfig) {
+  const options = new Set<number>([game.minBet, game.maxBet]);
+  for (let value = game.minBet; value <= game.maxBet; value += game.minBet) {
+    options.add(value);
+  }
+  [100, 150, 200, 250, 300, 400, 500, 750, 1000].forEach((value) => {
+    if (value >= game.minBet && value <= game.maxBet) options.add(value);
+  });
+  return [...options].sort((a, b) => a - b);
+}
+
 export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () => void }) {
   const { user, refreshUser } = useAuth();
   const notify = useToast();
@@ -76,18 +91,19 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
   const [animationState, setAnimationState] = useState<SlotAnimationState>("idle");
   const [reelStates, setReelStates] = useState<ReelVisualState[]>(() => Array.from({ length: game.reelCount }, () => "idle"));
   const [bonusBoostOpen, setBonusBoostOpen] = useState(false);
+  const [betMenuOpen, setBetMenuOpen] = useState(false);
 
   if (!user) return null;
   const currentUser = user;
   const balance = getBalance(currentUser.id, currency);
   const inHoldAndWin = Boolean(holdState);
   const canSpin = !spinning && !inHoldAndWin && (freeSpins > 0 || balance >= betAmount);
-  const buyBonusCost = game.buyBonus?.enabled ? Math.round(betAmount * game.buyBonus.costMultiplier) : 0;
+  const buyBonusCost = getBuyBonusCost(betAmount, game);
   const canBuyBonus = !spinning && !inHoldAndWin && Boolean(game.buyBonus?.enabled) && balance >= buyBonusCost;
   const lastResult = history[0];
   const scatterCount = grid.flat().filter((symbol) => symbol === game.scatterSymbol).length;
   const bonusCount = grid.flat().filter((symbol) => symbol === game.bonusSymbol).length;
-  const quickBetValues = [10, 20, 50, 100, 250].filter((value) => value <= game.maxBet);
+  const betOptions = getBetOptions(game);
   const activePaylines = new Set(lastResult?.lineWins.map((win) => win.paylineId) ?? []);
   const bonusChanceTier = getBonusChanceTier(betAmount, game);
   const modeLabel =
@@ -117,6 +133,8 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
     setHoldFeedback("");
     setAnimationState("idle");
     setReelStates(Array.from({ length: game.reelCount }, () => "idle"));
+    setBetMenuOpen(false);
+    setBonusBoostOpen(false);
   }, [game]);
 
   useEffect(() => {
@@ -432,7 +450,11 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
             <div className={`hold-and-win-board ${bonusBusy ? "respinning" : ""} ${holdState.finished ? "finished" : ""}`}>
               <div className="hold-grid">
                 {holdState.values.map((value, index) => (
-                  <div className={`hold-cell ${value ? "locked" : ""} ${holdState.lastNewCoins.includes(index) ? "new" : ""}`} key={index}>
+                  <div
+                    className={`hold-cell ${value ? "locked" : ""} ${holdState.lastNewCoins.includes(index) ? "new" : ""}`}
+                    style={{ "--reveal-delay": `${(index % game.reelCount) * 90 + Math.floor(index / game.reelCount) * 35}ms` } as React.CSSProperties}
+                    key={index}
+                  >
                     {value ? (
                       <>
                         <img src={coinImageFor(value)} alt="" />
@@ -512,17 +534,27 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
                   <Plus size={16} />
                 </button>
               </div>
-              <div className="premium-quick-bets">
-                {quickBetValues.map((value) => (
-                  <button
-                    className={betAmount === value ? "active" : ""}
-                    disabled={value < game.minBet || inHoldAndWin}
-                    onClick={() => setBetAmount(value)}
-                    key={value}
-                  >
-                    {formatCoins(value)}
-                  </button>
-                ))}
+              <div className="premium-bet-menu">
+                <button className={betMenuOpen ? "bet-menu-trigger active" : "bet-menu-trigger"} disabled={inHoldAndWin} onClick={() => setBetMenuOpen((value) => !value)}>
+                  Bet Size
+                </button>
+                {betMenuOpen && (
+                  <div className="bet-size-popover">
+                    {betOptions.map((value) => (
+                      <button
+                        className={betAmount === value ? "active" : ""}
+                        disabled={inHoldAndWin}
+                        onClick={() => {
+                          setBetAmount(value);
+                          setBetMenuOpen(false);
+                        }}
+                        key={value}
+                      >
+                        {formatCoins(value)}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <button
@@ -557,7 +589,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
             )}
             {game.buyBonus?.enabled && !inHoldAndWin && (
               <div className={bonusBoostOpen ? "bonus-boost-panel open" : "bonus-boost-panel"}>
-                <button className="bonus-boost-summary" onClick={() => setBonusBoostOpen((value) => !value)}>
+              <button className="bonus-boost-summary" onClick={() => setBonusBoostOpen((value) => !value)}>
                   <span>Bonus Boost</span>
                   <strong>{bonusChanceTier}</strong>
                 </button>

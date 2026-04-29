@@ -44,6 +44,14 @@ export interface SlotConfig {
     costMultiplier: number;
     featureType: BonusFeatureType;
   };
+  holdAndWin?: {
+    coinValueMultipliers: number[];
+    grandMultiplier: number;
+    majorMultiplier: number;
+    minorMultiplier: number;
+    miniMultiplier: number;
+    coinLandingChance: number;
+  };
   featureTypes?: BonusFeatureType[];
   specialSymbols?: {
     wild?: string;
@@ -153,6 +161,9 @@ export interface SimulationResult {
   holdAndWinTriggerRate?: number;
   wheelBonusTriggerRate?: number;
   buyBonusRtp?: number;
+  buyBonusAveragePayout?: number;
+  holdAndWinAveragePayout?: number;
+  capHitRate?: number;
 }
 
 export interface HoldAndWinResult {

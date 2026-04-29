@@ -35,9 +35,18 @@ export function PaytableModal({ game, onClose }: { game: SlotConfig; onClose: ()
         </div>
         {game.featureTypes?.includes("HOLD_AND_WIN") && (
           <div className="notice-card">
-            Hold and Win: landing 3 or more coin symbols starts the bonus. Coin positions lock,
-            you begin with 3 respins, and any new coin resets respins back to 3. Filling every
-            position awards the Grand demo jackpot, capped by the game max payout.
+            Hold and Win: landing 3 or more coin symbols starts the bonus. Bet amount affects
+            coin values, so higher bets can create larger bonus wins. Coin values use configurable
+            multipliers: {(game.holdAndWin?.coinValueMultipliers ?? []).join(", ") || "game defaults"}x.
+            You begin with 3 respins, and any new coin resets respins back to 3. Filling every
+            position awards the Grand demo jackpot, capped at {game.maxPayoutMultiplier}x the bet.
+          </div>
+        )}
+        {game.buyBonus?.enabled && (
+          <div className="notice-card">
+            Bonus buy pricing is always current bet x {game.buyBonus.costMultiplier}. Buy bonus RTP
+            is demo-tuned to be lower than long-term profitable play. Virtual coins have no cash
+            value, and there are no prizes, withdrawals, cashout, or redemption.
           </div>
         )}
         {game.jackpotLabels && (

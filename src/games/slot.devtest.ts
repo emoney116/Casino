@@ -6,7 +6,7 @@ import type { User } from "../types";
 import { clearRecentGames, getRecentGames, recordRecentGame } from "./recentGames";
 import { dismissOnboarding, hasDismissedOnboarding } from "../app/onboarding";
 import { frontierUiAssets, requiredFrontierUiAssetKeys } from "./frontierAssets";
-import { getBonusChanceTier } from "./SlotMachine";
+import { getBetOptions, getBonusChanceTier, getBuyBonusCost } from "./SlotMachine";
 import { getSpinDuration, slotAnimation } from "./slotAnimation";
 import { nextFreeSpinTotal } from "./slotSession";
 import { getProgression, recordSpinProgress } from "../progression/progressionService";
@@ -187,6 +187,21 @@ if (getBonusChanceTier(frontier.maxBet, frontier) !== "Best") {
 if (getBonusChanceTier(Math.round((frontier.minBet + frontier.maxBet) / 2), frontier) !== "Better") {
   throw new Error("Expected middle bet to show better bonus boost tier.");
 }
+if (getBetOptions(frontier).some((value) => value < frontier.minBet || value > frontier.maxBet)) {
+  throw new Error("Expected bet menu options to stay inside game limits.");
+}
+if (!getBetOptions(frontier).includes(250)) {
+  throw new Error("Expected bet menu to include 250 bet size.");
+}
+if (getBuyBonusCost(250, frontier) !== 250 * (frontier.buyBonus?.costMultiplier ?? 0)) {
+  throw new Error("Expected displayed buy bonus cost helper to match configured multiplier.");
+}
+if (frontier.maxPayoutMultiplier < 100 || frontier.maxBet > 500) {
+  throw new Error("Expected Frontier max win cap to scale higher while keeping max bet controlled.");
+}
+if (!frontier.holdAndWin?.coinValueMultipliers.includes(14)) {
+  throw new Error("Expected Frontier Hold and Win coin multipliers to be configurable.");
+}
 const holdBonus = calculateHoldAndWinBonus(frontier, frontier.minBet);
 if (!Number.isFinite(holdBonus.total) || holdBonus.respinRounds.length === 0) {
   throw new Error("Expected hold-and-win respins to calculate.");
@@ -220,9 +235,13 @@ const debitOnlyUser: User = {
 };
 creditCurrency({ userId: debitOnlyUser.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 500000 });
 const debitOnlyBefore = getTransactions(debitOnlyUser.id).filter((tx) => tx.type === "BUY_BONUS").length;
+const debitBalanceBefore = getBalance(debitOnlyUser.id, "GOLD");
 buyBonusDebit({ user: debitOnlyUser, game: frontier, currency: "GOLD", betAmount: frontier.minBet });
 if (getTransactions(debitOnlyUser.id).filter((tx) => tx.type === "BUY_BONUS").length !== debitOnlyBefore + 1) {
   throw new Error("Expected buy bonus debit-only ledger entry.");
+}
+if (debitBalanceBefore - getBalance(debitOnlyUser.id, "GOLD") !== getBuyBonusCost(frontier.minBet, frontier)) {
+  throw new Error("Expected BUY_BONUS ledger debit to match displayed buy bonus cost.");
 }
 
 let holdState = createHoldAndWinState(frontier, frontier.minBet, 3);

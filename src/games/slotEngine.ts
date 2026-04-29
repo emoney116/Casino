@@ -93,7 +93,9 @@ function randomFrom<T>(items: T[]) {
 }
 
 function coinAward(game: SlotConfig, betAmount: number) {
-  const multipliers = game.volatility === "High" ? [1, 1, 2, 2, 3, 5, 8, 10, 15] : [1, 1, 1, 2, 2, 3, 5, 8];
+  const multipliers =
+    game.holdAndWin?.coinValueMultipliers ??
+    (game.volatility === "High" ? [1, 1, 2, 2, 3, 5, 8, 10, 15] : [1, 1, 1, 2, 2, 3, 5, 8]);
   return Math.round(betAmount * randomFrom(multipliers));
 }
 
@@ -123,7 +125,7 @@ export function stepHoldAndWinBonus(game: SlotConfig, betAmount: number, state: 
   const values = [...state.values];
   const lastNewCoins: number[] = [];
   values.forEach((value, index) => {
-    if (value === null && Math.random() < 0.18) {
+    if (value === null && Math.random() < (game.holdAndWin?.coinLandingChance ?? 0.18)) {
       values[index] = coinAward(game, betAmount);
       lastNewCoins.push(index);
     }
@@ -131,7 +133,7 @@ export function stepHoldAndWinBonus(game: SlotConfig, betAmount: number, state: 
   const filledAll = values.every((value) => value !== null);
   const respinsRemaining = filledAll ? 0 : lastNewCoins.length > 0 ? 3 : state.respinsRemaining - 1;
   const total = Math.min(
-    values.reduce<number>((sum, value) => sum + (value ?? 0), 0) + (filledAll ? Math.round(betAmount * 60) : 0),
+    values.reduce<number>((sum, value) => sum + (value ?? 0) , 0) + (filledAll ? Math.round(betAmount * (game.holdAndWin?.grandMultiplier ?? 60)) : 0),
     maxWinFor(game, betAmount),
   );
   return {
