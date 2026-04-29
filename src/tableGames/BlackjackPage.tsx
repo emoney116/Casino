@@ -32,6 +32,8 @@ export const blackjackInlineUxMarkers = {
   inlineInsurance: true,
   inlineEvenMoney: true,
   chipStack: true,
+  cssChips: true,
+  compactTable: true,
   fixedMobileActions: true,
   integratedHeader: true,
 };
@@ -138,8 +140,8 @@ export function BlackjackPage({ onExit }: { onExit?: () => void }) {
         </div>
       </div>
 
-      <article className="felt-table blackjack-felt">
-        <section className="blackjack-row dealer-row">
+      <article className="blackjack-felt">
+        <section className="blackjack-table-row dealer-row">
           <Hand
             label="Dealer"
             cards={round?.dealerCards ?? []}
@@ -191,21 +193,8 @@ export function BlackjackPage({ onExit }: { onExit?: () => void }) {
       </article>
 
       <section className="blackjack-control-deck">
-        <div className="blackjack-status-panel">
-          <div>
-            <span>Balance</span>
-            <strong>{formatCoins(balance)}</strong>
-            <small>{currency}</small>
-          </div>
-          <div>
-            <span>Bet</span>
-            <strong>{formatCoins(betAmount)}</strong>
-            <small>Min {blackjackConfig.minBet} / Max {blackjackConfig.maxBet}</small>
-          </div>
-        </div>
-
         <div className="blackjack-actions">
-          {!activeRound && <button className="primary-button" disabled={!canDeal} onClick={deal}>Deal</button>}
+          {!activeRound && <span className="blackjack-action-hint">Choose chips, then deal.</span>}
           {activeRound && activeHand && !actionBlocked && (
             <>
               <button className="primary-button" onClick={() => action("hit")}>Hit</button>
@@ -230,12 +219,29 @@ export function BlackjackPage({ onExit }: { onExit?: () => void }) {
                 </button>
               ))}
             </div>
-            <div className="chip-actions">
-              <button className="ghost-button" onClick={clearBet}>Clear</button>
-              <button className="ghost-button" onClick={rebet}>Rebet</button>
-            </div>
           </div>
         )}
+
+        {!activeRound && (
+          <div className="blackjack-utility-row">
+            <button className="ghost-button" onClick={clearBet}>Clear</button>
+            <button className="primary-button deal-button" disabled={!canDeal} onClick={deal}>Deal</button>
+            <button className="ghost-button" onClick={rebet}>Rebet</button>
+          </div>
+        )}
+
+        <div className="blackjack-status-panel">
+          <div>
+            <span>Balance</span>
+            <strong>{formatCoins(balance)}</strong>
+            <small>{currency}</small>
+          </div>
+          <div>
+            <span>Bet Limits</span>
+            <strong>{blackjackConfig.minBet} / {blackjackConfig.maxBet}</strong>
+            <small>Virtual coins only</small>
+          </div>
+        </div>
       </section>
     </section>
   );
@@ -307,9 +313,9 @@ function Hand({
 }) {
   return (
     <div className="card-hand blackjack-hand">
-      <div className="section-title">
+      <div className="blackjack-row-label">
         <h3>{label}</h3>
-        <span>{totalLabel} {cards.length ? total : "-"}</span>
+        <span>{totalLabel} <strong>{cards.length ? total : "-"}</strong></span>
       </div>
       <div className="playing-cards blackjack-cards">
         {cards.length === 0 ? <div className="empty-state">Cards will appear here.</div> : cards.map((card, index) => (
@@ -325,7 +331,7 @@ function PlayerHand({ hand, active, index }: { hand: BlackjackHand; active: bool
   const natural = hand.cards.length === 2 && total === 21;
   return (
     <div className={active ? "player-hand active" : "player-hand"}>
-      <div className="section-title">
+      <div className="blackjack-row-label">
         <h3>Hand {index + 1}</h3>
         <span>{hand.status === "BUST" ? "BUST" : natural ? "BLACKJACK" : `Total ${total}`}</span>
       </div>

@@ -249,9 +249,12 @@ if (
   !blackjackInlineUxMarkers.inlineInsurance ||
   !blackjackInlineUxMarkers.inlineEvenMoney ||
   !blackjackInlineUxMarkers.chipStack ||
-  !blackjackInlineUxMarkers.fixedMobileActions
+  !blackjackInlineUxMarkers.cssChips ||
+  !blackjackInlineUxMarkers.compactTable ||
+  !blackjackInlineUxMarkers.fixedMobileActions ||
+  !blackjackInlineUxMarkers.integratedHeader
 ) {
-  throw new Error("Expected blackjack mobile UX markers for inline offers, chip stack, and fixed actions.");
+  throw new Error("Expected blackjack mobile UX markers for inline offers, CSS chips, compact table, and fixed actions.");
 }
 
 console.log("tableGames.devtest passed");
