@@ -1182,6 +1182,295 @@ th { color: #a9b4c7; font-size: 0.78rem; text-transform: uppercase; }
   }
 }
 
+/* Blackjack focused UX pass: chips, legal actions, hidden dealer card, mobile table fit. */
+.blackjack-premium {
+  gap: 10px;
+}
+
+.blackjack-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: end;
+}
+
+.blackjack-heading h1 {
+  font-size: clamp(1.55rem, 4vw, 2.5rem);
+}
+
+.blackjack-currency {
+  width: min(180px, 100%);
+}
+
+.blackjack-felt {
+  min-height: clamp(320px, 52vh, 520px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: clamp(8px, 1.8vw, 14px);
+  padding: clamp(10px, 2.4vw, 22px);
+  background:
+    radial-gradient(circle at 50% 20%, rgba(134,239,172,0.16), transparent 32%),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.035) 0 1px, transparent 1px 42px),
+    linear-gradient(180deg, rgba(6,95,70,0.96), rgba(2,44,34,0.98));
+}
+
+.dealer-row .blackjack-cards {
+  min-height: clamp(76px, 15vh, 122px);
+}
+
+.blackjack-player-zone {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  align-items: stretch;
+}
+
+.blackjack-empty-hand,
+.player-hand {
+  min-height: clamp(118px, 22vh, 190px);
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  color: #d1fae5;
+  background: rgba(4,120,87,0.32);
+  border: 1px solid rgba(187,247,208,0.16);
+}
+
+.player-hand.active {
+  border-color: rgba(250,204,21,0.72);
+  box-shadow: 0 0 24px rgba(250,204,21,0.18), inset 0 0 22px rgba(250,204,21,0.08);
+}
+
+.blackjack-cards {
+  min-height: clamp(86px, 17vh, 138px);
+  align-items: center;
+}
+
+.blackjack-cards .playing-card {
+  width: clamp(54px, 10vw, 84px);
+  animation: dealCard 260ms ease both;
+  animation-delay: var(--card-delay, 0ms);
+  transform-origin: bottom center;
+}
+
+.card-back {
+  color: #dbeafe;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(59,130,246,0.28), transparent 34%),
+    repeating-linear-gradient(45deg, rgba(255,255,255,0.12) 0 2px, transparent 2px 8px),
+    linear-gradient(145deg, #1e3a8a, #0f172a);
+  border-color: rgba(147,197,253,0.8);
+}
+
+.card-back span {
+  place-self: center;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  font-weight: 900;
+}
+
+.hand-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #bbf7d0;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.blackjack-control-deck {
+  position: sticky;
+  bottom: 10px;
+  z-index: 12;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(15,23,42,0.96), rgba(3,7,18,0.98));
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 -10px 34px rgba(0,0,0,0.28);
+}
+
+.blackjack-status-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.blackjack-status-panel > div {
+  min-height: 58px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.blackjack-status-panel span,
+.blackjack-status-panel small {
+  color: #a9b4c7;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.blackjack-status-panel strong {
+  font-size: clamp(1.15rem, 4vw, 1.7rem);
+  line-height: 1;
+}
+
+.chip-betting {
+  display: grid;
+  gap: 8px;
+}
+
+.chip-rack {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(42px, 1fr));
+  gap: 8px;
+}
+
+.casino-chip {
+  aspect-ratio: 1;
+  min-height: 42px;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 1000;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255,255,255,0.18), transparent 36%),
+    repeating-conic-gradient(rgba(255,255,255,0.92) 0 10deg, transparent 10deg 32deg),
+    radial-gradient(circle, var(--chip-color), color-mix(in srgb, var(--chip-color) 65%, #020617));
+  border: 4px solid color-mix(in srgb, var(--chip-color) 72%, #fff);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.28), inset 0 0 0 5px rgba(15,23,42,0.38);
+  text-shadow: 0 2px 6px rgba(0,0,0,0.7);
+}
+
+.chip-1 { --chip-color: #64748b; }
+.chip-5 { --chip-color: #dc2626; }
+.chip-10 { --chip-color: #2563eb; }
+.chip-25 { --chip-color: #16a34a; }
+.chip-100 { --chip-color: #7c3aed; }
+.chip-500 { --chip-color: #ca8a04; }
+
+.chip-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.blackjack-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 8px;
+}
+
+.blackjack-actions .primary-button,
+.blackjack-actions .ghost-button {
+  width: 100%;
+  min-height: 48px;
+  font-weight: 900;
+}
+
+@keyframes dealCard {
+  from { opacity: 0; transform: translate3d(36px, -28px, 0) rotate(5deg) scale(0.92); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) rotate(0) scale(1); }
+}
+
+@media (max-width: 720px) {
+  .blackjack-premium {
+    margin: -8px;
+    gap: 7px;
+  }
+
+  .blackjack-heading {
+    align-items: start;
+  }
+
+  .blackjack-heading .muted {
+    display: none;
+  }
+
+  .blackjack-currency {
+    width: 128px;
+  }
+
+  .blackjack-currency select {
+    min-height: 38px;
+  }
+
+  .blackjack-felt {
+    min-height: calc(100svh - 314px);
+  }
+
+  .blackjack-player-zone {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .blackjack-empty-hand,
+  .player-hand {
+    min-height: 112px;
+    padding: 8px;
+  }
+
+  .blackjack-cards {
+    min-height: 76px;
+    gap: 6px;
+  }
+
+  .blackjack-cards .playing-card {
+    width: clamp(46px, 15vw, 62px);
+    padding: 7px;
+  }
+
+  .blackjack-cards .playing-card strong,
+  .blackjack-cards .playing-card span {
+    font-size: 1.05rem;
+  }
+
+  .blackjack-control-deck {
+    bottom: 8px;
+    padding: 8px;
+    gap: 7px;
+  }
+
+  .blackjack-status-panel > div {
+    min-height: 50px;
+  }
+
+  .chip-rack {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .casino-chip {
+    min-height: 38px;
+    border-width: 3px;
+    font-size: 0.76rem;
+  }
+
+  .chip-actions .ghost-button,
+  .blackjack-actions .primary-button,
+  .blackjack-actions .ghost-button {
+    min-height: 42px;
+    padding-inline: 8px;
+  }
+}
+
+@media (max-width: 360px) {
+  .casino-chip {
+    min-height: 34px;
+    font-size: 0.68rem;
+  }
+
+  .blackjack-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* Frontier-only focused game mode. */
 .game-mode .main-panel {
   padding: 0;

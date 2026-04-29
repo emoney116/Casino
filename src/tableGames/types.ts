@@ -30,14 +30,28 @@ export interface TableSettlement {
 
 export interface PlayingCard {
   rank: "A" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" | "J" | "Q" | "K";
-  suit: "♠" | "♥" | "♦" | "♣";
+  suit: "S" | "H" | "D" | "C";
 }
 
 export interface BlackjackConfig extends TableGameConfig {
   dealerHitsSoft17: boolean;
   blackjackPayout: number;
-  doubleDownAllowed: boolean;
+  allowDouble: boolean;
+  allowSplit: boolean;
+  allowInsurance: boolean;
+  allowEvenMoney: boolean;
+  maxHandsAfterSplit: number;
   dealerAdvantageAssistRate: number;
+}
+
+export interface BlackjackHand {
+  id: string;
+  cards: PlayingCard[];
+  betAmount: number;
+  status: "ACTIVE" | "STOOD" | "BUST" | "RESOLVED";
+  doubled?: boolean;
+  splitFromPair?: boolean;
+  result?: TableSettlement;
 }
 
 export interface BlackjackRound {
@@ -47,10 +61,16 @@ export interface BlackjackRound {
   betAmount: number;
   totalBet: number;
   playerCards: PlayingCard[];
+  playerHands: BlackjackHand[];
+  activeHandIndex: number;
   dealerCards: PlayingCard[];
+  dealerRevealed: boolean;
   deck: PlayingCard[];
   result?: TableSettlement;
-  doubled?: boolean;
+  insuranceBet?: number;
+  insuranceResolved?: boolean;
+  insuranceResult?: TableSettlement;
+  evenMoneyOffered?: boolean;
 }
 
 export type RouletteBet =
