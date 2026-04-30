@@ -8,21 +8,19 @@ import { rouletteConfig } from "./configs";
 import {
   americanWheel,
   getRouletteColor,
+  getRouletteInsideChipPosition,
   getRouletteWinningZones,
   resolveRouletteBets,
   rouletteBetKey,
   rouletteBetLabel,
+  rouletteBoardRows,
   type PlacedRouletteBet,
 } from "./rouletteEngine";
 import type { RouletteBet, RouletteResult } from "./types";
 
 const redNumbers = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
-const boardRows = [
-  [3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36],
-  [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35],
-  [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34],
-];
-const goldChips = [1, 5, 10, 25, 100, 500, 1000];
+const boardRows = rouletteBoardRows;
+const goldChips = [1, 5, 10, 25, 100, 500];
 const bonusChips = [0.1, 0.2, 0.5, 1, 5, 10, 20, 50, 100];
 
 export const rouletteUiMarkers = {
@@ -32,7 +30,11 @@ export const rouletteUiMarkers = {
   animatedWheel: true,
   advancedInsideBets: true,
   landscapeTable: true,
-  chipFan: true,
+  compactChipRow: true,
+  insideHelperRowRemoved: true,
+  zeroDoubleZeroBalanced: true,
+  doubleBetsAction: true,
+  sequencedAmericanWheel: true,
 };
 
 export function RoulettePage({ onExit }: { onExit?: () => void }) {
@@ -44,7 +46,6 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
   const [lastBets, setLastBets] = useState<PlacedRouletteBet[]>([]);
   const [advancedSelection, setAdvancedSelection] = useState<Array<"0" | "00" | number>>([]);
   const [advancedMode, setAdvancedMode] = useState(false);
-  const [chipFanOpen, setChipFanOpen] = useState(false);
   const [result, setResult] = useState<RouletteResult | null>(null);
   const [spinning, setSpinning] = useState(false);
   if (!user) return null;
@@ -70,7 +71,6 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
       return;
     }
     setBets((current) => [...current, { id: crypto.randomUUID(), bet, amount: selectedChip, label: rouletteBetLabel(bet) }]);
-    setChipFanOpen(false);
     setResult(null);
   }
 
@@ -93,8 +93,26 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
     setResult(null);
   }
 
+  function doubleBets() {
+    if (spinning || bets.length === 0) return;
+    const doubledTotal = totalBet * 2;
+    if (doubledTotal > balance) {
+      notify("Insufficient balance to double all roulette bets.", "error");
+      return;
+    }
+    if (doubledTotal > rouletteConfig.maxTotalBetGold) {
+      notify(`Maximum total roulette bet is ${formatCoins(rouletteConfig.maxTotalBetGold)}.`, "error");
+      return;
+    }
+    setBets((current) => current.map((bet) => ({ ...bet, amount: bet.amount * 2 })));
+    setResult(null);
+  }
+
   function toggleAdvanced(number: "0" | "00" | number) {
-    if (!advancedMode) return;
+    if (!advancedMode) {
+      placeBet({ kind: "straight", value: number });
+      return;
+    }
     setAdvancedSelection((current) => (
       current.includes(number) ? current.filter((value) => value !== number) : [...current, number].slice(-6)
     ));
@@ -144,17 +162,17 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
   }
 
   return (
-    <section className="roulette-clean-page" onClick={() => chipFanOpen && setChipFanOpen(false)}>
+    <section className="roulette-clean-page">
       <div className="roulette-rotate-prompt">
         <strong>Rotate for Roulette</strong>
         <span>The full American roulette table is designed for landscape play.</span>
       </div>
 
       <header className="roulette-clean-header">
-        <button className="roulette-back" onClick={onExit} aria-label="Back to table games">‹</button>
+        <button className="roulette-back" onClick={onExit} aria-label="Back to table games">&lt;</button>
         <div className="roulette-title">
-          <h1>Roulette <span aria-hidden="true">◉</span></h1>
-          <small>American Roulette · Virtual Coins Only</small>
+          <h1>Roulette <span aria-hidden="true">o</span></h1>
+          <small>American Roulette - Virtual Coins Only</small>
         </div>
         <div className="roulette-header-balance">
           <span>Balance</span>
@@ -168,10 +186,10 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
 
       <section className={spinning ? "roulette-layout roulette-focus-wheel" : "roulette-layout"}>
         <div className="roulette-side-actions">
-          <button onClick={undoLastBet}>↶<span>Undo</span></button>
-          <button onClick={clearBets}>×<span>Clear</span></button>
-          <button onClick={rebet}>↻<span>Rebet</span></button>
-          <button className={advancedMode ? "active" : ""} onClick={() => { setAdvancedMode((value) => !value); setAdvancedSelection([]); }}>＋<span>Inside</span></button>
+          <button onClick={undoLastBet}>Undo<span>Last</span></button>
+          <button onClick={clearBets}>Clear<span>Bets</span></button>
+          <button onClick={rebet}>Rebet<span>Last</span></button>
+          <button onClick={doubleBets} disabled={spinning || bets.length === 0}>2x<span>Double</span></button>
         </div>
 
         <div className="roulette-board-wrap">
@@ -183,6 +201,10 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
             <button className={`double-zero ${result?.outcome === "00" ? "winner" : ""} ${advancedSelection.includes("00") ? "selected" : ""}`} onClick={() => advancedMode ? toggleAdvanced("00") : placeBet({ kind: "straight", value: "00" })}>
               00
               <ChipStack bets={bets.filter((placed) => rouletteBetKey(placed.bet) === "straight:00")} winningIds={winningIds} />
+            </button>
+            <button className="zero-split" onClick={() => placeBet({ kind: "split", numbers: ["0", "00"] })} aria-label="Split 0 and 00">
+              split
+              <ChipStack bets={bets.filter((placed) => rouletteBetKey(placed.bet) === "split:0-00")} winningIds={winningIds} />
             </button>
             <div className="number-grid">
               {boardRows.map((row) => row.map((number) => (
@@ -201,7 +223,7 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
             <div className="column-bets">
               {[1, 2, 3].map((column) => {
                 const bet = { kind: "column", value: column as 1 | 2 | 3 } satisfies RouletteBet;
-                return <button key={column} className={winningZoneKeys.has(rouletteBetKey(bet)) ? "winner" : ""} onClick={() => placeBet(bet)}>2 to 1<ChipStack bets={bets.filter((placed) => rouletteBetKey(placed.bet) === rouletteBetKey(bet))} winningIds={winningIds} /></button>;
+                return <button key={column} className={winningZoneKeys.has(rouletteBetKey(bet)) ? "winner" : ""} onClick={() => placeBet(bet)}>2:1<ChipStack bets={bets.filter((placed) => rouletteBetKey(placed.bet) === rouletteBetKey(bet))} winningIds={winningIds} /></button>;
               })}
             </div>
             <div className="dozen-bets">
@@ -218,34 +240,17 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
           </div>
         </div>
 
-        <div className="roulette-advanced">
-          <button className={advancedMode ? "active" : ""} onClick={() => { setAdvancedMode((value) => !value); setAdvancedSelection([]); }}>Inside</button>
-          <button onClick={() => advancedMode ? toggleAdvanced("0") : placeBet({ kind: "straight", value: "0" })}>0</button>
-          <button onClick={() => advancedMode ? toggleAdvanced("00") : placeBet({ kind: "straight", value: "00" })}>00</button>
-          <span>{advancedMode ? advancedSelection.join(", ") || "Tap board numbers" : "Tap borders for splits/corners or use Inside"}</span>
-          <button onClick={confirmAdvancedBet}>Place</button>
-          <button onClick={() => setAdvancedSelection([])}>Clear</button>
-        </div>
-
         <aside className="roulette-bets-panel">
           <div className="roulette-stats">
             <span>Total Bet <strong>{formatCoins(totalBet)}</strong></span>
             <span>Min {rouletteConfig.minBet} / Max {rouletteConfig.maxTotalBetGold}</span>
           </div>
-          <div className={chipFanOpen ? "roulette-chip-selector open" : "roulette-chip-selector"} onClick={(event) => event.stopPropagation()}>
-            <button className="roulette-chip active selected-chip" onClick={() => setChipFanOpen((value) => !value)}>{selectedChip}</button>
-            <div className="roulette-chip-fan">
-              {chips.filter((chip) => chip !== selectedChip).map((chip, index) => (
-                <button
-                  key={chip}
-                  className="roulette-chip"
-                  style={{ "--chip-index": index } as CSSProperties}
-                  onClick={() => { setSelectedChip(chip); setChipFanOpen(false); }}
-                >
-                  {chip}
-                </button>
-              ))}
-            </div>
+          <div className="roulette-chip-row" aria-label="Select chip value">
+            {chips.map((chip) => (
+              <button key={chip} className={chip === selectedChip ? "roulette-chip active" : "roulette-chip"} onClick={() => setSelectedChip(chip)}>
+                {chip}
+              </button>
+            ))}
           </div>
           <div className="roulette-active-bets">
             {groupedBets.length === 0 ? <span>No active bets.</span> : groupedBets.map((bet) => (
@@ -259,14 +264,11 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
         </aside>
 
         <div className={spinning ? "roulette-wheel-stage spinning" : "roulette-wheel-stage"}>
-          <div className="roulette-wheel-visual">
-            <div className="roulette-ball" />
-            <span>{spinning ? "..." : result?.outcome ?? "Spin"}</span>
-          </div>
+          <RouletteWheel outcome={result?.outcome ?? null} spinning={spinning} />
           {result && (
             <div className={`roulette-result-banner ${result.color}`}>
               <strong>{result.outcome} {result.color}</strong>
-              <span>Won {formatCoins(result.totalPaid)} · Net {(result.net ?? 0) >= 0 ? "+" : ""}{formatCoins(result.net ?? 0)}</span>
+              <span>Won {formatCoins(result.totalPaid)} - Net {(result.net ?? 0) >= 0 ? "+" : ""}{formatCoins(result.net ?? 0)}</span>
             </div>
           )}
         </div>
@@ -290,20 +292,41 @@ function ChipStack({ bets, winningIds }: { bets: PlacedRouletteBet[]; winningIds
   return <span className={bets.some((bet) => winningIds.has(bet.id)) ? "board-chip win" : "board-chip"}>{total}</span>;
 }
 
+function RouletteWheel({ outcome, spinning }: { outcome: RouletteResult["outcome"] | null; spinning: boolean }) {
+  const outcomeIndex = outcome ? americanWheel.findIndex((value) => value === outcome) : 0;
+  return (
+    <div className="roulette-wheel-visual" style={{ "--wheel-stop-index": outcomeIndex } as CSSProperties}>
+      <div className="roulette-pocket-ring" aria-hidden="true">
+        {americanWheel.map((value, index) => (
+          <span
+            key={value}
+            className={`roulette-pocket ${getRouletteColor(value)}`}
+            style={{ "--pocket-index": index } as CSSProperties}
+          >
+            {value}
+          </span>
+        ))}
+      </div>
+      <div className="roulette-ball" />
+      <strong>{spinning ? "..." : outcome ?? "Spin"}</strong>
+    </div>
+  );
+}
+
 function InsideHitAreas({ onBet }: { onBet: (bet: RouletteBet) => void }) {
   const areas: Array<{ key: string; bet: RouletteBet; style: CSSProperties }> = [];
   for (let street = 1; street <= 34; street += 3) {
     const streetIndex = (street - 1) / 3;
-    areas.push({ key: `street-${street}`, bet: { kind: "street", numbers: [street, street + 1, street + 2] }, style: { left: `${streetIndex * (100 / 12)}%`, top: "100%", width: `${100 / 12}%`, height: "18%" } });
+    areas.push({ key: `street-${street}`, bet: { kind: "street", numbers: [street, street + 1, street + 2] }, style: { left: `${streetIndex * (100 / 12)}%`, top: "96%", width: `${100 / 12}%`, height: "28%" } });
     if (street < 34) {
-      areas.push({ key: `six-${street}`, bet: { kind: "sixLine", numbers: [street, street + 1, street + 2, street + 3, street + 4, street + 5] }, style: { left: `${(streetIndex + 1) * (100 / 12) - 1.4}%`, top: "100%", width: "2.8%", height: "18%" } });
+      areas.push({ key: `six-${street}`, bet: { kind: "sixLine", numbers: [street, street + 1, street + 2, street + 3, street + 4, street + 5] }, style: { left: `${(streetIndex + 1) * (100 / 12) - 2.8}%`, top: "94%", width: "5.6%", height: "30%" } });
     }
   }
   for (let column = 0; column < 12; column += 1) {
     for (let row = 0; row < 3; row += 1) {
       const number = boardRows[row][column];
       if (column < 11) areas.push({ key: `split-h-${number}`, bet: { kind: "split", numbers: [number, boardRows[row][column + 1]] }, style: { left: `${(column + 1) * (100 / 12) - 1.4}%`, top: `${row * (100 / 3)}%`, width: "2.8%", height: `${100 / 3}%` } });
-      if (row < 2) areas.push({ key: `split-v-${number}`, bet: { kind: "split", numbers: [number, boardRows[row + 1][column]] }, style: { left: `${column * (100 / 12)}%`, top: `${(row + 1) * (100 / 3) - 2}%`, width: `${100 / 12}%`, height: "4%" } });
+      if (row < 2) areas.push({ key: `split-v-${number}`, bet: { kind: "split", numbers: [number, boardRows[row + 1][column]] }, style: { left: `${column * (100 / 12)}%`, top: `${(row + 1) * (100 / 3) - 4}%`, width: `${100 / 12}%`, height: "8%" } });
       if (column < 11 && row < 2) areas.push({ key: `corner-${number}`, bet: { kind: "corner", numbers: [number, boardRows[row][column + 1], boardRows[row + 1][column], boardRows[row + 1][column + 1]] }, style: { left: `${(column + 1) * (100 / 12) - 1.8}%`, top: `${(row + 1) * (100 / 3) - 2.4}%`, width: "3.6%", height: "4.8%" } });
     }
   }
@@ -314,30 +337,12 @@ function InsideChipLayer({ bets, winningIds }: { bets: PlacedRouletteBet[]; winn
   return (
     <div className="inside-chip-layer">
       {bets.map((bet) => {
-        const position = insideChipPosition(bet.bet);
+        const position = getRouletteInsideChipPosition(bet.bet);
         if (!position) return null;
         return <span key={bet.id} className={winningIds.has(bet.id) ? "board-chip inside win" : "board-chip inside"} style={{ left: `${position.left}%`, top: `${position.top}%` }}>{bet.amount}</span>;
       })}
     </div>
   );
-}
-
-function insideChipPosition(bet: RouletteBet) {
-  if (!("numbers" in bet) || bet.kind === "basket") return null;
-  const nums: number[] = [];
-  bet.numbers.forEach((value) => {
-    if (typeof value === "number") nums.push(value);
-  });
-  if (nums.length === 0) return null;
-  const points = nums.map((number) => {
-    const streetIndex = Math.floor((number - 1) / 3);
-    const rowIndex = boardRows.findIndex((row) => row.includes(number));
-    return { left: (streetIndex + 0.5) * (100 / 12), top: (rowIndex + 0.5) * (100 / 3) };
-  });
-  return {
-    left: points.reduce((sum, point) => sum + point.left, 0) / points.length,
-    top: points.reduce((sum, point) => sum + point.top, 0) / points.length,
-  };
 }
 
 function numberColumn(number: number) {

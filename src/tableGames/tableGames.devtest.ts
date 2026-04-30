@@ -18,7 +18,7 @@ import {
   standBlackjack,
   visibleDealerValue,
 } from "./blackjackEngine";
-import { getRouletteWinningZones, resolveRouletteBet, resolveRouletteBets, rouletteBetKey } from "./rouletteEngine";
+import { americanWheel, getRouletteInsideChipPosition, getRouletteWinningZones, resolveRouletteBet, resolveRouletteBets, rouletteBetKey } from "./rouletteEngine";
 import { getDiceReturnMultiplier, resolveDiceBet } from "./diceEngine";
 import { assertTableBet } from "./ledger";
 import { simulateTableGame } from "./tableMath";
@@ -331,14 +331,24 @@ const rouletteColumn = resolveRouletteBet({ userId: user.id, currency: "GOLD", b
 if (rouletteColumn.totalPaid !== 300) throw new Error("Expected column roulette payout.");
 const rouletteSplit = resolveRouletteBet({ userId: user.id, currency: "GOLD", betAmount: 100, bet: { kind: "split", numbers: [17, 20] }, outcome: 17 });
 if (rouletteSplit.totalPaid !== 1800) throw new Error("Expected split roulette payout.");
+const rouletteZeroSplit = resolveRouletteBet({ userId: user.id, currency: "GOLD", betAmount: 100, bet: { kind: "split", numbers: ["0", "00"] }, outcome: "00" });
+if (rouletteZeroSplit.totalPaid !== 1800) throw new Error("Expected 0/00 split roulette payout.");
 const rouletteStreet = resolveRouletteBet({ userId: user.id, currency: "GOLD", betAmount: 100, bet: { kind: "street", numbers: [16, 17, 18] }, outcome: 17 });
 if (rouletteStreet.totalPaid !== 1200) throw new Error("Expected street roulette payout.");
 const rouletteCorner = resolveRouletteBet({ userId: user.id, currency: "GOLD", betAmount: 100, bet: { kind: "corner", numbers: [16, 17, 19, 20] }, outcome: 17 });
 if (rouletteCorner.totalPaid !== 900) throw new Error("Expected corner roulette payout.");
 const rouletteSixLine = resolveRouletteBet({ userId: user.id, currency: "GOLD", betAmount: 100, bet: { kind: "sixLine", numbers: [13, 14, 15, 16, 17, 18] }, outcome: 17 });
 if (rouletteSixLine.totalPaid !== 600) throw new Error("Expected six-line roulette payout.");
+const sixLinePosition = getRouletteInsideChipPosition({ kind: "sixLine", numbers: [13, 14, 15, 16, 17, 18] });
+if (!sixLinePosition || sixLinePosition.top < 100 || sixLinePosition.coveredNumbers.length !== 6) {
+  throw new Error("Expected six-line chip position to sit on the outside street border and cover six numbers.");
+}
 const rouletteBasket = resolveRouletteBet({ userId: user.id, currency: "GOLD", betAmount: 100, bet: { kind: "basket", numbers: ["0", "00", 1, 2, 3] }, outcome: "00" });
 if (rouletteBasket.totalPaid !== 700) throw new Error("Expected American basket/top-line roulette payout.");
+const expectedAmericanWheelStart = ["0", 28, 9, 26, 30, 11, 7, 20];
+if (JSON.stringify(americanWheel.slice(0, expectedAmericanWheelStart.length)) !== JSON.stringify(expectedAmericanWheelStart) || americanWheel.length !== 38) {
+  throw new Error("Expected American roulette wheel sequence with 0, 00, and 36 numbered pockets.");
+}
 const winningZoneKeys = new Set(getRouletteWinningZones(18).map(rouletteBetKey));
 for (const key of ["straight:18", "color:red", "parity:even", "range:low", "dozen:2", "column:3"]) {
   if (!winningZoneKeys.has(key)) throw new Error(`Expected winning zones to include ${key}.`);
@@ -451,7 +461,11 @@ if (
   !rouletteUiMarkers.animatedWheel ||
   !rouletteUiMarkers.advancedInsideBets ||
   !rouletteUiMarkers.landscapeTable ||
-  !rouletteUiMarkers.chipFan
+  !rouletteUiMarkers.compactChipRow ||
+  !rouletteUiMarkers.insideHelperRowRemoved ||
+  !rouletteUiMarkers.zeroDoubleZeroBalanced ||
+  !rouletteUiMarkers.doubleBetsAction ||
+  !rouletteUiMarkers.sequencedAmericanWheel
 ) {
   throw new Error("Expected Roulette UI markers for American board, CSS chips, multi-bet slip, wheel animation, and advanced inside bets.");
 }

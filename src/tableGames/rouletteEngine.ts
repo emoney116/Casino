@@ -4,7 +4,15 @@ import { placeTableBet, settleTableResult } from "./ledger";
 import type { RouletteBet, RouletteConfig, RouletteResult } from "./types";
 
 const redNumbers = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
-export const americanWheel: Array<"0" | "00" | number> = ["0", "00", ...Array.from({ length: 36 }, (_, index) => index + 1)];
+export const americanWheel: Array<"0" | "00" | number> = [
+  "0", 28, 9, 26, 30, 11, 7, 20, 32, 17, 5, 22, 34, 15, 3, 24, 36, 13, 1,
+  "00", 27, 10, 25, 29, 12, 8, 19, 31, 18, 6, 21, 33, 16, 4, 23, 35, 14, 2,
+];
+export const rouletteBoardRows = [
+  [3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36],
+  [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35],
+  [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34],
+];
 
 export function getRouletteColor(outcome: "0" | "00" | number) {
   if (outcome === "0" || outcome === "00") return "green";
@@ -61,6 +69,39 @@ export function rouletteBetKey(bet: RouletteBet) {
   if (bet.kind === "straight") return `straight:${bet.value}`;
   if ("value" in bet) return `${bet.kind}:${bet.value}`;
   return `${bet.kind}:${bet.numbers.join("-")}`;
+}
+
+export function getRouletteInsideChipPosition(bet: RouletteBet) {
+  if (!("numbers" in bet) || bet.kind === "basket") return null;
+  const nums: number[] = [];
+  bet.numbers.forEach((value) => {
+    if (typeof value === "number") nums.push(value);
+  });
+  if (bet.kind === "sixLine") {
+    if (nums.length !== 6) return null;
+    const start = numberStreetStart(Math.min(...nums));
+    return {
+      left: ((start - 1) / 3 + 1) * (100 / 12),
+      top: 103,
+      coveredNumbers: nums,
+    };
+  }
+
+  if (nums.length === 0) return null;
+  const points = nums.map((number) => {
+    const streetIndex = Math.floor((number - 1) / 3);
+    const rowIndex = rouletteBoardRows.findIndex((row) => row.includes(number));
+    return { left: (streetIndex + 0.5) * (100 / 12), top: (rowIndex + 0.5) * (100 / 3) };
+  });
+  return {
+    left: points.reduce((sum, point) => sum + point.left, 0) / points.length,
+    top: points.reduce((sum, point) => sum + point.top, 0) / points.length,
+    coveredNumbers: nums,
+  };
+}
+
+export function numberStreetStart(number: number) {
+  return number - ((number - 1) % 3);
 }
 
 export function assertRouletteTotal(total: number, config = rouletteConfig) {
