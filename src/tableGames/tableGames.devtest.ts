@@ -18,8 +18,7 @@ import {
   standBlackjack,
   visibleDealerValue,
 } from "./blackjackEngine";
-import { resolveRouletteBet } from "./rouletteEngine";
-import { resolveRouletteBets } from "./rouletteEngine";
+import { getRouletteWinningZones, resolveRouletteBet, resolveRouletteBets, rouletteBetKey } from "./rouletteEngine";
 import { getDiceReturnMultiplier, resolveDiceBet } from "./diceEngine";
 import { assertTableBet } from "./ledger";
 import { simulateTableGame } from "./tableMath";
@@ -340,6 +339,10 @@ const rouletteSixLine = resolveRouletteBet({ userId: user.id, currency: "GOLD", 
 if (rouletteSixLine.totalPaid !== 600) throw new Error("Expected six-line roulette payout.");
 const rouletteBasket = resolveRouletteBet({ userId: user.id, currency: "GOLD", betAmount: 100, bet: { kind: "basket", numbers: ["0", "00", 1, 2, 3] }, outcome: "00" });
 if (rouletteBasket.totalPaid !== 700) throw new Error("Expected American basket/top-line roulette payout.");
+const winningZoneKeys = new Set(getRouletteWinningZones(18).map(rouletteBetKey));
+for (const key of ["straight:18", "color:red", "parity:even", "range:low", "dozen:2", "column:3"]) {
+  if (!winningZoneKeys.has(key)) throw new Error(`Expected winning zones to include ${key}.`);
+}
 
 const betCountBefore = getTransactions(user.id).filter((tx) => tx.type === "TABLE_BET").length;
 const multiRoulette = resolveRouletteBets({
@@ -446,7 +449,9 @@ if (
   !rouletteUiMarkers.multipleActiveBets ||
   !rouletteUiMarkers.cssChips ||
   !rouletteUiMarkers.animatedWheel ||
-  !rouletteUiMarkers.advancedInsideBets
+  !rouletteUiMarkers.advancedInsideBets ||
+  !rouletteUiMarkers.landscapeTable ||
+  !rouletteUiMarkers.chipFan
 ) {
   throw new Error("Expected Roulette UI markers for American board, CSS chips, multi-bet slip, wheel animation, and advanced inside bets.");
 }

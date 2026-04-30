@@ -25,6 +25,20 @@ export function rouletteBetWins(bet: RouletteBet, outcome: "0" | "00" | number) 
   return false;
 }
 
+export function getRouletteWinningZones(outcome: "0" | "00" | number) {
+  const zones: RouletteBet[] = [{ kind: "straight", value: outcome }];
+  if (outcome === "0" || outcome === "00") {
+    zones.push({ kind: "basket", numbers: ["0", "00", 1, 2, 3] });
+    return zones;
+  }
+  zones.push({ kind: "color", value: getRouletteColor(outcome) as "red" | "black" });
+  zones.push({ kind: "parity", value: outcome % 2 === 0 ? "even" : "odd" });
+  zones.push({ kind: "range", value: outcome <= 18 ? "low" : "high" });
+  zones.push({ kind: "dozen", value: Math.ceil(outcome / 12) as 1 | 2 | 3 });
+  zones.push({ kind: "column", value: (((outcome - 1) % 3) + 1) as 1 | 2 | 3 });
+  return zones;
+}
+
 export interface PlacedRouletteBet {
   id: string;
   bet: RouletteBet;
@@ -41,6 +55,12 @@ export function rouletteBetLabel(bet: RouletteBet) {
   if (bet.kind === "column") return `${bet.value === 1 ? "1st" : bet.value === 2 ? "2nd" : "3rd"} Column`;
   if (bet.kind === "basket") return "Top Line";
   return `${bet.kind} ${bet.numbers.join("-")}`;
+}
+
+export function rouletteBetKey(bet: RouletteBet) {
+  if (bet.kind === "straight") return `straight:${bet.value}`;
+  if ("value" in bet) return `${bet.kind}:${bet.value}`;
+  return `${bet.kind}:${bet.numbers.join("-")}`;
 }
 
 export function assertRouletteTotal(total: number, config = rouletteConfig) {
