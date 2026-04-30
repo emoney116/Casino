@@ -12,6 +12,9 @@ export function getRouletteColor(outcome: "0" | "00" | number) {
 }
 
 export function rouletteBetWins(bet: RouletteBet, outcome: "0" | "00" | number) {
+  if (bet.kind === "split" || bet.kind === "street" || bet.kind === "corner" || bet.kind === "sixLine" || bet.kind === "basket") {
+    return bet.numbers.some((number) => number === outcome);
+  }
   if (outcome === "0" || outcome === "00") return bet.kind === "straight" && bet.value === outcome;
   if (bet.kind === "straight") return bet.value === outcome;
   if (bet.kind === "color") return getRouletteColor(outcome) === bet.value;
@@ -20,6 +23,71 @@ export function rouletteBetWins(bet: RouletteBet, outcome: "0" | "00" | number) 
   if (bet.kind === "dozen") return Math.ceil(outcome / 12) === bet.value;
   if (bet.kind === "column") return ((outcome - 1) % 3) + 1 === bet.value;
   return false;
+}
+
+export interface PlacedRouletteBet {
+  id: string;
+  bet: RouletteBet;
+  amount: number;
+  label: string;
+}
+
+export function rouletteBetLabel(bet: RouletteBet) {
+  if (bet.kind === "straight") return `Straight ${bet.value}`;
+  if (bet.kind === "color") return bet.value === "red" ? "Red" : "Black";
+  if (bet.kind === "parity") return bet.value === "odd" ? "Odd" : "Even";
+  if (bet.kind === "range") return bet.value === "low" ? "1-18" : "19-36";
+  if (bet.kind === "dozen") return `${bet.value === 1 ? "1st" : bet.value === 2 ? "2nd" : "3rd"} 12`;
+  if (bet.kind === "column") return `${bet.value === 1 ? "1st" : bet.value === 2 ? "2nd" : "3rd"} Column`;
+  if (bet.kind === "basket") return "Top Line";
+  return `${bet.kind} ${bet.numbers.join("-")}`;
+}
+
+export function assertRouletteTotal(total: number, config = rouletteConfig) {
+  if (total > config.maxTotalBetGold) throw new Error(`Maximum total roulette bet is ${config.maxTotalBetGold} coins.`);
+}
+
+export function resolveRouletteBets({
+  userId,
+  currency,
+  bets,
+  outcome = americanWheel[Math.floor(Math.random() * americanWheel.length)],
+  config = rouletteConfig,
+}: {
+  userId: string;
+  currency: Currency;
+  bets: PlacedRouletteBet[];
+  outcome?: "0" | "00" | number;
+  config?: RouletteConfig;
+}): RouletteResult {
+  const totalWagered = bets.reduce((sum, placed) => sum + placed.amount, 0);
+  if (bets.length === 0) throw new Error("Place at least one roulette bet.");
+  assertRouletteTotal(totalWagered, config);
+  placeTableBet(userId, currency, totalWagered, config, { bets: bets.map(({ bet, amount, label }) => ({ bet, amount, label })) });
+  const winningBetIds = bets.filter((placed) => rouletteBetWins(placed.bet, outcome)).map((placed) => placed.id);
+  const totalPaid = bets.reduce((sum, placed) => {
+    if (!rouletteBetWins(placed.bet, outcome)) return sum;
+    return sum + placed.amount * (config.payouts[placed.bet.kind] + 1);
+  }, 0);
+  const settlement = settleTableResult({
+    userId,
+    currency,
+    config,
+    result: totalPaid > 0 ? "WIN" : "LOSS",
+    amountPaid: totalPaid,
+    wagered: totalWagered,
+    metadata: { bets: bets.map(({ bet, amount, label }) => ({ bet, amount, label })), outcome, winningBetIds },
+  });
+  return {
+    outcome,
+    color: getRouletteColor(outcome),
+    won: totalPaid > 0,
+    totalPaid: settlement.amountPaid,
+    totalWagered,
+    net: settlement.amountPaid - totalWagered,
+    winningBetIds,
+    settlement,
+  };
 }
 
 export function resolveRouletteBet({
@@ -37,18 +105,11 @@ export function resolveRouletteBet({
   outcome?: "0" | "00" | number;
   config?: RouletteConfig;
 }): RouletteResult {
-  placeTableBet(userId, currency, betAmount, config, { bet });
-  const won = rouletteBetWins(bet, outcome);
-  const multiplier = config.payouts[bet.kind];
-  const totalPaid = won ? betAmount * (multiplier + 1) : 0;
-  const settlement = settleTableResult({
+  return resolveRouletteBets({
     userId,
     currency,
+    bets: [{ id: "single", bet, amount: betAmount, label: rouletteBetLabel(bet) }],
+    outcome,
     config,
-    result: won ? "WIN" : "LOSS",
-    amountPaid: totalPaid,
-    wagered: betAmount,
-    metadata: { bet, outcome },
   });
-  return { outcome, color: getRouletteColor(outcome), won, totalPaid: settlement.amountPaid, settlement };
 }

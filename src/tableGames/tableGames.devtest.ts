@@ -8,6 +8,7 @@ import {
   canOfferEvenMoney,
   canOfferInsurance,
   canSplitBlackjack,
+  createShoe,
   doubleDownBlackjack,
   hitBlackjack,
   handValue,
@@ -18,11 +19,13 @@ import {
   visibleDealerValue,
 } from "./blackjackEngine";
 import { resolveRouletteBet } from "./rouletteEngine";
+import { resolveRouletteBets } from "./rouletteEngine";
 import { getDiceReturnMultiplier, resolveDiceBet } from "./diceEngine";
 import { assertTableBet } from "./ledger";
 import { simulateTableGame } from "./tableMath";
 import type { PlayingCard } from "./types";
 import { blackjackCleanUxMarkers } from "./BlackjackPageClean";
+import { rouletteUiMarkers } from "./RoulettePage";
 
 const memory: Record<string, string> = {};
 globalThis.localStorage = {
@@ -111,6 +114,26 @@ const pushRound = startBlackjackRound({
 const pushSettled = standBlackjack(pushRound, user.id);
 if (pushSettled.result?.result !== "PUSH") throw new Error("Expected blackjack tie to push.");
 
+if (createShoe().length !== 416) throw new Error("Expected blackjack to use an 8-deck shoe by default.");
+const dealerNaturalTenUp = startBlackjackRound({
+  userId: user.id,
+  currency: "GOLD",
+  betAmount: 100,
+  deck: [card("10"), card("9"), card("K"), card("A")],
+});
+if (dealerNaturalTenUp.status !== "RESOLVED" || !dealerNaturalTenUp.dealerRevealed || dealerNaturalTenUp.result?.result !== "LOSS") {
+  throw new Error("Expected dealer blackjack with 10-value upcard to auto reveal and resolve.");
+}
+const dealerNaturalPush = startBlackjackRound({
+  userId: user.id,
+  currency: "GOLD",
+  betAmount: 100,
+  deck: [card("A"), card("K"), card("10"), card("A")],
+});
+if (dealerNaturalPush.result?.result !== "PUSH") {
+  throw new Error("Expected dealer blackjack against player blackjack to push.");
+}
+
 const doubleBefore = getTransactions(user.id).filter((tx) => tx.type === "TABLE_BET").length;
 const doubleRound = startBlackjackRound({
   userId: user.id,
@@ -164,6 +187,14 @@ const nonPairRound = startBlackjackRound({
 });
 if (canSplitBlackjack(nonPairRound, user.id)) throw new Error("Expected split to require matching ranks.");
 
+const tenValueSplitRound = startBlackjackRound({
+  userId: user.id,
+  currency: "GOLD",
+  betAmount: 100,
+  deck: [card("K"), card("Q"), card("6"), card("10"), card("3"), card("2")],
+});
+if (!canSplitBlackjack(tenValueSplitRound, user.id)) throw new Error("Expected same-value 10/J/Q/K split to be allowed.");
+
 const doubleAfterSplitRound = startBlackjackRound({
   userId: user.id,
   currency: "GOLD",
@@ -181,11 +212,15 @@ const tripleSplitRound = startBlackjackRound({
   userId: user.id,
   currency: "GOLD",
   betAmount: 100,
-  deck: [card("8"), card("8"), card("6"), card("10"), card("8"), card("8"), card("5")],
+  deck: Array.from({ length: 40 }, () => card("8")),
 });
-const firstSplit = splitBlackjack(tripleSplitRound, user.id);
-if (canSplitBlackjack(firstSplit, user.id)) {
-  throw new Error("Expected triple split/resplit to be blocked by maxHandsAfterSplit.");
+let resplitRound = tripleSplitRound;
+for (let index = 1; index < blackjackConfig.maxSplitHands; index += 1) {
+  if (!canSplitBlackjack(resplitRound, user.id)) throw new Error("Expected resplit to be allowed before maxSplitHands.");
+  resplitRound = splitBlackjack(resplitRound, user.id);
+}
+if (resplitRound.playerHands.length !== blackjackConfig.maxSplitHands || canSplitBlackjack(resplitRound, user.id)) {
+  throw new Error("Expected resplit to stop at maxSplitHands.");
 }
 
 const lowSplitUser = "low-split-user";
@@ -202,11 +237,20 @@ const insuranceRound = startBlackjackRound({
   userId: user.id,
   currency: "GOLD",
   betAmount: 100,
-  deck: [card("10"), card("8"), card("A"), card("K")],
+  deck: [card("10"), card("8"), card("A"), card("9")],
 });
 if (!canOfferInsurance(insuranceRound)) throw new Error("Expected insurance offer on dealer Ace.");
 const insured = resolveInsuranceBlackjack(insuranceRound, user.id, true);
-if (insured.insuranceResult?.result !== "WIN" || insured.insuranceResult.amountPaid !== 150) {
+if (insured.insuranceResult?.result !== "LOSS") {
+  throw new Error("Expected insurance to lose when dealer does not have blackjack.");
+}
+const insuranceWinRound = {
+  ...insuranceRound,
+  dealerCards: [card("A"), card("K")],
+  insuranceResolved: false,
+};
+const insuredWin = resolveInsuranceBlackjack(insuranceWinRound, user.id, true);
+if (insuredWin.insuranceResult?.result !== "WIN" || insuredWin.insuranceResult.amountPaid !== 150) {
   throw new Error("Expected insurance to pay 2:1 plus insurance stake on dealer blackjack.");
 }
 const noInsuranceRound = startBlackjackRound({
@@ -223,7 +267,7 @@ const lowInsuranceRound = startBlackjackRound({
   userId: lowInsuranceUser,
   currency: "GOLD",
   betAmount: 100,
-  deck: [card("10"), card("8"), card("A"), card("K")],
+  deck: [card("10"), card("8"), card("A"), card("9")],
 });
 if (canOfferInsurance(lowInsuranceRound, blackjackConfig, lowInsuranceUser)) {
   throw new Error("Expected insurance offer to hide when half-bet cannot be covered.");
@@ -274,6 +318,56 @@ const rouletteStraight = resolveRouletteBet({
   outcome: 17,
 });
 if (rouletteStraight.totalPaid !== 3600) throw new Error("Expected straight roulette payout to include stake plus 35:1.");
+const rouletteOdd = resolveRouletteBet({ userId: user.id, currency: "GOLD", betAmount: 100, bet: { kind: "parity", value: "odd" }, outcome: 17 });
+if (rouletteOdd.totalPaid !== 200) throw new Error("Expected odd roulette payout to include stake plus 1:1.");
+const rouletteEvenZero = resolveRouletteBet({ userId: user.id, currency: "GOLD", betAmount: 100, bet: { kind: "parity", value: "even" }, outcome: "0" });
+if (rouletteEvenZero.won) throw new Error("Expected 0 to lose even outside bets.");
+const rouletteHighDoubleZero = resolveRouletteBet({ userId: user.id, currency: "GOLD", betAmount: 100, bet: { kind: "range", value: "high" }, outcome: "00" });
+if (rouletteHighDoubleZero.won) throw new Error("Expected 00 to lose high outside bets.");
+const rouletteLow = resolveRouletteBet({ userId: user.id, currency: "GOLD", betAmount: 100, bet: { kind: "range", value: "low" }, outcome: 12 });
+if (rouletteLow.totalPaid !== 200) throw new Error("Expected low roulette payout.");
+const rouletteDozen = resolveRouletteBet({ userId: user.id, currency: "GOLD", betAmount: 100, bet: { kind: "dozen", value: 2 }, outcome: 17 });
+if (rouletteDozen.totalPaid !== 300) throw new Error("Expected dozen roulette payout.");
+const rouletteColumn = resolveRouletteBet({ userId: user.id, currency: "GOLD", betAmount: 100, bet: { kind: "column", value: 2 }, outcome: 17 });
+if (rouletteColumn.totalPaid !== 300) throw new Error("Expected column roulette payout.");
+const rouletteSplit = resolveRouletteBet({ userId: user.id, currency: "GOLD", betAmount: 100, bet: { kind: "split", numbers: [17, 20] }, outcome: 17 });
+if (rouletteSplit.totalPaid !== 1800) throw new Error("Expected split roulette payout.");
+const rouletteStreet = resolveRouletteBet({ userId: user.id, currency: "GOLD", betAmount: 100, bet: { kind: "street", numbers: [16, 17, 18] }, outcome: 17 });
+if (rouletteStreet.totalPaid !== 1200) throw new Error("Expected street roulette payout.");
+const rouletteCorner = resolveRouletteBet({ userId: user.id, currency: "GOLD", betAmount: 100, bet: { kind: "corner", numbers: [16, 17, 19, 20] }, outcome: 17 });
+if (rouletteCorner.totalPaid !== 900) throw new Error("Expected corner roulette payout.");
+const rouletteSixLine = resolveRouletteBet({ userId: user.id, currency: "GOLD", betAmount: 100, bet: { kind: "sixLine", numbers: [13, 14, 15, 16, 17, 18] }, outcome: 17 });
+if (rouletteSixLine.totalPaid !== 600) throw new Error("Expected six-line roulette payout.");
+const rouletteBasket = resolveRouletteBet({ userId: user.id, currency: "GOLD", betAmount: 100, bet: { kind: "basket", numbers: ["0", "00", 1, 2, 3] }, outcome: "00" });
+if (rouletteBasket.totalPaid !== 700) throw new Error("Expected American basket/top-line roulette payout.");
+
+const betCountBefore = getTransactions(user.id).filter((tx) => tx.type === "TABLE_BET").length;
+const multiRoulette = resolveRouletteBets({
+  userId: user.id,
+  currency: "GOLD",
+  outcome: 1,
+  bets: [
+    { id: "red", amount: 100, label: "Red", bet: { kind: "color", value: "red" } },
+    { id: "straight1", amount: 100, label: "Straight 1", bet: { kind: "straight", value: 1 } },
+  ],
+});
+if (getTransactions(user.id).filter((tx) => tx.type === "TABLE_BET").length !== betCountBefore + 1) {
+  throw new Error("Expected roulette spin to debit total active bets once.");
+}
+if (multiRoulette.totalPaid !== 3800 || multiRoulette.net !== 3600 || multiRoulette.winningBetIds?.length !== 2) {
+  throw new Error("Expected multi-bet roulette payout summary.");
+}
+try {
+  resolveRouletteBets({
+    userId: user.id,
+    currency: "GOLD",
+    outcome: 17,
+    bets: [{ id: "too-high", amount: rouletteConfig.maxTotalBetGold + 1, label: "Too High", bet: { kind: "straight", value: 17 } }],
+  });
+  throw new Error("Expected roulette max total bet enforcement.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("Maximum total roulette bet")) throw error;
+}
 
 const diceMultiplier = getDiceReturnMultiplier("over", 50, diceConfig);
 const diceWin = resolveDiceBet({
@@ -340,9 +434,21 @@ if (
   !blackjackCleanUxMarkers.hiddenDealerCard ||
   !blackjackCleanUxMarkers.centeredMobileLayout ||
   !blackjackCleanUxMarkers.cardDealAnimation ||
-  !blackjackCleanUxMarkers.dealerFlipAnimation
+  !blackjackCleanUxMarkers.dealerFlipAnimation ||
+  !blackjackCleanUxMarkers.animationBlocksActions ||
+  !blackjackCleanUxMarkers.compactSplitLayout
 ) {
   throw new Error("Expected clean blackjack UI markers for centered layout, animated cards, numeric betting, inline offers, hidden dealer card, and no chip system.");
+}
+
+if (
+  !rouletteUiMarkers.americanBoard ||
+  !rouletteUiMarkers.multipleActiveBets ||
+  !rouletteUiMarkers.cssChips ||
+  !rouletteUiMarkers.animatedWheel ||
+  !rouletteUiMarkers.advancedInsideBets
+) {
+  throw new Error("Expected Roulette UI markers for American board, CSS chips, multi-bet slip, wheel animation, and advanced inside bets.");
 }
 
 console.log("tableGames.devtest passed");

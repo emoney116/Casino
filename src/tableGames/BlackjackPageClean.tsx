@@ -11,17 +11,20 @@ import {
   canOfferEvenMoney,
   canOfferInsurance,
   canSplitBlackjack,
+  createShoe,
   declineEvenMoneyBlackjack,
   doubleDownBlackjack,
   hitBlackjack,
+  prepareNextShoe,
   resolveInsuranceBlackjack,
+  shuffleDeck,
   splitBlackjack,
   standBlackjack,
   startBlackjackRound,
   visibleDealerValue,
 } from "./blackjackEngine";
 import { BlackjackControlsClean } from "./BlackjackControlsClean";
-import { DealerHandView, PlayerHandView } from "./BlackjackHandView";
+import { DealerHandView, PlayerHandView, SplitHandSummary } from "./BlackjackHandView";
 import { blackjackConfig } from "./configs";
 import type { BlackjackRound } from "./types";
 
@@ -34,6 +37,8 @@ export const blackjackCleanUxMarkers = {
   centeredMobileLayout: true,
   cardDealAnimation: true,
   dealerFlipAnimation: true,
+  animationBlocksActions: true,
+  compactSplitLayout: true,
 };
 
 export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
@@ -42,6 +47,8 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
   const [currency, setCurrency] = useState<Currency>("GOLD");
   const [betAmount, setBetAmount] = useState(25);
   const [round, setRound] = useState<BlackjackRound | null>(null);
+  const [shoe, setShoe] = useState(() => shuffleDeck(createShoe()));
+  const [cardsAnimating, setCardsAnimating] = useState(false);
   const [dealerTotalRevealed, setDealerTotalRevealed] = useState(false);
   if (!user) return null;
   const currentUser = user;
@@ -61,20 +68,26 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
   const insuranceOffer = round ? canOfferInsurance(round, blackjackConfig, currentUser.id) : false;
   const evenMoneyOffer = round ? canOfferEvenMoney(round) : false;
   const actionBlocked = insuranceOffer || evenMoneyOffer;
-  const canDeal = !active && betAmount >= blackjackConfig.minBet && betAmount <= blackjackConfig.maxBet && balance >= betAmount;
+  const canDeal = !active && !cardsAnimating && betAmount >= blackjackConfig.minBet && betAmount <= blackjackConfig.maxBet && balance >= betAmount;
+
+  function lockForAnimation(ms = 1050) {
+    setCardsAnimating(true);
+    window.setTimeout(() => setCardsAnimating(false), ms);
+  }
 
   function deal() {
     try {
-      const next = startBlackjackRound({ userId: currentUser.id, currency, betAmount });
+      const next = startBlackjackRound({ userId: currentUser.id, currency, betAmount, deck: shoe });
       setRound(next);
-      if (next.result) notify(next.result.message, next.result.result === "WIN" ? "success" : "info");
+      setShoe(prepareNextShoe(next.deck));
+      lockForAnimation(next.status === "RESOLVED" ? 1400 : 1250);
     } catch (caught) {
       notify(caught instanceof Error ? caught.message : "Unable to deal.", "error");
     }
   }
 
   function apply(action: "hit" | "stand" | "double" | "split") {
-    if (!round || actionBlocked) return;
+    if (!round || actionBlocked || cardsAnimating) return;
     try {
       const next = action === "hit"
         ? hitBlackjack(round, currentUser.id)
@@ -84,7 +97,8 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
             ? doubleDownBlackjack(round, currentUser.id)
             : splitBlackjack(round, currentUser.id);
       setRound(next);
-      if (next.result) notify(next.result.message, next.result.result === "WIN" ? "success" : "info");
+      setShoe(prepareNextShoe(next.deck));
+      lockForAnimation(action === "split" ? 950 : next.dealerRevealed ? 1100 : 520);
     } catch (caught) {
       notify(caught instanceof Error ? caught.message : "Action failed.", "error");
     }
@@ -146,16 +160,23 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
         <section className="blackjack-clean-player">
           {(round?.playerHands ?? []).length === 0 ? (
             <div className="blackjack-clean-empty">Set your bet and deal.</div>
-          ) : (
-            round!.playerHands.map((hand, index) => (
+          ) : round!.playerHands.length > 1 ? (
+            <>
               <PlayerHandView
-                key={hand.id}
-                hand={hand}
-                index={index}
-                split={round!.playerHands.length > 1}
-                active={active && index === round!.activeHandIndex}
+                key={round!.playerHands[round!.activeHandIndex]?.id ?? round!.playerHands[0].id}
+                hand={round!.playerHands[round!.activeHandIndex] ?? round!.playerHands[0]}
+                index={round!.activeHandIndex}
+                split
+                active={active}
               />
-            ))
+              <div className="blackjack-clean-split-strip">
+                {round!.playerHands.map((hand, index) => (
+                  <SplitHandSummary key={hand.id} hand={hand} index={index} active={index === round!.activeHandIndex && active} />
+                ))}
+              </div>
+            </>
+          ) : (
+            <PlayerHandView hand={round!.playerHands[0]} index={0} split={false} active={active} />
           )}
         </section>
 
@@ -173,6 +194,7 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
         canDeal={canDeal}
         canDouble={Boolean(round && canDoubleBlackjack(round, currentUser.id))}
         canSplit={Boolean(round && canSplitBlackjack(round, currentUser.id))}
+        disabled={cardsAnimating}
         onBetChange={setBetAmount}
         onDeal={deal}
         onHit={() => apply("hit")}

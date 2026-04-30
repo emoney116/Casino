@@ -8,6 +8,7 @@ export function BlackjackControlsClean({
   canDeal,
   canDouble,
   canSplit,
+  disabled,
   onBetChange,
   onDeal,
   onHit,
@@ -20,6 +21,7 @@ export function BlackjackControlsClean({
   canDeal: boolean;
   canDouble: boolean;
   canSplit: boolean;
+  disabled?: boolean;
   onBetChange: (amount: number) => void;
   onDeal: () => void;
   onHit: () => void;
@@ -35,10 +37,10 @@ export function BlackjackControlsClean({
     return (
       <section className="blackjack-clean-controls">
         <div className="blackjack-clean-actions">
-          <button onClick={onHit}>Hit</button>
-          <button onClick={onStand}>Stand</button>
-          {canDouble && <button onClick={onDouble}>Double</button>}
-          {canSplit && <button onClick={onSplit}>Split</button>}
+          <button disabled={disabled} onClick={onHit}>Hit</button>
+          <button disabled={disabled} onClick={onStand}>Stand</button>
+          {canDouble && <button disabled={disabled} onClick={onDouble}>Double</button>}
+          {canSplit && <button disabled={disabled} onClick={onSplit}>Split</button>}
         </div>
       </section>
     );
@@ -47,7 +49,7 @@ export function BlackjackControlsClean({
   return (
     <section className="blackjack-clean-controls">
       <div className="blackjack-clean-bet-row">
-        <button onClick={() => setBet(betAmount - 5)}>-</button>
+        <button disabled={disabled} onClick={() => setBet(betAmount - 5)}>-</button>
         <label>
           <span>Bet</span>
           <input
@@ -56,19 +58,20 @@ export function BlackjackControlsClean({
             min={0}
             max={blackjackConfig.maxBet}
             value={betAmount}
+            disabled={disabled}
             onChange={(event) => setBet(Number(event.target.value))}
           />
         </label>
-        <button onClick={() => setBet(betAmount + 5)}>+</button>
+        <button disabled={disabled} onClick={() => setBet(betAmount + 5)}>+</button>
       </div>
       <div className="blackjack-clean-quick-bets">
         {quickBets.map((value) => (
-          <button key={value} className={betAmount === value ? "active" : ""} onClick={() => setBet(value)}>
+          <button key={value} className={betAmount === value ? "active" : ""} disabled={disabled} onClick={() => setBet(value)}>
             {value}
           </button>
         ))}
       </div>
-      <button className="blackjack-clean-deal" disabled={!canDeal} onClick={onDeal}>
+      <button className="blackjack-clean-deal" disabled={!canDeal || disabled} onClick={onDeal}>
         Deal
       </button>
     </section>

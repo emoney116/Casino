@@ -68,3 +68,27 @@ export function PlayerHandView({
     </section>
   );
 }
+
+export function SplitHandSummary({
+  hand,
+  active,
+  index,
+}: {
+  hand: BlackjackHand;
+  active: boolean;
+  index: number;
+}) {
+  const total = handValue(hand.cards).total;
+  const status = hand.result?.result ?? (hand.status === "ACTIVE" ? `Total ${total}` : hand.status);
+  return (
+    <div className={active ? "blackjack-clean-hand-summary active" : "blackjack-clean-hand-summary"}>
+      <strong>H{index + 1}</strong>
+      <div className="blackjack-clean-mini-cards">
+        {hand.cards.slice(0, 3).map((card, cardIndex) => (
+          <PlayingCard key={`${hand.id}-mini-${cardIndex}`} card={card} index={cardIndex} mini />
+        ))}
+      </div>
+      <span>{status}</span>
+    </div>
+  );
+}

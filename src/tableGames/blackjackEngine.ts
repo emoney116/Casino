@@ -12,6 +12,10 @@ export function createDeck() {
   return suits.flatMap((suit) => ranks.map((rank) => ({ rank, suit })));
 }
 
+export function createShoe(deckCount = blackjackConfig.deckCount) {
+  return Array.from({ length: deckCount }, () => createDeck()).flat();
+}
+
 export function shuffleDeck(deck = createDeck()) {
   const shuffled = [...deck];
   for (let index = shuffled.length - 1; index > 0; index -= 1) {
@@ -22,9 +26,23 @@ export function shuffleDeck(deck = createDeck()) {
 }
 
 function draw(deck: PlayingCard[]) {
+  if (deck.length === 0) deck.push(...shuffleDeck(createShoe()));
   const card = deck.shift();
   if (!card) throw new Error("Deck is empty.");
   return card;
+}
+
+function ensureShoe(deck?: PlayingCard[], config = blackjackConfig) {
+  if (deck && deck.length > 0) return deck;
+  return shuffleDeck(createShoe(config.deckCount));
+}
+
+export function shouldReshuffleShoe(deck: PlayingCard[], config = blackjackConfig) {
+  return deck.length <= config.shoeReshuffleThreshold;
+}
+
+export function prepareNextShoe(deck: PlayingCard[], config = blackjackConfig) {
+  return shouldReshuffleShoe(deck, config) ? shuffleDeck(createShoe(config.deckCount)) : deck;
 }
 
 export function handValue(cards: PlayingCard[]) {
@@ -55,6 +73,11 @@ export function isBlackjack(cards: PlayingCard[]) {
   return cards.length === 2 && handValue(cards).total === 21;
 }
 
+export function blackjackRankValue(card: PlayingCard) {
+  if (card.rank === "A") return 11;
+  return ["K", "Q", "J", "10"].includes(card.rank) ? 10 : Number(card.rank);
+}
+
 export function activeBlackjackHand(round: BlackjackRound) {
   return round.playerHands[round.activeHandIndex];
 }
@@ -66,18 +89,25 @@ export function canDoubleBlackjack(round: BlackjackRound, userId: string, config
       round.status === "PLAYER_TURN" &&
       hand?.cards.length === 2 &&
       hand.status === "ACTIVE" &&
+      (!hand.splitFromPair || config.allowDoubleAfterSplit) &&
       getBalance(userId, round.currency) >= hand.betAmount,
   );
 }
 
 export function canSplitBlackjack(round: BlackjackRound, userId: string, config = blackjackConfig) {
   const hand = activeBlackjackHand(round);
+  const firstValue = hand?.cards[0] ? blackjackRankValue(hand.cards[0]) : 0;
+  const secondValue = hand?.cards[1] ? blackjackRankValue(hand.cards[1]) : 0;
+  const sameValue = Boolean(hand?.cards.length === 2 && firstValue === secondValue);
+  const tenValueSplitAllowed = config.allowSplitTens || firstValue !== 10;
   return Boolean(
     config.allowSplit &&
       round.status === "PLAYER_TURN" &&
-      round.playerHands.length < config.maxHandsAfterSplit &&
+      (config.allowResplit || !round.playerHands.some((existing) => existing.splitFromPair)) &&
+      round.playerHands.length < (config.maxSplitHands ?? config.maxHandsAfterSplit) &&
       hand?.cards.length === 2 &&
-      hand.cards[0].rank === hand.cards[1].rank &&
+      sameValue &&
+      tenValueSplitAllowed &&
       getBalance(userId, round.currency) >= hand.betAmount,
   );
 }
@@ -132,7 +162,7 @@ export function startBlackjackRound({
   userId,
   currency,
   betAmount,
-  deck = shuffleDeck(),
+  deck,
   config = blackjackConfig,
 }: {
   userId: string;
@@ -141,10 +171,11 @@ export function startBlackjackRound({
   deck?: PlayingCard[];
   config?: BlackjackConfig;
 }): BlackjackRound {
+  const shoe = ensureShoe(deck, config);
   placeTableBet(userId, currency, betAmount, config, { action: "deal" });
   const hand: BlackjackHand = {
     id: createId("bjhand"),
-    cards: [draw(deck), draw(deck)],
+    cards: [draw(shoe), draw(shoe)],
     betAmount,
     status: "ACTIVE",
   };
@@ -157,11 +188,14 @@ export function startBlackjackRound({
     playerCards: hand.cards,
     playerHands: [hand],
     activeHandIndex: 0,
-    dealerCards: [draw(deck), draw(deck)],
+    dealerCards: [draw(shoe), draw(shoe)],
     dealerRevealed: false,
-    deck,
+    deck: shoe,
   });
 
+  if (isBlackjack(round.dealerCards) && (round.dealerCards[0]?.rank === "A" || blackjackRankValue(round.dealerCards[0]) === 10)) {
+    return playDealerAndSettle(round, userId, config);
+  }
   if (isBlackjack(hand.cards) && round.dealerCards[0]?.rank !== "A") {
     return playDealerAndSettle(round, userId, config);
   }

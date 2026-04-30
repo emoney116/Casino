@@ -40,7 +40,13 @@ export interface BlackjackConfig extends TableGameConfig {
   allowSplit: boolean;
   allowInsurance: boolean;
   allowEvenMoney: boolean;
+  allowResplit: boolean;
+  allowSplitTens: boolean;
+  allowDoubleAfterSplit: boolean;
+  deckCount: number;
+  shoeReshuffleThreshold: number;
   maxHandsAfterSplit: number;
+  maxSplitHands: number;
   dealerAdvantageAssistRate: number;
 }
 
@@ -79,10 +85,18 @@ export type RouletteBet =
   | { kind: "range"; value: "low" | "high" }
   | { kind: "dozen"; value: 1 | 2 | 3 }
   | { kind: "column"; value: 1 | 2 | 3 }
-  | { kind: "straight"; value: "0" | "00" | number };
+  | { kind: "straight"; value: "0" | "00" | number }
+  | { kind: "split"; numbers: Array<"0" | "00" | number> }
+  | { kind: "street"; numbers: number[] }
+  | { kind: "corner"; numbers: number[] }
+  | { kind: "sixLine"; numbers: number[] }
+  | { kind: "basket"; numbers: Array<"0" | "00" | number> };
 
 export interface RouletteConfig extends TableGameConfig {
   payouts: Record<RouletteBet["kind"], number>;
+  maxTotalBetGold: number;
+  maxPayoutGold: number;
+  realMoneyMinCentsPlaceholder: number;
 }
 
 export interface RouletteResult {
@@ -90,6 +104,9 @@ export interface RouletteResult {
   color: "red" | "black" | "green";
   won: boolean;
   totalPaid: number;
+  totalWagered?: number;
+  net?: number;
+  winningBetIds?: string[];
   settlement: TableSettlement;
 }
 
