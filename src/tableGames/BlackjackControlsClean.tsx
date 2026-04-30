@@ -1,4 +1,3 @@
-import type { Currency } from "../types";
 import { blackjackConfig } from "./configs";
 
 const quickBets = [10, 25, 50, 100, 500];
@@ -9,7 +8,6 @@ export function BlackjackControlsClean({
   canDeal,
   canDouble,
   canSplit,
-  currency,
   onBetChange,
   onDeal,
   onHit,
@@ -22,7 +20,6 @@ export function BlackjackControlsClean({
   canDeal: boolean;
   canDouble: boolean;
   canSplit: boolean;
-  currency: Currency;
   onBetChange: (amount: number) => void;
   onDeal: () => void;
   onHit: () => void;
@@ -72,7 +69,7 @@ export function BlackjackControlsClean({
         ))}
       </div>
       <button className="blackjack-clean-deal" disabled={!canDeal} onClick={onDeal}>
-        Deal {currency}
+        Deal
       </button>
     </section>
   );

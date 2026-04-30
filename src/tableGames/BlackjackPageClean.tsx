@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
 import { formatCoins } from "../lib/format";
@@ -31,6 +31,9 @@ export const blackjackCleanUxMarkers = {
   numericBetControls: true,
   inlineInsurance: true,
   hiddenDealerCard: true,
+  centeredMobileLayout: true,
+  cardDealAnimation: true,
+  dealerFlipAnimation: true,
 };
 
 export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
@@ -39,13 +42,23 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
   const [currency, setCurrency] = useState<Currency>("GOLD");
   const [betAmount, setBetAmount] = useState(25);
   const [round, setRound] = useState<BlackjackRound | null>(null);
+  const [dealerTotalRevealed, setDealerTotalRevealed] = useState(false);
   if (!user) return null;
   const currentUser = user;
+
+  useEffect(() => {
+    if (!round?.dealerRevealed) {
+      setDealerTotalRevealed(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setDealerTotalRevealed(true), 520);
+    return () => window.clearTimeout(timer);
+  }, [round?.dealerRevealed, round?.dealerCards.length]);
 
   const balance = getBalance(currentUser.id, currency);
   const active = round?.status === "PLAYER_TURN";
   const activeHand = round ? activeBlackjackHand(round) : null;
-  const insuranceOffer = round ? canOfferInsurance(round) : false;
+  const insuranceOffer = round ? canOfferInsurance(round, blackjackConfig, currentUser.id) : false;
   const evenMoneyOffer = round ? canOfferEvenMoney(round) : false;
   const actionBlocked = insuranceOffer || evenMoneyOffer;
   const canDeal = !active && betAmount >= blackjackConfig.minBet && betAmount <= blackjackConfig.maxBet && balance >= betAmount;
@@ -91,15 +104,28 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
   return (
     <section className="blackjack-clean-page">
       <header className="blackjack-clean-header">
-        <button onClick={onExit} aria-label="Back">Back</button>
-        <div>
-          <h1>Blackjack</h1>
-          <span>Virtual Coins Only</span>
+        <button className="blackjack-clean-back" onClick={onExit} aria-label="Back to table games">‹</button>
+        <div className="blackjack-clean-title">
+          <h1>Blackjack <span className="blackjack-clean-logo" aria-hidden="true">♠</span></h1>
         </div>
-        <select value={currency} disabled={active} onChange={(event) => setCurrency(event.target.value as Currency)}>
-          <option value="GOLD">Gold</option>
-          <option value="BONUS">Bonus</option>
-        </select>
+        <div className="blackjack-clean-currency-tabs" role="tablist" aria-label="Currency">
+          <button
+            type="button"
+            className={currency === "GOLD" ? "active" : ""}
+            disabled={active}
+            onClick={() => setCurrency("GOLD")}
+          >
+            Gold
+          </button>
+          <button
+            type="button"
+            className={currency === "BONUS" ? "active" : ""}
+            disabled={active}
+            onClick={() => setCurrency("BONUS")}
+          >
+            Bonus
+          </button>
+        </div>
       </header>
 
       <div className="blackjack-clean-balance">
@@ -108,7 +134,12 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
       </div>
 
       <main className="blackjack-clean-table">
-        <DealerHandView cards={round?.dealerCards ?? []} total={round ? visibleDealerValue(round) : 0} revealed={Boolean(round?.dealerRevealed)} />
+        <DealerHandView
+          cards={round?.dealerCards ?? []}
+          total={round && dealerTotalRevealed ? visibleDealerValue(round) : round ? visibleDealerValue({ ...round, dealerRevealed: false }) : 0}
+          revealed={Boolean(round?.dealerRevealed)}
+          totalRevealed={dealerTotalRevealed}
+        />
         {insuranceOffer && <InlineOffer title="Insurance?" onYes={() => insurance(true)} onNo={() => insurance(false)} />}
         {evenMoneyOffer && <InlineOffer title="Even Money?" onYes={() => evenMoney(true)} onNo={() => evenMoney(false)} />}
 
@@ -142,7 +173,6 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
         canDeal={canDeal}
         canDouble={Boolean(round && canDoubleBlackjack(round, currentUser.id))}
         canSplit={Boolean(round && canSplitBlackjack(round, currentUser.id))}
-        currency={currency}
         onBetChange={setBetAmount}
         onDeal={deal}
         onHit={() => apply("hit")}

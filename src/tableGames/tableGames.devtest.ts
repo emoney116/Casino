@@ -118,10 +118,22 @@ const doubleRound = startBlackjackRound({
   betAmount: 100,
   deck: [card("5"), card("6"), card("9"), card("7"), card("10"), card("6")],
 });
-doubleDownBlackjack(doubleRound, user.id);
+const doubledRound = doubleDownBlackjack(doubleRound, user.id);
 if (getTransactions(user.id).filter((tx) => tx.type === "TABLE_BET").length !== doubleBefore + 2) {
   throw new Error("Expected double down to create second TABLE_BET.");
 }
+if (doubledRound.playerHands[0].cards.length !== 3 || !doubledRound.playerHands[0].doubled) {
+  throw new Error("Expected double to give exactly one card.");
+}
+const lowDoubleUser = "low-double-user";
+creditCurrency({ userId: lowDoubleUser, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 100 });
+const lowDoubleRound = startBlackjackRound({
+  userId: lowDoubleUser,
+  currency: "GOLD",
+  betAmount: 100,
+  deck: [card("5"), card("6"), card("9"), card("7"), card("10"), card("6")],
+});
+if (canDoubleBlackjack(lowDoubleRound, lowDoubleUser)) throw new Error("Expected double to be blocked when balance cannot cover extra bet.");
 
 const splitRound = startBlackjackRound({
   userId: user.id,
@@ -136,6 +148,55 @@ const splitResolved = standBlackjack(standBlackjack(split, user.id), user.id);
 if (splitResolved.status !== "RESOLVED" || splitResolved.playerHands.some((hand) => !hand.result)) {
   throw new Error("Expected split hands to resolve separately.");
 }
+const splitFirstStand = standBlackjack(split, user.id);
+if (splitFirstStand.status !== "PLAYER_TURN" || splitFirstStand.activeHandIndex !== 1 || splitFirstStand.dealerRevealed) {
+  throw new Error("Expected split play to advance active hand before dealer resolves.");
+}
+if (splitResolved.playerHands[0].result === splitResolved.playerHands[1].result) {
+  throw new Error("Expected split hands to keep independent result objects.");
+}
+
+const nonPairRound = startBlackjackRound({
+  userId: user.id,
+  currency: "GOLD",
+  betAmount: 100,
+  deck: [card("8"), card("9"), card("6"), card("10"), card("3"), card("2")],
+});
+if (canSplitBlackjack(nonPairRound, user.id)) throw new Error("Expected split to require matching ranks.");
+
+const doubleAfterSplitRound = startBlackjackRound({
+  userId: user.id,
+  currency: "GOLD",
+  betAmount: 100,
+  deck: [card("8"), card("8"), card("6"), card("10"), card("3"), card("2"), card("9"), card("7")],
+});
+const doubleAfterSplit = splitBlackjack(doubleAfterSplitRound, user.id);
+if (!canDoubleBlackjack(doubleAfterSplit, user.id)) throw new Error("Expected double to be available on a fresh split hand.");
+const doubledSplit = doubleDownBlackjack(doubleAfterSplit, user.id);
+if (!doubledSplit.playerHands[0].doubled || doubledSplit.playerHands[0].cards.length !== 3 || doubledSplit.playerHands[0].status !== "STOOD") {
+  throw new Error("Expected double after split to draw one card and auto-stand that hand.");
+}
+
+const tripleSplitRound = startBlackjackRound({
+  userId: user.id,
+  currency: "GOLD",
+  betAmount: 100,
+  deck: [card("8"), card("8"), card("6"), card("10"), card("8"), card("8"), card("5")],
+});
+const firstSplit = splitBlackjack(tripleSplitRound, user.id);
+if (canSplitBlackjack(firstSplit, user.id)) {
+  throw new Error("Expected triple split/resplit to be blocked by maxHandsAfterSplit.");
+}
+
+const lowSplitUser = "low-split-user";
+creditCurrency({ userId: lowSplitUser, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 100 });
+const lowSplitRound = startBlackjackRound({
+  userId: lowSplitUser,
+  currency: "GOLD",
+  betAmount: 100,
+  deck: [card("8"), card("8"), card("6"), card("10"), card("3"), card("2")],
+});
+if (canSplitBlackjack(lowSplitRound, lowSplitUser)) throw new Error("Expected split to be blocked when balance cannot cover second hand.");
 
 const insuranceRound = startBlackjackRound({
   userId: user.id,
@@ -147,6 +208,31 @@ if (!canOfferInsurance(insuranceRound)) throw new Error("Expected insurance offe
 const insured = resolveInsuranceBlackjack(insuranceRound, user.id, true);
 if (insured.insuranceResult?.result !== "WIN" || insured.insuranceResult.amountPaid !== 150) {
   throw new Error("Expected insurance to pay 2:1 plus insurance stake on dealer blackjack.");
+}
+const noInsuranceRound = startBlackjackRound({
+  userId: user.id,
+  currency: "GOLD",
+  betAmount: 100,
+  deck: [card("10"), card("8"), card("9"), card("K")],
+});
+if (canOfferInsurance(noInsuranceRound)) throw new Error("Expected insurance to require dealer Ace upcard.");
+
+const lowInsuranceUser = "low-insurance-user";
+creditCurrency({ userId: lowInsuranceUser, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 100 });
+const lowInsuranceRound = startBlackjackRound({
+  userId: lowInsuranceUser,
+  currency: "GOLD",
+  betAmount: 100,
+  deck: [card("10"), card("8"), card("A"), card("K")],
+});
+if (canOfferInsurance(lowInsuranceRound, blackjackConfig, lowInsuranceUser)) {
+  throw new Error("Expected insurance offer to hide when half-bet cannot be covered.");
+}
+try {
+  resolveInsuranceBlackjack(lowInsuranceRound, lowInsuranceUser, true);
+  throw new Error("Expected insurance ledger debit to block insufficient balance.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("Insufficient")) throw error;
 }
 
 const evenMoneyRound = startBlackjackRound({
@@ -160,6 +246,7 @@ const evenMoney = acceptEvenMoneyBlackjack(evenMoneyRound, user.id);
 if (evenMoney.result?.result !== "WIN" || evenMoney.result.amountPaid !== 200) {
   throw new Error("Expected even money to pay 1:1 and end hand.");
 }
+if (canOfferEvenMoney(noInsuranceRound)) throw new Error("Expected even money to require player blackjack against dealer Ace.");
 
 const natural = startBlackjackRound({
   userId: user.id,
@@ -250,9 +337,12 @@ if (
   !blackjackCleanUxMarkers.noChipSystem ||
   !blackjackCleanUxMarkers.numericBetControls ||
   !blackjackCleanUxMarkers.inlineInsurance ||
-  !blackjackCleanUxMarkers.hiddenDealerCard
+  !blackjackCleanUxMarkers.hiddenDealerCard ||
+  !blackjackCleanUxMarkers.centeredMobileLayout ||
+  !blackjackCleanUxMarkers.cardDealAnimation ||
+  !blackjackCleanUxMarkers.dealerFlipAnimation
 ) {
-  throw new Error("Expected clean blackjack UI markers for numeric betting, inline offers, hidden dealer card, and no chip system.");
+  throw new Error("Expected clean blackjack UI markers for centered layout, animated cards, numeric betting, inline offers, hidden dealer card, and no chip system.");
 }
 
 console.log("tableGames.devtest passed");

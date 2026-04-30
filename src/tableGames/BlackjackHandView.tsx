@@ -6,23 +6,32 @@ export function DealerHandView({
   cards,
   total,
   revealed,
+  totalRevealed,
 }: {
   cards: Card[];
   total: number;
   revealed: boolean;
+  totalRevealed?: boolean;
 }) {
   return (
     <section className="blackjack-clean-hand">
       <div className="blackjack-clean-hand-head">
         <strong>Dealer</strong>
-        <span>{revealed ? "Total" : "Visible"}: {cards.length ? total : "-"}</span>
+        <span>{revealed && totalRevealed ? "Total" : "Visible"}: {cards.length ? total : "-"}</span>
       </div>
       <div className="blackjack-clean-cards">
         {cards.length === 0 ? (
           <PlayingCard />
         ) : (
           cards.map((card, index) => (
-            <PlayingCard key={`${card.rank}${card.suit}${index}`} card={card} hidden={!revealed && index === 1} index={index} />
+            <PlayingCard
+              key={`${card.rank}${card.suit}${index}`}
+              card={card}
+              hidden={!revealed && index === 1}
+              reveal={revealed && index === 1}
+              index={index}
+              delayMs={index === 0 ? 120 : 360}
+            />
           ))
         )}
       </div>
@@ -52,7 +61,7 @@ export function PlayerHandView({
       </div>
       <div className="blackjack-clean-cards">
         {hand.cards.map((card, cardIndex) => (
-          <PlayingCard key={`${hand.id}${cardIndex}`} card={card} index={cardIndex} />
+          <PlayingCard key={`${hand.id}${cardIndex}`} card={card} index={cardIndex} delayMs={cardIndex === 0 ? 0 : cardIndex === 1 ? 240 : 80} />
         ))}
       </div>
       {hand.result && <small>{hand.result.result}</small>}

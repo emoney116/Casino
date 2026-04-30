@@ -82,13 +82,15 @@ export function canSplitBlackjack(round: BlackjackRound, userId: string, config 
   );
 }
 
-export function canOfferInsurance(round: BlackjackRound, config = blackjackConfig) {
+export function canOfferInsurance(round: BlackjackRound, config = blackjackConfig, userId?: string) {
+  const insuranceBet = Math.floor(round.betAmount / 2);
   return Boolean(
     config.allowInsurance &&
       round.status === "PLAYER_TURN" &&
       round.dealerCards[0]?.rank === "A" &&
       !round.insuranceResolved &&
-      !isBlackjack(round.playerHands[0].cards),
+      !isBlackjack(round.playerHands[0].cards) &&
+      (!userId || getBalance(userId, round.currency) >= insuranceBet),
   );
 }
 
