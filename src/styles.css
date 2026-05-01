@@ -8183,6 +8183,19 @@ body {
   box-shadow: inset 0 0 0 1px rgba(250,204,21,0.45);
 }
 
+.roulette-active-bets .roulette-last-bet {
+  display: grid;
+  justify-content: start;
+  gap: 2px;
+  background: linear-gradient(180deg, rgba(14,165,233,0.16), rgba(15,23,42,0.46));
+  color: #e0f2fe;
+}
+
+.roulette-active-bets .roulette-last-bet strong {
+  color: #f8fafc;
+  font-size: 0.82rem;
+}
+
 .roulette-spin {
   min-height: 50px;
   background: linear-gradient(180deg, #22c55e, #047857);
@@ -8204,28 +8217,33 @@ body {
 }
 
 @keyframes roulette-real-wheel-spin {
-  0% { transform: rotate(calc(var(--wheel-end, 0deg) - 1500deg)); }
-  72% { transform: rotate(calc(var(--wheel-end, 0deg) - 78deg)); }
-  86% { transform: rotate(calc(var(--wheel-end, 0deg) + 14deg)); }
-  94% { transform: rotate(calc(var(--wheel-end, 0deg) - 5deg)); }
+  0% { transform: rotate(calc(var(--wheel-end, 0deg) - 1840deg)); }
+  62% { transform: rotate(calc(var(--wheel-end, 0deg) - 240deg)); }
+  78% { transform: rotate(calc(var(--wheel-end, 0deg) - 64deg)); }
+  88% { transform: rotate(calc(var(--wheel-end, 0deg) + 19deg)); }
+  95% { transform: rotate(calc(var(--wheel-end, 0deg) - 7deg)); }
   100% { transform: rotate(var(--wheel-end, 0deg)); }
 }
 
 @keyframes roulette-real-ball-spin {
-  0% { transform: rotate(1280deg); }
-  62% { transform: rotate(250deg); }
-  78% { transform: rotate(76deg); }
-  88% { transform: rotate(-20deg); }
-  94% { transform: rotate(8deg); }
+  0% { transform: rotate(1560deg); }
+  18% { transform: rotate(1215deg); }
+  42% { transform: rotate(760deg); }
+  64% { transform: rotate(330deg); }
+  78% { transform: rotate(92deg); }
+  87% { transform: rotate(-28deg); }
+  94% { transform: rotate(12deg); }
   100% { transform: rotate(0deg); }
 }
 
 @keyframes roulette-ball-bounce {
-  0%, 58% { top: 2.5%; }
-  66% { top: 5.5%; }
-  72% { top: 2.8%; }
-  80% { top: 4.3%; }
-  88%, 100% { top: 2.5%; }
+  0%, 36%, 58% { top: 2.5%; transform: translateX(-50%) scale(1); }
+  43% { top: 5.8%; transform: translateX(-50%) scale(0.92); }
+  49% { top: 2.9%; transform: translateX(-50%) scale(1.08); }
+  66% { top: 6.2%; transform: translateX(-50%) scale(0.9); }
+  72% { top: 2.7%; transform: translateX(-50%) scale(1.08); }
+  82% { top: 4.8%; transform: translateX(-50%) scale(0.96); }
+  91%, 100% { top: 2.5%; transform: translateX(-50%) scale(1); }
 }
 
 @keyframes roulette-chip-win {
@@ -8594,6 +8612,15 @@ body {
   z-index: 7;
 }
 
+.board-chip.straight {
+  left: 50%;
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+}
+
 .roulette-bets-panel {
   grid-area: controls;
   position: relative;
@@ -8884,7 +8911,7 @@ body {
 }
 
 .roulette-wheel-overlay.spinning .roulette-pocket-ring {
-  animation: roulette-wheel-spin 2.2s cubic-bezier(0.14, 0.72, 0.2, 1) both;
+  animation: roulette-wheel-spin 3.6s cubic-bezier(0.14, 0.72, 0.2, 1) both;
 }
 
 .roulette-wheel-overlay .roulette-ball {
@@ -8897,7 +8924,7 @@ body {
 }
 
 .roulette-wheel-spin-button.spinning .roulette-pocket-ring {
-  animation: roulette-wheel-spin 2.2s cubic-bezier(0.14, 0.72, 0.2, 1) both;
+  animation: roulette-wheel-spin 3.6s cubic-bezier(0.14, 0.72, 0.2, 1) both;
 }
 
 .roulette-wheel-spin-button.spinning .roulette-ball {
@@ -8961,7 +8988,7 @@ body {
 }
 
 .roulette-wheel-visual.is-spinning .roulette-wheel-disc {
-  animation: roulette-real-wheel-spin 2.9s cubic-bezier(0.1, 0.72, 0.16, 1) both;
+  animation: roulette-real-wheel-spin 3.6s cubic-bezier(0.08, 0.76, 0.12, 1) both;
 }
 
 .roulette-pocket-slice {
@@ -9004,7 +9031,7 @@ body {
 }
 
 .roulette-wheel-visual.is-spinning .roulette-ball-track {
-  animation: roulette-real-ball-spin 2.9s cubic-bezier(0.12, 0.68, 0.16, 1) both;
+  animation: roulette-real-ball-spin 3.6s cubic-bezier(0.1, 0.68, 0.12, 1) both;
 }
 
 .roulette-wheel-visual.realistic .roulette-ball {
@@ -9021,7 +9048,7 @@ body {
 }
 
 .roulette-wheel-visual.is-spinning .roulette-ball {
-  animation: roulette-ball-bounce 2.9s cubic-bezier(0.16, 0.68, 0.14, 1) both;
+  animation: roulette-ball-bounce 3.6s cubic-bezier(0.16, 0.68, 0.14, 1) both;
 }
 
 .roulette-wheel-visual::before,
@@ -9064,7 +9091,7 @@ body {
 }
 
 .roulette-wheel-stage.spinning .roulette-pocket-ring {
-  animation: roulette-wheel-spin 2.2s cubic-bezier(0.14, 0.72, 0.2, 1) both;
+  animation: roulette-wheel-spin 3.6s cubic-bezier(0.14, 0.72, 0.2, 1) both;
 }
 
 .roulette-pocket {

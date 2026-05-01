@@ -82,7 +82,17 @@ export function getRouletteInsideChipPosition(bet: RouletteBet) {
     const start = numberStreetStart(Math.min(...nums));
     return {
       left: ((start - 1) / 3 + 1) * (100 / 12),
-      top: 103,
+      top: 101,
+      coveredNumbers: nums,
+    };
+  }
+
+  if (bet.kind === "street") {
+    if (nums.length !== 3) return null;
+    const start = numberStreetStart(Math.min(...nums));
+    return {
+      left: (((start - 1) / 3) + 0.5) * (100 / 12),
+      top: 101,
       coveredNumbers: nums,
     };
   }
