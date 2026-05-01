@@ -1,4 +1,4 @@
-import { ArrowLeft, Coins, Gauge, Info, Menu, Minus, Plus, RotateCw, Settings, ShoppingBag, Volume2, Zap } from "lucide-react";
+import { ArrowLeft, Coins, Gauge, Info, Menu, Minus, Plus, RotateCw, Settings, ShoppingBag, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
@@ -8,7 +8,8 @@ import { getBalance } from "../wallet/walletService";
 import { nextSessionStats, emptySessionStats } from "../economy/sessionStats";
 import { recordMissionEvent } from "../missions/missionService";
 import { recordSpinProgress } from "../progression/progressionService";
-import { playBigWin, playBonus, playClick, playSpin, playWin, setMuted } from "../feedback/feedbackService";
+import { playBigWin, playBonus, playClick, playError, playLose, playSpin, playWin } from "../feedback/feedbackService";
+import { GameResultBanner, ScreenShake, SoundToggle, WinOverlay } from "../feedback/components";
 import { BonusModal } from "./BonusModal";
 import { GameLogo } from "./GameLogo";
 import { Modal } from "../components/Modal";
@@ -72,7 +73,6 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
   const [history, setHistory] = useState<SlotSpinResult[]>([]);
   const [spinning, setSpinning] = useState(false);
   const [turbo, setTurbo] = useState(false);
-  const [sound, setSound] = useState(false);
   const [sessionStats, setSessionStats] = useState(emptySessionStats);
   const [freeSpins, setFreeSpins] = useState(0);
   const [freeSpinTotal, setFreeSpinTotal] = useState(0);
@@ -133,6 +133,8 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
     setReelStates(Array.from({ length: game.reelCount }, () => "idle"));
     setBetMenuOpen(false);
   }, [game]);
+
+  const overlayIsBig = overlayResult?.winTier === "BIG" || overlayResult?.winTier === "MEGA";
 
   useEffect(() => {
     if (!overlayResult) return;
@@ -209,11 +211,13 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
     if (result.triggeredBonus) playBonus();
     else if (result.winTier === "BIG" || result.winTier === "MEGA") playBigWin();
     else if (result.payout > 0) playWin();
+    else playLose();
   }
 
   function spin() {
     if (!canSpin) {
       setUiState("Error/Insufficient Balance");
+      playError();
       return;
     }
 
@@ -238,6 +242,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
       setReelStates(Array.from({ length: game.reelCount }, () => "idle"));
       setUiState("Error/Insufficient Balance");
       notify(caught instanceof Error ? caught.message : "Spin failed.", "error");
+      playError();
       return;
     }
     const interval = window.setInterval(() => {
@@ -296,6 +301,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
     } catch (caught) {
       setUiState("Error/Insufficient Balance");
       notify(caught instanceof Error ? caught.message : "Bonus buy failed.", "error");
+      playError();
     } finally {
       setBuyBonusOpen(false);
       setSpinning(false);
@@ -418,14 +424,12 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
         )}
       </div>
 
+      <ScreenShake active={Boolean(overlayResult?.winTier === "MEGA")}>
       <div className="slot-board">
         <div className="slot-side-menu">
           <button className="ghost-button icon-only" title="Menu"><Menu size={18} /></button>
           <button className="ghost-button icon-only" onClick={() => setPaytableOpen(true)} title="Info"><Info size={18} /></button>
-          <button className={sound ? "ghost-button icon-only active" : "ghost-button icon-only"} onClick={() => setSound((value) => {
-            setMuted(value);
-            return !value;
-          })} title="Sound"><Volume2 size={18} /></button>
+          <SoundToggle className="ghost-button icon-only" compact />
         </div>
         <div className={`slot-state-pill ${inHoldAndWin ? "bonus" : ""}`}>
           <span>{modeLabel}</span>
@@ -500,16 +504,16 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
               )}
             </>
           )}
-          {overlayResult ? (
-            <button className={`big-win-overlay ${overlayResult.winTier.toLowerCase()}`} onClick={() => setOverlayResult(null)}>
-              {overlayResult.triggeredHoldAndWin ? (overlayResult.payout > 0 ? "Hold And Win Complete" : "Bonus Triggered") : overlayResult.triggeredWheelBonus ? "Wheel Bonus" : overlayResult.winTier === "MEGA" ? "Mega Win" : overlayResult.winTier === "BIG" ? "Big Win" : "Win"}
-              <span>{formatCoins(overlayResult.payout)}</span>
-              {overlayResult.holdAndWin && <small>Respin rounds: {overlayResult.holdAndWin.respinRounds.length}</small>}
-              {overlayResult.wheelBonus && <small>Wheel segment: {overlayResult.wheelBonus.segment}</small>}
-              {(overlayResult.winTier === "BIG" || overlayResult.winTier === "MEGA") && <div className="coin-burst" />}
-              {overlayResult.winTier === "MEGA" && <div className="confetti-burst" />}
-            </button>
-          ) : null}
+          <WinOverlay
+            show={Boolean(overlayResult)}
+            title={overlayResult?.triggeredHoldAndWin ? (overlayResult.payout > 0 ? "Hold And Win Complete" : "Bonus Triggered") : overlayResult?.triggeredWheelBonus ? "Wheel Bonus" : overlayResult?.winTier === "MEGA" ? "Mega Win" : overlayResult?.winTier === "BIG" ? "Big Win" : "Win"}
+            amount={overlayResult?.payout ?? 0}
+            big={overlayIsBig}
+            bonus={Boolean(overlayResult?.triggeredBonus)}
+            onDismiss={() => setOverlayResult(null)}
+          >
+            {overlayResult?.holdAndWin ? `Respin rounds: ${overlayResult.holdAndWin.respinRounds.length}` : overlayResult?.wheelBonus ? `Wheel segment: ${overlayResult.wheelBonus.segment}` : null}
+          </WinOverlay>
         </div>
 
         <div className="reel-bonus-action">
@@ -520,6 +524,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
               onClick={() => {
                 if (!canBuyBonus) {
                   notify("Insufficient balance for this demo bonus buy.", "error");
+                  playError();
                   return;
                 }
                 setBuyBonusOpen(true);
@@ -593,10 +598,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
             </button>
             <button className="ghost-button icon-only" title="Menu"><img src={frontierUiAssets.iconMenu} alt="" onError={(event) => event.currentTarget.parentElement?.classList.add("asset-missing")} /><Menu size={18} /></button>
             <button className="ghost-button icon-only" onClick={() => setPaytableOpen(true)} title="Info"><img src={frontierUiAssets.iconInfo} alt="" onError={(event) => event.currentTarget.parentElement?.classList.add("asset-missing")} /><Info size={18} /></button>
-            <button className={sound ? "ghost-button icon-only active" : "ghost-button icon-only"} onClick={() => setSound((value) => {
-              setMuted(value);
-              return !value;
-            })} title="Sound"><img src={frontierUiAssets.iconSound} alt="" onError={(event) => event.currentTarget.parentElement?.classList.add("asset-missing")} /><Volume2 size={18} /></button>
+            <SoundToggle className="ghost-button icon-only" compact />
           </div>
           <div className="segmented small">
             <button className={currency === "GOLD" ? "active" : ""} onClick={() => setCurrency("GOLD")}>
@@ -660,12 +662,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
             <button className={turbo ? "ghost-button active" : "ghost-button"} onClick={() => setTurbo((value) => !value)}>
               <Zap size={15} /> Turbo
             </button>
-            <button className={sound ? "ghost-button active" : "ghost-button"} onClick={() => setSound((value) => {
-              setMuted(value);
-              return !value;
-            })}>
-              <Volume2 size={15} /> Sound
-            </button>
+            <SoundToggle className="ghost-button" />
           </div>
           <button className="ghost-button icon-button" disabled title="Dev-only placeholder">
             <Gauge size={15} /> Auto Spin
@@ -677,6 +674,10 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
           </div>
         </aside>
       </div>
+      </ScreenShake>
+      {uiState === "Error/Insufficient Balance" && (
+        <GameResultBanner tone="error" title="Unable to spin" message="Check your bet or available virtual coins." compact />
+      )}
 
       <article className="card">
         <div className="section-title">

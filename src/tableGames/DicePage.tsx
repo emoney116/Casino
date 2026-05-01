@@ -5,6 +5,8 @@ import { useToast } from "../components/ToastContext";
 import { formatCoins } from "../lib/format";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
+import { CoinBurst, GameResultBanner, ScreenShake, SoundToggle } from "../feedback/components";
+import { playBet, playError, playLose, playWin } from "../feedback/feedbackService";
 import { diceConfig } from "./configs";
 import { getDiceChance, getDiceReturnMultiplier, resolveDiceBet } from "./diceEngine";
 import type { DiceDirection, DiceResult } from "./types";
@@ -22,6 +24,9 @@ export const overUnderUiMarkers = {
   mobileOneScreenLayout: true,
   manualBetInput: true,
   lastFiveResults: true,
+  sharedResultBanner: true,
+  sharedSoundToggle: true,
+  rollingNumberFlip: true,
 };
 
 export function DicePage({ onExit }: { onExit?: () => void }) {
@@ -36,6 +41,7 @@ export function DicePage({ onExit }: { onExit?: () => void }) {
   const [displayRoll, setDisplayRoll] = useState<number | null>(null);
   const [recentRolls, setRecentRolls] = useState<DiceResult[]>([]);
   const [rolling, setRolling] = useState(false);
+  const [flipKey, setFlipKey] = useState(0);
   const intervalRef = useRef<number | null>(null);
   const timeoutRef = useRef<number | null>(null);
   const chance = useMemo(() => getDiceChance(direction, target), [direction, target]);
@@ -77,10 +83,13 @@ export function DicePage({ onExit }: { onExit?: () => void }) {
     if (rolling) return;
     try {
       const next = resolveDiceBet({ userId: currentUser.id, currency, betAmount, direction, target });
+      playBet();
       setRolling(true);
       setResult(null);
+      setFlipKey((key) => key + 1);
       setDisplayRoll(Math.floor(Math.random() * 100) + 1);
       intervalRef.current = window.setInterval(() => {
+        setFlipKey((key) => key + 1);
         setDisplayRoll(Math.floor(Math.random() * 100) + 1);
       }, 54);
       timeoutRef.current = window.setTimeout(() => {
@@ -88,12 +97,19 @@ export function DicePage({ onExit }: { onExit?: () => void }) {
         intervalRef.current = null;
         setDisplayRoll(next.roll);
         setResult(next);
+        setFlipKey((key) => key + 1);
         setRecentRolls((current) => [next, ...current].slice(0, 5));
         setRolling(false);
-        if (next.won) notify(`Over/Under paid ${formatCoins(next.totalPaid)}.`, "success");
+        if (next.won) {
+          notify(`Over/Under paid ${formatCoins(next.totalPaid)}.`, "success");
+          playWin();
+        } else {
+          playLose();
+        }
       }, 520);
     } catch (caught) {
       notify(caught instanceof Error ? caught.message : "Over/Under roll failed.", "error");
+      playError();
     }
   }
 
@@ -109,6 +125,7 @@ export function DicePage({ onExit }: { onExit?: () => void }) {
           <button type="button" className={currency === "GOLD" ? "active" : ""} disabled={rolling} onClick={() => setCurrency("GOLD")}>Gold</button>
           <button type="button" className={currency === "BONUS" ? "active" : ""} disabled={rolling} onClick={() => setCurrency("BONUS")}>Bonus</button>
         </div>
+        <SoundToggle className="ghost-button icon-only" compact />
       </header>
 
       <div className="over-under-balance">
@@ -116,11 +133,13 @@ export function DicePage({ onExit }: { onExit?: () => void }) {
         <strong>{currency === "GOLD" ? "Gold" : "Bonus"} Bet: {formatCoins(betAmount)}</strong>
       </div>
 
+      <ScreenShake active={Boolean(result?.won && result.totalPaid >= betAmount * 5)}>
       <main className="over-under-table">
         <div className="over-under-main-row">
           <section className="over-under-result-zone" aria-live="polite">
-            <div className={rolling ? "over-under-number rolling" : result ? `over-under-number ${result.won ? "win" : "loss"}` : "over-under-number"}>
+            <div key={flipKey} className={rolling ? "over-under-number rolling flipping" : result ? `over-under-number flipping ${result.won ? "win" : "loss"}` : "over-under-number"}>
               {displayRoll ?? "--"}
+              {result?.won && <CoinBurst count={10} />}
             </div>
             <div className="over-under-prompt">
               <strong>{result ? `Rolled ${result.roll}` : "Choose Over or Under"}</strong>
@@ -154,12 +173,16 @@ export function DicePage({ onExit }: { onExit?: () => void }) {
         </div>
 
         {result && (
-          <div className={`over-under-banner ${result.won ? "win" : "loss"}`}>
-            <strong>{result.won ? "WIN" : "LOSS"}</strong>
-            <span>{result.won ? `Paid ${formatCoins(result.totalPaid)}` : "No payout"}</span>
-          </div>
+          <GameResultBanner
+            tone={result.won ? "win" : "loss"}
+            title={result.won ? "Over/Under Win" : "No Payout"}
+            amount={result.won ? result.totalPaid : undefined}
+            message={result.won ? `Rolled ${result.roll} ${comparison} ${target}` : `Rolled ${result.roll}; needed ${direction} ${target}`}
+            compact
+          />
         )}
       </main>
+      </ScreenShake>
 
       <section className="over-under-controls">
         <div className="over-under-bet-row">

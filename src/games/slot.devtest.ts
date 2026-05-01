@@ -9,6 +9,7 @@ import { frontierUiAssets, requiredFrontierUiAssetKeys } from "./frontierAssets"
 import { getBetOptions, getBonusChanceTier, getBuyBonusCost } from "./SlotMachine";
 import { getSpinDuration, slotAnimation } from "./slotAnimation";
 import { nextFreeSpinTotal } from "./slotSession";
+import { feedbackUiMarkers } from "../feedback/components";
 import { getProgression, recordSpinProgress } from "../progression/progressionService";
 import { claimStreak, getStreak, resetStreak } from "../streaks/streakService";
 import { claimMission, getMissions, recordMissionEvent } from "../missions/missionService";
@@ -91,6 +92,9 @@ if (!slotAnimation.normal.reelStopMs.every((stopMs, index, stops) => index === 0
 }
 if (getSpinDuration("fast") >= getSpinDuration("normal") / 2) {
   throw new Error("Expected fast spin duration to be much shorter than normal spin.");
+}
+if (!feedbackUiMarkers.winOverlay || !feedbackUiMarkers.coinBurst || !feedbackUiMarkers.screenShake) {
+  throw new Error("Expected shared Frontier feedback components to be available.");
 }
 const bonusStateCheck: import("./slotAnimation").SlotAnimationState = "bonusRespinning";
 if (bonusStateCheck !== "bonusRespinning") {

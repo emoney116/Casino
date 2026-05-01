@@ -5,6 +5,8 @@ import { useToast } from "../components/ToastContext";
 import { formatCoins } from "../lib/format";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
+import { GameResultBanner, ScreenShake, SoundToggle } from "../feedback/components";
+import { playBet, playError, playLose, playSpin, playWin } from "../feedback/feedbackService";
 import { rouletteConfig } from "./configs";
 import {
   americanWheel,
@@ -41,6 +43,9 @@ export const rouletteUiMarkers = {
   lastFiveResults: true,
   streetBetSidePanel: true,
   wheelInBottomDeck: true,
+  sharedResultBanner: true,
+  sharedSoundToggle: true,
+  winningBetGlow: true,
 };
 
 export function RoulettePage({ onExit }: { onExit?: () => void }) {
@@ -74,12 +79,15 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
     const projected = totalBet + selectedChip;
     if (projected > balance) {
       notify("Insufficient balance for that roulette bet.", "error");
+      playError();
       return;
     }
     if (projected > rouletteConfig.maxTotalBetGold) {
       notify(`Maximum total roulette bet is ${formatCoins(rouletteConfig.maxTotalBetGold)}.`, "error");
+      playError();
       return;
     }
+    playBet();
     setBets((current) => [...current, { id: crypto.randomUUID(), bet, amount: selectedChip, label: rouletteBetLabel(bet) }]);
     setResult(null);
     setChipMenuOpen(false);
@@ -163,6 +171,7 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
 
   function spin() {
     if (!canSpin) return;
+    playSpin();
     setSpinning(true);
     setWheelFocus(true);
     setChipMenuOpen(false);
@@ -174,8 +183,11 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
         setRecentResults((current) => [outcome, ...current].slice(0, 5));
         setLastBets(bets);
         setBets([]);
+        if (next.totalPaid > 0) playWin();
+        else playLose();
       } catch (caught) {
         notify(caught instanceof Error ? caught.message : "Roulette spin failed.", "error");
+        playError();
       } finally {
         setSpinning(false);
         window.setTimeout(() => setWheelFocus(false), 2200);
@@ -205,8 +217,10 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
           <button className={currency === "GOLD" ? "active" : ""} disabled={spinning} onClick={() => { setCurrency("GOLD"); setSelectedChip(25); }}>Gold</button>
           <button className={currency === "BONUS" ? "active" : ""} disabled={spinning} onClick={() => { setCurrency("BONUS"); setSelectedChip(1); }}>Bonus</button>
         </div>
+        <SoundToggle className="ghost-button icon-only" compact />
       </header>
 
+      <ScreenShake active={Boolean(result && (result.net ?? 0) >= totalBet * 10)}>
       <section className="roulette-layout">
         <div className="roulette-board-wrap">
           <div className="roulette-board">
@@ -312,18 +326,37 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
             </button>
             <LastResults values={recentResults} />
           </div>
+          {result && (
+            <GameResultBanner
+              tone={result.totalPaid > 0 ? ((result.net ?? 0) >= 0 ? "win" : "loss") : "loss"}
+              title={result.totalPaid > 0 ? "Roulette Win" : "No Hit"}
+              amount={result.totalPaid > 0 ? result.totalPaid : undefined}
+              message={`Landed ${result.outcome} ${result.color}. Net ${(result.net ?? 0) >= 0 ? "+" : ""}${formatCoins(result.net ?? 0)}`}
+              compact
+            />
+          )}
         </aside>
 
         <div className="roulette-street-panel">
           <StreetBetPanel onBet={placeBet} />
         </div>
       </section>
+      </ScreenShake>
       {wheelFocus && (
         <div className={spinning ? "roulette-wheel-overlay spinning" : "roulette-wheel-overlay"}>
           <div className="roulette-wheel-overlay-card">
             <RouletteWheel outcome={result?.outcome ?? null} spinning={spinning} />
             <strong>{spinning ? "Spinning..." : result ? `${result.outcome} ${result.color}` : "Spin"}</strong>
             {result && <span>Won {formatCoins(result.totalPaid)} - Net {(result.net ?? 0) >= 0 ? "+" : ""}{formatCoins(result.net ?? 0)}</span>}
+            {result && (
+              <GameResultBanner
+                tone={result.totalPaid > 0 ? "win" : "loss"}
+                title={result.totalPaid > 0 ? "Winner" : "Result"}
+                amount={result.totalPaid > 0 ? result.totalPaid : undefined}
+                message={`Winning number ${result.outcome}`}
+                compact
+              />
+            )}
           </div>
         </div>
       )}

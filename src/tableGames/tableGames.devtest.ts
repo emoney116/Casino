@@ -1,4 +1,6 @@
 import { updateData } from "../lib/storage";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { creditCurrency, getBalance, getTransactions } from "../wallet/walletService";
 import type { CasinoData, User } from "../types";
 import { blackjackConfig, diceConfig, rouletteConfig } from "./configs";
@@ -26,6 +28,8 @@ import type { PlayingCard } from "./types";
 import { blackjackCleanUxMarkers } from "./BlackjackPageClean";
 import { rouletteUiMarkers } from "./RoulettePage";
 import { overUnderUiMarkers } from "./DicePage";
+import { CoinBurst, GameResultBanner, WinOverlay, feedbackUiMarkers } from "../feedback/components";
+import { isSoundEnabled, playBet, playBigWin, playClick, playDeal, playError, playLose, playSpin, playWin, playBonus, setSoundEnabled } from "../feedback/feedbackService";
 
 const memory: Record<string, string> = {};
 globalThis.localStorage = {
@@ -69,6 +73,27 @@ const seed: Partial<CasinoData> = {
 localStorage.setItem("casino-prototype-data-v1", JSON.stringify(seed));
 creditCurrency({ userId: user.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 100000 });
 creditCurrency({ userId: user.id, type: "ADMIN_ADJUSTMENT", currency: "BONUS", amount: 100000 });
+
+setSoundEnabled(true);
+if (!isSoundEnabled() || localStorage.getItem("casino-feedback-sound-enabled") !== "true") {
+  throw new Error("Expected sound toggle setting to persist.");
+}
+setSoundEnabled(false);
+for (const feedback of [playClick, playBet, playDeal, playSpin, playWin, playBigWin, playLose, playBonus, playError]) {
+  feedback();
+}
+const bannerMarkup = renderToStaticMarkup(createElement(GameResultBanner, { tone: "win", title: "Win", amount: 125, message: "Paid" }));
+if (!bannerMarkup.includes("game-result-banner") || !bannerMarkup.includes("Win")) {
+  throw new Error("Expected shared win result banner to render.");
+}
+const overlayMarkup = renderToStaticMarkup(createElement(WinOverlay, { show: true, title: "Big Win", amount: 500, big: true }));
+if (!overlayMarkup.includes("win-overlay") || !overlayMarkup.includes("coin-burst-shared")) {
+  throw new Error("Expected shared win overlay to render with coin burst.");
+}
+const coinMarkup = renderToStaticMarkup(createElement(CoinBurst, { count: 4 }));
+if (!coinMarkup.includes("coin-burst-shared")) {
+  throw new Error("Expected shared coin burst to render.");
+}
 
 function card(rank: PlayingCard["rank"], suit: PlayingCard["suit"] = "S"): PlayingCard {
   return { rank, suit };
@@ -477,7 +502,9 @@ if (
   !blackjackCleanUxMarkers.cardDealAnimation ||
   !blackjackCleanUxMarkers.dealerFlipAnimation ||
   !blackjackCleanUxMarkers.animationBlocksActions ||
-  !blackjackCleanUxMarkers.compactSplitLayout
+  !blackjackCleanUxMarkers.compactSplitLayout ||
+  !blackjackCleanUxMarkers.sharedResultBanner ||
+  !blackjackCleanUxMarkers.sharedSoundToggle
 ) {
   throw new Error("Expected clean blackjack UI markers for centered layout, animated cards, numeric betting, inline offers, hidden dealer card, and no chip system.");
 }
@@ -493,7 +520,10 @@ if (
   !rouletteUiMarkers.insideHelperRowRemoved ||
   !rouletteUiMarkers.zeroDoubleZeroBalanced ||
   !rouletteUiMarkers.doubleBetsAction ||
-  !rouletteUiMarkers.sequencedAmericanWheel
+  !rouletteUiMarkers.sequencedAmericanWheel ||
+  !rouletteUiMarkers.sharedResultBanner ||
+  !rouletteUiMarkers.sharedSoundToggle ||
+  !rouletteUiMarkers.winningBetGlow
 ) {
   throw new Error("Expected Roulette UI markers for American board, CSS chips, multi-bet slip, wheel animation, and advanced inside bets.");
 }
@@ -508,7 +538,10 @@ if (
   !overUnderUiMarkers.resultAnimation ||
   !overUnderUiMarkers.mobileOneScreenLayout ||
   !overUnderUiMarkers.manualBetInput ||
-  !overUnderUiMarkers.lastFiveResults
+  !overUnderUiMarkers.lastFiveResults ||
+  !overUnderUiMarkers.sharedResultBanner ||
+  !overUnderUiMarkers.sharedSoundToggle ||
+  !overUnderUiMarkers.rollingNumberFlip
 ) {
   throw new Error("Expected Over/Under UI markers for header, currency toggle, compact betting, manual input, last five, payout, animation, and mobile layout.");
 }

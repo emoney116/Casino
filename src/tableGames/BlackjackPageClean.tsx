@@ -4,6 +4,8 @@ import { useToast } from "../components/ToastContext";
 import { formatCoins } from "../lib/format";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
+import { GameResultBanner, ScreenShake, SoundToggle } from "../feedback/components";
+import { playBet, playDeal, playError, playLose, playWin } from "../feedback/feedbackService";
 import {
   acceptEvenMoneyBlackjack,
   activeBlackjackHand,
@@ -39,6 +41,8 @@ export const blackjackCleanUxMarkers = {
   dealerFlipAnimation: true,
   animationBlocksActions: true,
   compactSplitLayout: true,
+  sharedResultBanner: true,
+  sharedSoundToggle: true,
 };
 
 export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
@@ -62,6 +66,12 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
     return () => window.clearTimeout(timer);
   }, [round?.dealerRevealed, round?.dealerCards.length]);
 
+  useEffect(() => {
+    if (!round?.result) return;
+    if (round.result.result === "WIN") playWin();
+    else if (round.result.result === "LOSS") playLose();
+  }, [round?.result]);
+
   const balance = getBalance(currentUser.id, currency);
   const active = round?.status === "PLAYER_TURN";
   const activeHand = round ? activeBlackjackHand(round) : null;
@@ -77,18 +87,21 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
 
   function deal() {
     try {
+      playDeal();
       const next = startBlackjackRound({ userId: currentUser.id, currency, betAmount, deck: shoe });
       setRound(next);
       setShoe(prepareNextShoe(next.deck));
       lockForAnimation(next.status === "RESOLVED" ? 1400 : 1250);
     } catch (caught) {
       notify(caught instanceof Error ? caught.message : "Unable to deal.", "error");
+      playError();
     }
   }
 
   function apply(action: "hit" | "stand" | "double" | "split") {
     if (!round || actionBlocked || cardsAnimating) return;
     try {
+      action === "hit" || action === "split" ? playDeal() : playBet();
       const next = action === "hit"
         ? hitBlackjack(round, currentUser.id)
         : action === "stand"
@@ -101,6 +114,7 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
       lockForAnimation(action === "split" ? 950 : next.dealerRevealed ? 1100 : 520);
     } catch (caught) {
       notify(caught instanceof Error ? caught.message : "Action failed.", "error");
+      playError();
     }
   }
 
@@ -140,6 +154,7 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
             Bonus
           </button>
         </div>
+        <SoundToggle className="ghost-button icon-only" compact />
       </header>
 
       <div className="blackjack-clean-balance">
@@ -147,6 +162,7 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
         <strong>Bet: {formatCoins(betAmount)}</strong>
       </div>
 
+      <ScreenShake active={Boolean(round?.result && round.result.result === "WIN" && round.result.amountPaid >= betAmount * 3)}>
       <main className="blackjack-clean-table">
         <DealerHandView
           cards={round?.dealerCards ?? []}
@@ -181,12 +197,16 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
         </section>
 
         {round?.result && (
-          <div className={`blackjack-clean-result ${round.result.result.toLowerCase()}`}>
-            <strong>{round.result.result === "LOSS" ? "Dealer Wins" : round.result.result}</strong>
-            <span>{round.result.message}</span>
-          </div>
+          <GameResultBanner
+            tone={round.result.result === "LOSS" ? "loss" : round.result.result === "PUSH" ? "push" : "win"}
+            title={round.result.result === "LOSS" ? "Dealer Wins" : round.result.result}
+            amount={round.result.result === "WIN" ? round.result.amountPaid : undefined}
+            message={round.result.message}
+            compact
+          />
         )}
       </main>
+      </ScreenShake>
 
       <BlackjackControlsClean
         active={Boolean(active && activeHand && !actionBlocked)}
