@@ -26,6 +26,7 @@ export const treasureDigUiMarkers = {
   possiblePayout: true,
   potentialMaxWin: true,
   variableMultiplierTiles: true,
+  sharedSoundToggle: true,
   revealBoardOnFinish: true,
   compactFinishedResult: true,
   compactBottomBetControls: true,

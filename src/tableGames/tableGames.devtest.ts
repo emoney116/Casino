@@ -794,6 +794,7 @@ if (
   !treasureDigUiMarkers.possiblePayout ||
   !treasureDigUiMarkers.potentialMaxWin ||
   !treasureDigUiMarkers.variableMultiplierTiles ||
+  !treasureDigUiMarkers.sharedSoundToggle ||
   !treasureDigUiMarkers.revealBoardOnFinish ||
   !treasureDigUiMarkers.compactFinishedResult ||
   !treasureDigUiMarkers.compactBottomBetControls
