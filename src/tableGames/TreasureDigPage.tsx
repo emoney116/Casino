@@ -8,7 +8,7 @@ import { formatCoins } from "../lib/format";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
 import { treasureDigConfig } from "./configs";
-import { cashOutTreasureDigRound, clampTreasureTrapCount, getTreasureDigMultiplier, getTreasurePotentialMaxMultiplier, pickTreasureTile, startTreasureDigRound } from "./treasureDigEngine";
+import { cashOutTreasureDigRound, clampTreasureTrapCount, getTreasureBoostMultiplier, getTreasureDigMultiplier, getTreasurePotentialMaxMultiplier, pickTreasureTile, startTreasureDigRound } from "./treasureDigEngine";
 import type { TreasureDigRound } from "./types";
 
 const quickBets = [10, 25, 50, 100, 500];
@@ -46,13 +46,19 @@ export function TreasureDigPage({ onExit }: { onExit?: () => void }) {
   const balance = getBalance(currentUser.id, currency);
   const running = round?.status === "RUNNING";
   const safePicks = round?.pickedIndexes.filter((index) => !round.trapIndexes.includes(index)).length ?? 0;
-  const multiplier = round?.currentMultiplier ?? getTreasureDigMultiplier({ safePicks: 0, trapCount });
+  const liveBoostMultiplier = round ? getTreasureBoostMultiplier(round.pickedIndexes, round.multiplierTiles) : 1;
+  const multiplier = round
+    ? getTreasureDigMultiplier({
+      safePicks,
+      trapCount: round.trapCount,
+      boostMultiplier: liveBoostMultiplier,
+    })
+    : getTreasureDigMultiplier({ safePicks: 0, trapCount });
   const nextMultiplier = running
     ? getTreasureDigMultiplier({
       safePicks: safePicks + 1,
       trapCount: round.trapCount,
-      multiplierTiles: round.multiplierTiles,
-      boostMultiplier: round.boostMultiplier,
+      boostMultiplier: liveBoostMultiplier,
     })
     : getTreasureDigMultiplier({ safePicks: 1, trapCount });
   const activeBetAmount = round ? round.betAmount : betAmount;
@@ -238,10 +244,10 @@ export function TreasureDigPage({ onExit }: { onExit?: () => void }) {
         </div>
         <div className={balance < betAmount ? "treasure-note warning" : "treasure-note"}>
           <span>Min {formatCoins(treasureDigConfig.minBet)} / Max {formatCoins(treasureDigConfig.maxBet)}</span>
-          <strong>{running ? `Cash out ${formatCoins(possiblePayout)}` : "Start, dig, cash out anytime"}</strong>
+          <strong>{running ? `Cashout ${formatCoins(possiblePayout)}` : "Start, dig, cash out anytime"}</strong>
         </div>
         <button className={running ? "treasure-main-action cashout" : "treasure-main-action"} disabled={!running && !canStart} onClick={mainAction}>
-          {running ? "Cash Out" : round ? "Start Again" : "Start"}
+          {running ? `Cash Out ${formatCoins(possiblePayout)}` : round ? "Start Again" : "Start"}
         </button>
       </section>
     </section>

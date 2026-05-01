@@ -585,12 +585,14 @@ input, select {
 
 .treasure-quick-bets {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
 }
 
 .treasure-quick-bets button {
-  padding: 7px 4px;
+  min-width: 0;
+  padding: 7px 2px;
+  font-size: clamp(0.72rem, 2.7vw, 0.95rem);
 }
 
 .treasure-quick-bets .active {

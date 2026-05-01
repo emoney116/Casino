@@ -747,6 +747,21 @@ if (treasureCashOut.status !== "CASHED_OUT" || treasureCashOut.totalPaid !== Mat
 if (getTransactions(user.id).filter((tx) => tx.type === "TABLE_WIN").length !== treasureWinCountBefore + 1) {
   throw new Error("Expected Treasure Dig cash out to create TABLE_WIN.");
 }
+let oneTrapSixPickRound = startTreasureDigRound({
+  userId: user.id,
+  currency: "GOLD",
+  betAmount: 100,
+  trapCount: 1,
+  trapIndexes: [24],
+  multiplierTiles: [],
+});
+for (const tileIndex of [0, 1, 2, 3, 4, 5]) {
+  oneTrapSixPickRound = pickTreasureTile({ round: oneTrapSixPickRound, userId: user.id, tileIndex });
+}
+const oneTrapSixPickCashOut = cashOutTreasureDigRound({ round: oneTrapSixPickRound, userId: user.id });
+if ((oneTrapSixPickCashOut.totalPaid ?? 0) <= 100 || oneTrapSixPickRound.currentMultiplier <= 1) {
+  throw new Error("Expected six safe Treasure Dig picks with one trap to pay above the original bet.");
+}
 const treasureTrapRound = startTreasureDigRound({
   userId: user.id,
   currency: "BONUS",
