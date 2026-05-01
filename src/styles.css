@@ -466,6 +466,13 @@ input, select {
   animation: treasureGlow 1.35s ease-in-out infinite alternate;
 }
 
+.treasure-tile.multiplier .back {
+  background:
+    radial-gradient(circle at 50% 34%, rgba(255,255,255,0.85), transparent 18%),
+    radial-gradient(circle, #bae6fd, #38bdf8 44%, #075985 76%);
+  animation: treasureBoostGlow 1s ease-in-out infinite alternate;
+}
+
 .treasure-tile.trap .back {
   background:
     radial-gradient(circle at 50% 48%, rgba(254,226,226,0.9), transparent 18%),
@@ -476,6 +483,16 @@ input, select {
 .treasure-tile.revealed .back {
   opacity: 0.78;
   filter: saturate(0.85);
+}
+
+.treasure-boost {
+  display: grid;
+  gap: 1px;
+  place-items: center;
+  color: #ecfeff;
+  font-size: clamp(0.74rem, 2.8vw, 1rem);
+  line-height: 1;
+  text-shadow: 0 2px 8px rgba(8,47,73,0.7);
 }
 
 .treasure-dig-page.trapped .treasure-dig-stage {
@@ -644,6 +661,11 @@ input, select {
 @keyframes treasureGlow {
   from { filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.45)); }
   to { filter: drop-shadow(0 0 22px rgba(250, 204, 21, 0.82)); }
+}
+
+@keyframes treasureBoostGlow {
+  from { filter: drop-shadow(0 0 9px rgba(56, 189, 248, 0.5)); }
+  to { filter: drop-shadow(0 0 24px rgba(125, 211, 252, 0.92)); }
 }
 
 @keyframes trapExplosion {

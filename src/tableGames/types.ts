@@ -150,9 +150,17 @@ export interface TreasureDigConfig extends TableGameConfig {
   minTraps: number;
   maxTraps: number;
   edge: number;
+  minMultiplierTiles: number;
+  maxMultiplierTiles: number;
+  multiplierValues: number[];
 }
 
-export type TreasureTileState = "hidden" | "safe" | "trap";
+export type TreasureTileState = "hidden" | "safe" | "trap" | "multiplier";
+
+export interface TreasureMultiplierTile {
+  index: number;
+  value: number;
+}
 
 export interface TreasureDigRound {
   id: string;
@@ -162,8 +170,10 @@ export interface TreasureDigRound {
   gridSize: number;
   trapCount: number;
   trapIndexes: number[];
+  multiplierTiles: TreasureMultiplierTile[];
   pickedIndexes: number[];
   currentMultiplier: number;
+  boostMultiplier: number;
   totalPaid?: number;
   settlement?: TableSettlement;
 }

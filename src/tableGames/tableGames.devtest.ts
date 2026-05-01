@@ -23,7 +23,7 @@ import {
 import { americanWheel, getRouletteInsideChipPosition, getRouletteWinningZones, resolveRouletteBet, resolveRouletteBets, rouletteBetKey } from "./rouletteEngine";
 import { getDiceReturnMultiplier, resolveDiceBet } from "./diceEngine";
 import { cashOutCrashRound, crashCrashRound, generateCrashPoint, getCrashMultiplier, startCrashRound } from "./crashEngine";
-import { cashOutTreasureDigRound, createTreasureTrapIndexes, getTreasureDigMultiplier, pickTreasureTile, startTreasureDigRound } from "./treasureDigEngine";
+import { cashOutTreasureDigRound, createTreasureMultiplierTiles, createTreasureTrapIndexes, getTreasureDigMultiplier, getTreasurePotentialMaxMultiplier, pickTreasureTile, startTreasureDigRound } from "./treasureDigEngine";
 import { assertTableBet } from "./ledger";
 import { simulateTableGame } from "./tableMath";
 import type { PlayingCard } from "./types";
@@ -687,16 +687,29 @@ if (
 
 const treasureMultiplierOne = getTreasureDigMultiplier({ safePicks: 1, trapCount: 3 });
 const treasureMultiplierTwo = getTreasureDigMultiplier({ safePicks: 2, trapCount: 3 });
-if (treasureMultiplierOne !== 1.07 || treasureMultiplierTwo <= treasureMultiplierOne) {
+if (treasureMultiplierOne !== 1.04 || treasureMultiplierTwo <= treasureMultiplierOne) {
   throw new Error("Expected Treasure Dig multiplier curve to rise using probability and house edge.");
 }
 const treasureSurvivalTwo = (22 / 25) * (21 / 24);
-if (treasureSurvivalTwo * treasureMultiplierTwo > 0.95) {
-  throw new Error("Expected Treasure Dig multiplier math to keep RTP at or below 95% before rounding.");
+if (treasureSurvivalTwo * treasureMultiplierTwo > 0.92) {
+  throw new Error("Expected Treasure Dig multiplier math to keep RTP at or below 92% before rounding.");
 }
 const deterministicTraps = createTreasureTrapIndexes({ trapCount: 3, random: () => 0, config: treasureDigConfig });
 if (deterministicTraps.length !== 3 || new Set(deterministicTraps).size !== 3) {
   throw new Error("Expected Treasure Dig trap generation to create unique trap tiles.");
+}
+const deterministicBoosts = createTreasureMultiplierTiles({ trapIndexes: [0, 1, 2], random: () => 0.99, config: treasureDigConfig });
+if (deterministicBoosts.length < 1 || deterministicBoosts.length > treasureDigConfig.maxMultiplierTiles || deterministicBoosts.some((tile) => [0, 1, 2].includes(tile.index))) {
+  throw new Error("Expected Treasure Dig multiplier tiles to be safe, variable boost tiles.");
+}
+if (treasureDigConfig.minBet !== 1 || treasureDigConfig.maxTraps !== 24) {
+  throw new Error("Expected Treasure Dig to allow 1 coin bets and 1-24 traps.");
+}
+if (getTreasurePotentialMaxMultiplier({ trapCount: 8 }) <= getTreasurePotentialMaxMultiplier({ trapCount: 4 })) {
+  throw new Error("Expected Treasure Dig potential max win to keep scaling above 4 traps.");
+}
+if (getTreasureDigMultiplier({ safePicks: 1, trapCount: 24 }) === getTreasureDigMultiplier({ safePicks: 1, trapCount: 4 })) {
+  throw new Error("Expected Treasure Dig 1-24 trap settings to use different payout curves.");
 }
 
 creditCurrency({ userId: user.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 1000 });
@@ -709,6 +722,7 @@ const treasureRound = startTreasureDigRound({
   betAmount: 100,
   trapCount: 3,
   trapIndexes: [0, 1, 2],
+  multiplierTiles: [{ index: 4, value: 5 }],
 });
 if (getBalance(user.id, "GOLD") !== treasureGoldBefore - 100) {
   throw new Error("Expected Treasure Dig start to deduct bet from balance.");
@@ -718,8 +732,8 @@ if (getTransactions(user.id).filter((tx) => tx.type === "TABLE_BET").length !== 
 }
 const treasureSafeOne = pickTreasureTile({ round: treasureRound, userId: user.id, tileIndex: 3 });
 const treasureSafeTwo = pickTreasureTile({ round: treasureSafeOne, userId: user.id, tileIndex: 4 });
-if (treasureSafeTwo.status !== "RUNNING" || treasureSafeTwo.currentMultiplier <= treasureSafeOne.currentMultiplier) {
-  throw new Error("Expected Treasure Dig safe picks to increase multiplier.");
+if (treasureSafeTwo.status !== "RUNNING" || treasureSafeTwo.currentMultiplier <= treasureSafeOne.currentMultiplier || treasureSafeTwo.boostMultiplier !== 5) {
+  throw new Error("Expected Treasure Dig safe picks and boost tiles to increase multiplier.");
 }
 const treasureCashOut = cashOutTreasureDigRound({ round: treasureSafeTwo, userId: user.id });
 if (treasureCashOut.status !== "CASHED_OUT" || treasureCashOut.totalPaid !== Math.round(100 * treasureSafeTwo.currentMultiplier)) {
@@ -734,15 +748,15 @@ const treasureTrapRound = startTreasureDigRound({
   betAmount: 100,
   trapCount: 3,
   trapIndexes: [0, 1, 2],
+  multiplierTiles: [{ index: 4, value: 50 }],
 });
 const treasureLoss = pickTreasureTile({ round: treasureTrapRound, userId: user.id, tileIndex: 0 });
 if (treasureLoss.status !== "TRAPPED" || treasureLoss.totalPaid !== 0 || !getTransactions(user.id).some((tx) => tx.type === "TABLE_LOSS" && tx.metadata?.tableGameId === "treasureDig")) {
   throw new Error("Expected Treasure Dig trap to lose bet and create TABLE_LOSS.");
 }
 const lowTreasureUser = "low-treasure-user";
-creditCurrency({ userId: lowTreasureUser, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: treasureDigConfig.minBet - 1 });
 try {
-  startTreasureDigRound({ userId: lowTreasureUser, currency: "GOLD", betAmount: treasureDigConfig.minBet, trapCount: 3, trapIndexes: [0, 1, 2] });
+  startTreasureDigRound({ userId: lowTreasureUser, currency: "GOLD", betAmount: treasureDigConfig.minBet, trapCount: 3, trapIndexes: [0, 1, 2], multiplierTiles: [{ index: 4, value: 2 }] });
   throw new Error("Expected Treasure Dig start to block insufficient balance.");
 } catch (error) {
   if (!(error instanceof Error) || !error.message.includes("Insufficient")) throw error;
@@ -759,6 +773,7 @@ if (
   !treasureDigUiMarkers.cashOutAnytime ||
   !treasureDigUiMarkers.possiblePayout ||
   !treasureDigUiMarkers.potentialMaxWin ||
+  !treasureDigUiMarkers.variableMultiplierTiles ||
   !treasureDigUiMarkers.revealBoardOnFinish ||
   !treasureDigUiMarkers.compactFinishedResult ||
   !treasureDigUiMarkers.compactBottomBetControls

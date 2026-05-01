@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties } from "react";
-import { Bomb, Gem, Shovel } from "lucide-react";
+import { Bomb, Gem, Shovel, Sparkles } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
 import { CoinBurst, ScreenShake, SoundToggle } from "../feedback/components";
@@ -8,7 +8,7 @@ import { formatCoins } from "../lib/format";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
 import { treasureDigConfig } from "./configs";
-import { cashOutTreasureDigRound, clampTreasureTrapCount, getTreasureDigMultiplier, pickTreasureTile, startTreasureDigRound } from "./treasureDigEngine";
+import { cashOutTreasureDigRound, clampTreasureTrapCount, getTreasureDigMultiplier, getTreasurePotentialMaxMultiplier, pickTreasureTile, startTreasureDigRound } from "./treasureDigEngine";
 import type { TreasureDigRound } from "./types";
 
 const quickBets = [10, 25, 50, 100, 500];
@@ -25,6 +25,7 @@ export const treasureDigUiMarkers = {
   cashOutAnytime: true,
   possiblePayout: true,
   potentialMaxWin: true,
+  variableMultiplierTiles: true,
   revealBoardOnFinish: true,
   compactFinishedResult: true,
   compactBottomBetControls: true,
@@ -46,13 +47,19 @@ export function TreasureDigPage({ onExit }: { onExit?: () => void }) {
   const running = round?.status === "RUNNING";
   const safePicks = round?.pickedIndexes.filter((index) => !round.trapIndexes.includes(index)).length ?? 0;
   const multiplier = round?.currentMultiplier ?? getTreasureDigMultiplier({ safePicks: 0, trapCount });
-  const nextMultiplier = running ? getTreasureDigMultiplier({ safePicks: safePicks + 1, trapCount: round.trapCount }) : getTreasureDigMultiplier({ safePicks: 1, trapCount });
+  const nextMultiplier = running
+    ? getTreasureDigMultiplier({
+      safePicks: safePicks + 1,
+      trapCount: round.trapCount,
+      multiplierTiles: round.multiplierTiles,
+      boostMultiplier: round.boostMultiplier,
+    })
+    : getTreasureDigMultiplier({ safePicks: 1, trapCount });
   const activeBetAmount = round ? round.betAmount : betAmount;
   const possiblePayout = Math.min(treasureDigConfig.maxPayout, Math.round(activeBetAmount * multiplier));
-  const maxSafePicks = treasureDigConfig.gridSize * treasureDigConfig.gridSize - trapCount;
   const maxWin = Math.min(
     treasureDigConfig.maxPayout,
-    Math.round(betAmount * getTreasureDigMultiplier({ safePicks: maxSafePicks, trapCount })),
+    Math.round(betAmount * getTreasurePotentialMaxMultiplier({ trapCount })),
   );
   const canStart = !running && betAmount >= treasureDigConfig.minBet && betAmount <= treasureDigConfig.maxBet && balance >= betAmount;
   const tileCount = treasureDigConfig.gridSize * treasureDigConfig.gridSize;
@@ -119,8 +126,9 @@ export function TreasureDigPage({ onExit }: { onExit?: () => void }) {
     const finished = round.status !== "RUNNING";
     const open = finished || round.pickedIndexes.includes(tileIndex);
     const trap = round.trapIndexes.includes(tileIndex);
+    const multiplierTile = round.multiplierTiles.some((tile) => tile.index === tileIndex);
     if (!open) return "treasure-tile hidden";
-    return `treasure-tile open ${trap ? "trap" : "safe"} ${finished && !round.pickedIndexes.includes(tileIndex) ? "revealed" : ""} ${lastOpened === tileIndex ? "fresh" : ""}`.trim();
+    return `treasure-tile open ${trap ? "trap" : multiplierTile ? "multiplier" : "safe"} ${finished && !round.pickedIndexes.includes(tileIndex) ? "revealed" : ""} ${lastOpened === tileIndex ? "fresh" : ""}`.trim();
   }
 
   return (
@@ -156,6 +164,7 @@ export function TreasureDigPage({ onExit }: { onExit?: () => void }) {
               const finished = Boolean(round && round.status !== "RUNNING");
               const open = finished || (round?.pickedIndexes.includes(tileIndex) ?? false);
               const trap = round?.trapIndexes.includes(tileIndex) ?? false;
+              const multiplierTile = round?.multiplierTiles.find((tile) => tile.index === tileIndex);
               return (
                 <button
                   key={tileIndex}
@@ -167,8 +176,8 @@ export function TreasureDigPage({ onExit }: { onExit?: () => void }) {
                 >
                   <span className="treasure-tile-face front"><Shovel size={18} /></span>
                   <span className="treasure-tile-face back">
-                    {open && trap ? <Bomb size={20} /> : <Gem size={20} />}
-                    {open && !trap && lastOpened === tileIndex && <CoinBurst count={6} />}
+                    {open && trap ? <Bomb size={20} /> : multiplierTile ? <strong className="treasure-boost"><Sparkles size={13} />{multiplierTile.value}x</strong> : <Gem size={20} />}
+                    {open && !trap && lastOpened === tileIndex && <CoinBurst count={multiplierTile ? 10 : 6} />}
                   </span>
                 </button>
               );
@@ -178,7 +187,7 @@ export function TreasureDigPage({ onExit }: { onExit?: () => void }) {
           {round?.status === "CASHED_OUT" && (
             <div className="treasure-result-mini win" role="status">
               <strong>Won {formatCoins(round.totalPaid ?? 0)}</strong>
-              <span>{safePicks} safe picks at {round.currentMultiplier.toFixed(2)}x</span>
+              <span>{safePicks} safe picks / boost {round.boostMultiplier.toFixed(0)}x</span>
             </div>
           )}
           {round?.status === "TRAPPED" && (
@@ -192,7 +201,7 @@ export function TreasureDigPage({ onExit }: { onExit?: () => void }) {
 
       <section className="treasure-dig-controls">
         <label className="treasure-risk">
-          <span>Traps <strong>{trapCount}</strong> <em>Max win {formatCoins(maxWin)}</em></span>
+          <span>Traps <strong>{trapCount}</strong> <em>Max win {formatCompactCoins(maxWin)}</em></span>
           <input
             type="range"
             min={treasureDigConfig.minTraps}
@@ -221,7 +230,7 @@ export function TreasureDigPage({ onExit }: { onExit?: () => void }) {
           <button type="button" disabled={running} onClick={() => setBet(betAmount + treasureDigConfig.minBet)}>+</button>
         </div>
         <div className="treasure-quick-bets">
-          {quickBets.map((value) => (
+          {[treasureDigConfig.minBet, ...quickBets].filter((value, index, values) => value <= treasureDigConfig.maxBet && values.indexOf(value) === index).map((value) => (
             <button key={value} type="button" className={betAmount === value ? "active" : ""} disabled={running} onClick={() => setBet(value)}>
               {value}
             </button>
@@ -237,4 +246,9 @@ export function TreasureDigPage({ onExit }: { onExit?: () => void }) {
       </section>
     </section>
   );
+}
+
+function formatCompactCoins(amount: number) {
+  if (amount < 1000000) return formatCoins(amount);
+  return new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(amount);
 }

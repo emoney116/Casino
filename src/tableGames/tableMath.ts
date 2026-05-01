@@ -3,7 +3,7 @@ import { createDeck, handValue, shuffleDeck } from "./blackjackEngine";
 import { americanWheel, rouletteBetWins } from "./rouletteEngine";
 import { getDiceReturnMultiplier } from "./diceEngine";
 import { generateCrashPoint } from "./crashEngine";
-import { getTreasureDigMultiplier } from "./treasureDigEngine";
+import { createTreasureMultiplierTiles, createTreasureTrapIndexes, getTreasureBoostMultiplier, getTreasureDigMultiplier } from "./treasureDigEngine";
 import type { TableGameConfig, TableGameId, TableSimulationResult } from "./types";
 
 export function simulateTableGame(gameId: TableGameId, rounds = 100000): TableSimulationResult {
@@ -108,19 +108,21 @@ function simulateTreasureDig(rounds: number) {
   let biggestWin = 0;
   for (let index = 0; index < rounds; index += 1) {
     let survived = true;
+    const trapIndexes = createTreasureTrapIndexes({ trapCount, config: treasureDigConfig });
+    const traps = new Set(trapIndexes);
+    const multiplierTiles = createTreasureMultiplierTiles({ trapIndexes, config: treasureDigConfig });
     const remaining = Array.from({ length: treasureDigConfig.gridSize * treasureDigConfig.gridSize }, (_, tile) => tile);
-    const traps = new Set<number>();
-    while (traps.size < trapCount) {
-      traps.add(Math.floor(Math.random() * remaining.length));
-    }
+    const pickedIndexes: number[] = [];
     for (let pick = 0; pick < autoCashOutPicks; pick += 1) {
       const tile = remaining.splice(Math.floor(Math.random() * remaining.length), 1)[0];
+      pickedIndexes.push(tile);
       if (traps.has(tile)) {
         survived = false;
         break;
       }
     }
-    const payout = survived ? bet * getTreasureDigMultiplier({ safePicks: autoCashOutPicks, trapCount }) : 0;
+    const boostMultiplier = getTreasureBoostMultiplier(pickedIndexes, multiplierTiles);
+    const payout = survived ? bet * getTreasureDigMultiplier({ safePicks: autoCashOutPicks, trapCount, multiplierTiles, boostMultiplier }) : 0;
     const capped = Math.min(Math.round(payout), treasureDigConfig.maxPayout);
     totalPaid += capped;
     biggestWin = Math.max(biggestWin, capped);
