@@ -1,4 +1,4 @@
-import { ArrowUpDown, CircleDot, Rocket, Spade } from "lucide-react";
+import { ArrowUpDown, CircleDot, Gem, Rocket, Spade } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { RouletteWheel } from "./RoulettePage";
 import type { TableGameConfig } from "./types";
@@ -8,6 +8,7 @@ const icons = {
   roulette: CircleDot,
   dice: ArrowUpDown,
   crash: Rocket,
+  treasureDig: Gem,
 };
 
 export function TableGameCard({ game, onPlay }: { game: TableGameConfig; onPlay: (gameId: TableGameConfig["id"]) => void }) {
@@ -46,6 +47,15 @@ function GamePreview({ gameId, Icon }: { gameId: TableGameConfig["id"]; Icon: Lu
           <Icon size={42} />
           <strong>2.38x</strong>
           <span />
+        </div>
+      )}
+      {gameId === "treasureDig" && (
+        <div className="preview-treasure">
+          {Array.from({ length: 9 }, (_, index) => (
+            <span key={index} className={index === 4 ? "gem" : index === 7 ? "trap" : ""}>
+              {index === 4 ? <Icon size={18} /> : index === 7 ? "!" : ""}
+            </span>
+          ))}
         </div>
       )}
     </div>

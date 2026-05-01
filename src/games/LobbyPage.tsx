@@ -94,7 +94,7 @@ function TableGameSection({ onPlay }: { onPlay: (gameId: TableGameId) => void })
   return (
     <section className="page-stack">
       <div className="section-title">
-        <h2>Table Games</h2>
+        <h2>Games</h2>
         <span>{formatGameCount(tableGameConfigs.length)}</span>
       </div>
       <div className="game-grid table-game-grid">

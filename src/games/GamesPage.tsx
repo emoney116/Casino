@@ -30,7 +30,7 @@ export function GamesPage({
         <div className="page-heading table-games-lobby-heading">
           <div>
             <p className="eyebrow">Slot games</p>
-            <h1>Games</h1>
+            <h1>Slots</h1>
           </div>
           <label className="table-game-search">
             <span>Search games</span>

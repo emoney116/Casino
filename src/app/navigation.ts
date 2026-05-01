@@ -10,8 +10,8 @@ export const navItems: Array<{
   adminOnly?: boolean;
 }> = [
   { id: "lobby", label: "Lobby", icon: Home },
-  { id: "games", label: "Games", icon: Gamepad2 },
-  { id: "tableGames", label: "Tables", icon: Dices },
+  { id: "games", label: "Slots", icon: Gamepad2 },
+  { id: "tableGames", label: "Games", icon: Dices },
   { id: "wallet", label: "Wallet", icon: WalletCards },
   { id: "account", label: "Account", icon: CircleUserRound },
   { id: "admin", label: "Admin", icon: ShieldCheck, adminOnly: true },

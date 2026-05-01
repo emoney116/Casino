@@ -16,21 +16,33 @@ import { dismissOnboarding, hasDismissedOnboarding } from "./onboarding";
 import { TableGamesPage } from "../tableGames/TableGamesPage";
 import type { TableGameId } from "../tableGames/types";
 
-function getInitialRoute(): { view: AppView; tableGameId: TableGameId | null } {
+const tableRouteIds: Record<string, TableGameId> = {
+  blackjack: "blackjack",
+  roulette: "roulette",
+  dice: "dice",
+  "over-under": "dice",
+  crash: "crash",
+  "treasure-dig": "treasureDig",
+  treasureDig: "treasureDig",
+};
+
+function getInitialRoute(): { view: AppView; slotGameId: string | null; tableGameId: TableGameId | null } {
   const path = window.location.pathname;
-  if (path.startsWith("/games")) return { view: "games", tableGameId: null };
-  if (path.startsWith("/table-games/blackjack")) return { view: "tableGames", tableGameId: "blackjack" };
-  if (path.startsWith("/table-games/roulette")) return { view: "tableGames", tableGameId: "roulette" };
-  if (path.startsWith("/table-games/dice")) return { view: "tableGames", tableGameId: "dice" };
-  if (path.startsWith("/table-games")) return { view: "tableGames", tableGameId: null };
-  return { view: "lobby", tableGameId: null };
+  const [, section, rawId] = path.split("/");
+  const tableGameId = rawId ? tableRouteIds[rawId] : null;
+  if (section === "slots") return { view: "games", slotGameId: rawId ?? null, tableGameId: null };
+  if (section === "games" && tableGameId) return { view: "tableGames", slotGameId: null, tableGameId };
+  if (section === "games" && rawId) return { view: "games", slotGameId: rawId, tableGameId: null };
+  if (section === "games") return { view: "tableGames", slotGameId: null, tableGameId: null };
+  if (section === "table-games") return { view: "tableGames", slotGameId: null, tableGameId };
+  return { view: "lobby", slotGameId: null, tableGameId: null };
 }
 
 export function AppShell() {
   const { user } = useAuth();
   const initialRoute = getInitialRoute();
   const [activeView, setActiveView] = useState<AppView>(initialRoute.view);
-  const [activeGameId, setActiveGameId] = useState<string | null>(null);
+  const [activeGameId, setActiveGameId] = useState<string | null>(initialRoute.slotGameId);
   const [activeTableGameId, setActiveTableGameId] = useState<TableGameId | null>(initialRoute.tableGameId);
   const [showOnboarding, setShowOnboarding] = useState(() => (user ? !hasDismissedOnboarding(user.id) : false));
 
@@ -41,21 +53,21 @@ export function AppShell() {
   function playGame(gameId: string) {
     setActiveGameId(gameId);
     setActiveView("games");
-    window.history.pushState(null, "", `/games/${gameId}`);
+    window.history.pushState(null, "", `/slots/${gameId}`);
   }
 
   function setView(view: AppView) {
     setActiveView(view);
     if (view !== "tableGames") setActiveTableGameId(null);
     if (view === "games") setActiveGameId(null);
-    const route = view === "tableGames" ? "/table-games" : view === "games" ? "/games" : "/";
+    const route = view === "tableGames" ? "/games" : view === "games" ? "/slots" : "/";
     window.history.pushState(null, "", route);
   }
 
   function playTableGame(gameId: TableGameId) {
     setActiveTableGameId(gameId);
     setActiveView("tableGames");
-    window.history.pushState(null, "", `/table-games/${gameId}`);
+    window.history.pushState(null, "", `/games/${gameId === "treasureDig" ? "treasure-dig" : gameId}`);
   }
 
   const hideMobileNav = (activeView === "games" && Boolean(activeGameId)) || (activeView === "tableGames" && Boolean(activeTableGameId));
@@ -105,7 +117,17 @@ export function AppShell() {
 
         {activeView === "lobby" && <LobbyPage onPlay={playGame} onTablePlay={playTableGame} onWallet={() => setView("wallet")} />}
         {activeView === "games" && (
-          <GamesPage activeGameId={activeGameId} onGameChange={setActiveGameId} onExit={() => setView("lobby")} />
+          <GamesPage
+            activeGameId={activeGameId}
+            onGameChange={(gameId) => {
+              if (gameId) playGame(gameId);
+              else {
+                setActiveGameId(null);
+                window.history.pushState(null, "", "/slots");
+              }
+            }}
+            onExit={() => setView("lobby")}
+          />
         )}
         {activeView === "tableGames" && (
           <TableGamesPage
@@ -114,7 +136,7 @@ export function AppShell() {
             onExit={() => {
               setActiveTableGameId(null);
               setActiveView("tableGames");
-              window.history.pushState(null, "", "/table-games");
+              window.history.pushState(null, "", "/games");
             }}
           />
         )}

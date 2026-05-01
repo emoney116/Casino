@@ -1,6 +1,6 @@
 import type { Currency, Transaction } from "../types";
 
-export type TableGameId = "blackjack" | "roulette" | "dice" | "crash";
+export type TableGameId = "blackjack" | "roulette" | "dice" | "crash" | "treasureDig";
 export type TableGameStatus = "IDLE" | "BETTING" | "PLAYER_TURN" | "DEALER_TURN" | "RESOLVED" | "ERROR";
 
 export interface TableGameConfig {
@@ -141,6 +141,29 @@ export interface CrashRound {
   startedAt: number;
   cashedOutAt?: number;
   cashOutMultiplier?: number;
+  totalPaid?: number;
+  settlement?: TableSettlement;
+}
+
+export interface TreasureDigConfig extends TableGameConfig {
+  gridSize: number;
+  minTraps: number;
+  maxTraps: number;
+  edge: number;
+}
+
+export type TreasureTileState = "hidden" | "safe" | "trap";
+
+export interface TreasureDigRound {
+  id: string;
+  status: "RUNNING" | "CASHED_OUT" | "TRAPPED";
+  currency: Currency;
+  betAmount: number;
+  gridSize: number;
+  trapCount: number;
+  trapIndexes: number[];
+  pickedIndexes: number[];
+  currentMultiplier: number;
   totalPaid?: number;
   settlement?: TableSettlement;
 }

@@ -1,14 +1,16 @@
-import { blackjackConfig, crashConfig, diceConfig, rouletteConfig } from "./configs";
+import { blackjackConfig, crashConfig, diceConfig, rouletteConfig, treasureDigConfig } from "./configs";
 import { createDeck, handValue, shuffleDeck } from "./blackjackEngine";
 import { americanWheel, rouletteBetWins } from "./rouletteEngine";
 import { getDiceReturnMultiplier } from "./diceEngine";
 import { generateCrashPoint } from "./crashEngine";
+import { getTreasureDigMultiplier } from "./treasureDigEngine";
 import type { TableGameConfig, TableGameId, TableSimulationResult } from "./types";
 
 export function simulateTableGame(gameId: TableGameId, rounds = 100000): TableSimulationResult {
   if (gameId === "blackjack") return simulateBlackjack(rounds);
   if (gameId === "roulette") return simulateRoulette(rounds);
   if (gameId === "dice") return simulateDice(rounds);
+  if (gameId === "treasureDig") return simulateTreasureDig(rounds);
   return simulateCrash(rounds);
 }
 
@@ -96,6 +98,42 @@ function simulateCrash(rounds: number) {
     paid += capped;
   }
   return baseResult(rounds * bet, paid, biggest, caps);
+}
+
+function simulateTreasureDig(rounds: number) {
+  const bet = treasureDigConfig.minBet;
+  const trapCount = 3;
+  const autoCashOutPicks = 3;
+  let totalPaid = 0;
+  let biggestWin = 0;
+  for (let index = 0; index < rounds; index += 1) {
+    let survived = true;
+    const remaining = Array.from({ length: treasureDigConfig.gridSize * treasureDigConfig.gridSize }, (_, tile) => tile);
+    const traps = new Set<number>();
+    while (traps.size < trapCount) {
+      traps.add(Math.floor(Math.random() * remaining.length));
+    }
+    for (let pick = 0; pick < autoCashOutPicks; pick += 1) {
+      const tile = remaining.splice(Math.floor(Math.random() * remaining.length), 1)[0];
+      if (traps.has(tile)) {
+        survived = false;
+        break;
+      }
+    }
+    const payout = survived ? bet * getTreasureDigMultiplier({ safePicks: autoCashOutPicks, trapCount }) : 0;
+    const capped = Math.min(Math.round(payout), treasureDigConfig.maxPayout);
+    totalPaid += capped;
+    biggestWin = Math.max(biggestWin, capped);
+  }
+  const totalWagered = bet * rounds;
+  return {
+    totalWagered,
+    totalPaid,
+    observedRtp: totalPaid / totalWagered,
+    houseEdge: 1 - totalPaid / totalWagered,
+    biggestWin,
+    maxPayoutCapHits: 0,
+  };
 }
 
 export function getTableMathWarnings(config: TableGameConfig, simulation?: TableSimulationResult) {

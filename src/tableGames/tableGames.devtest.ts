@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { creditCurrency, getBalance, getTransactions } from "../wallet/walletService";
 import type { CasinoData, User } from "../types";
-import { blackjackConfig, crashConfig, diceConfig, rouletteConfig } from "./configs";
+import { blackjackConfig, crashConfig, diceConfig, rouletteConfig, treasureDigConfig } from "./configs";
 import {
   acceptEvenMoneyBlackjack,
   canDoubleBlackjack,
@@ -23,6 +23,7 @@ import {
 import { americanWheel, getRouletteInsideChipPosition, getRouletteWinningZones, resolveRouletteBet, resolveRouletteBets, rouletteBetKey } from "./rouletteEngine";
 import { getDiceReturnMultiplier, resolveDiceBet } from "./diceEngine";
 import { cashOutCrashRound, crashCrashRound, generateCrashPoint, getCrashMultiplier, startCrashRound } from "./crashEngine";
+import { cashOutTreasureDigRound, createTreasureTrapIndexes, getTreasureDigMultiplier, pickTreasureTile, startTreasureDigRound } from "./treasureDigEngine";
 import { assertTableBet } from "./ledger";
 import { simulateTableGame } from "./tableMath";
 import type { PlayingCard } from "./types";
@@ -30,6 +31,7 @@ import { blackjackCleanUxMarkers } from "./BlackjackPageClean";
 import { rouletteUiMarkers } from "./RoulettePage";
 import { overUnderUiMarkers } from "./DicePage";
 import { crashUiMarkers } from "./CrashPage";
+import { treasureDigUiMarkers } from "./TreasureDigPage";
 import { CoinBurst, GameResultBanner, WinOverlay, feedbackUiMarkers } from "../feedback/components";
 import {
   getFeedbackDebugCount,
@@ -534,14 +536,14 @@ for (const type of ["TABLE_BET", "TABLE_WIN", "TABLE_PUSH", "TABLE_LOSS"]) {
   if (!tableTypes.has(type as never)) throw new Error(`Expected ${type} ledger entry.`);
 }
 
-for (const gameId of ["blackjack", "roulette", "dice", "crash"] as const) {
+for (const gameId of ["blackjack", "roulette", "dice", "crash", "treasureDig"] as const) {
   const sim = simulateTableGame(gameId, 1000);
   if (!Number.isFinite(sim.observedRtp) || !Number.isFinite(sim.houseEdge)) {
     throw new Error(`Expected ${gameId} simulation to produce math stats.`);
   }
 }
 
-if (blackjackConfig.minBetGold !== 1 || rouletteConfig.minBetRealCentsPlaceholder !== 1 || diceConfig.minBetRealCentsPlaceholder !== 1 || crashConfig.minBetRealCentsPlaceholder !== 1) {
+if (blackjackConfig.minBetGold !== 1 || rouletteConfig.minBetRealCentsPlaceholder !== 1 || diceConfig.minBetRealCentsPlaceholder !== 1 || crashConfig.minBetRealCentsPlaceholder !== 1 || treasureDigConfig.minBetRealCentsPlaceholder !== 1) {
   throw new Error("Expected table configs to preserve one-cent future placeholder minimums.");
 }
 
@@ -681,6 +683,87 @@ if (
   !crashUiMarkers.compactBottomBetControls
 ) {
   throw new Error("Expected Crash UI markers for multiplier, graph, cash out, crash feedback, sound, currency, and compact betting.");
+}
+
+const treasureMultiplierOne = getTreasureDigMultiplier({ safePicks: 1, trapCount: 3 });
+const treasureMultiplierTwo = getTreasureDigMultiplier({ safePicks: 2, trapCount: 3 });
+if (treasureMultiplierOne !== 1.07 || treasureMultiplierTwo <= treasureMultiplierOne) {
+  throw new Error("Expected Treasure Dig multiplier curve to rise using probability and house edge.");
+}
+const treasureSurvivalTwo = (22 / 25) * (21 / 24);
+if (treasureSurvivalTwo * treasureMultiplierTwo > 0.95) {
+  throw new Error("Expected Treasure Dig multiplier math to keep RTP at or below 95% before rounding.");
+}
+const deterministicTraps = createTreasureTrapIndexes({ trapCount: 3, random: () => 0, config: treasureDigConfig });
+if (deterministicTraps.length !== 3 || new Set(deterministicTraps).size !== 3) {
+  throw new Error("Expected Treasure Dig trap generation to create unique trap tiles.");
+}
+
+creditCurrency({ userId: user.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 1000 });
+const treasureBetCountBefore = getTransactions(user.id).filter((tx) => tx.type === "TABLE_BET").length;
+const treasureWinCountBefore = getTransactions(user.id).filter((tx) => tx.type === "TABLE_WIN").length;
+const treasureGoldBefore = getBalance(user.id, "GOLD");
+const treasureRound = startTreasureDigRound({
+  userId: user.id,
+  currency: "GOLD",
+  betAmount: 100,
+  trapCount: 3,
+  trapIndexes: [0, 1, 2],
+});
+if (getBalance(user.id, "GOLD") !== treasureGoldBefore - 100) {
+  throw new Error("Expected Treasure Dig start to deduct bet from balance.");
+}
+if (getTransactions(user.id).filter((tx) => tx.type === "TABLE_BET").length !== treasureBetCountBefore + 1) {
+  throw new Error("Expected Treasure Dig start to create TABLE_BET.");
+}
+const treasureSafeOne = pickTreasureTile({ round: treasureRound, userId: user.id, tileIndex: 3 });
+const treasureSafeTwo = pickTreasureTile({ round: treasureSafeOne, userId: user.id, tileIndex: 4 });
+if (treasureSafeTwo.status !== "RUNNING" || treasureSafeTwo.currentMultiplier <= treasureSafeOne.currentMultiplier) {
+  throw new Error("Expected Treasure Dig safe picks to increase multiplier.");
+}
+const treasureCashOut = cashOutTreasureDigRound({ round: treasureSafeTwo, userId: user.id });
+if (treasureCashOut.status !== "CASHED_OUT" || treasureCashOut.totalPaid !== Math.round(100 * treasureSafeTwo.currentMultiplier)) {
+  throw new Error("Expected Treasure Dig cash out to pay bet times multiplier.");
+}
+if (getTransactions(user.id).filter((tx) => tx.type === "TABLE_WIN").length !== treasureWinCountBefore + 1) {
+  throw new Error("Expected Treasure Dig cash out to create TABLE_WIN.");
+}
+const treasureTrapRound = startTreasureDigRound({
+  userId: user.id,
+  currency: "BONUS",
+  betAmount: 100,
+  trapCount: 3,
+  trapIndexes: [0, 1, 2],
+});
+const treasureLoss = pickTreasureTile({ round: treasureTrapRound, userId: user.id, tileIndex: 0 });
+if (treasureLoss.status !== "TRAPPED" || treasureLoss.totalPaid !== 0 || !getTransactions(user.id).some((tx) => tx.type === "TABLE_LOSS" && tx.metadata?.tableGameId === "treasureDig")) {
+  throw new Error("Expected Treasure Dig trap to lose bet and create TABLE_LOSS.");
+}
+const lowTreasureUser = "low-treasure-user";
+creditCurrency({ userId: lowTreasureUser, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: treasureDigConfig.minBet - 1 });
+try {
+  startTreasureDigRound({ userId: lowTreasureUser, currency: "GOLD", betAmount: treasureDigConfig.minBet, trapCount: 3, trapIndexes: [0, 1, 2] });
+  throw new Error("Expected Treasure Dig start to block insufficient balance.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("Insufficient")) throw error;
+}
+if (
+  treasureDigUiMarkers.gameName !== "Treasure Dig" ||
+  !treasureDigUiMarkers.goldBonusToggle ||
+  !treasureDigUiMarkers.fiveByFiveGrid ||
+  !treasureDigUiMarkers.trapCountPicker ||
+  !treasureDigUiMarkers.multiplierMathRtpCapped ||
+  !treasureDigUiMarkers.tileFlipAnimation ||
+  !treasureDigUiMarkers.treasureGlow ||
+  !treasureDigUiMarkers.trapExplosionShake ||
+  !treasureDigUiMarkers.cashOutAnytime ||
+  !treasureDigUiMarkers.possiblePayout ||
+  !treasureDigUiMarkers.potentialMaxWin ||
+  !treasureDigUiMarkers.revealBoardOnFinish ||
+  !treasureDigUiMarkers.compactFinishedResult ||
+  !treasureDigUiMarkers.compactBottomBetControls
+) {
+  throw new Error("Expected Treasure Dig UI markers for grid, risk, multiplier, cash out, feedback, and compact betting.");
 }
 
 console.log("tableGames.devtest passed");

@@ -1,4 +1,4 @@
-import type { BlackjackConfig, CrashConfig, DiceConfig, RouletteConfig, TableGameConfig } from "./types";
+import type { BlackjackConfig, CrashConfig, DiceConfig, RouletteConfig, TableGameConfig, TreasureDigConfig } from "./types";
 
 const demoOnlyCopy =
   "Demo table game using virtual coins only. No cash value, deposits, withdrawals, prizes, or redemptions.";
@@ -108,4 +108,25 @@ export const crashConfig: CrashConfig = {
   maxCrashPoint: 100,
 };
 
-export const tableGameConfigs: TableGameConfig[] = [blackjackConfig, rouletteConfig, diceConfig, crashConfig];
+export const treasureDigConfig: TreasureDigConfig = {
+  id: "treasureDig",
+  name: "Treasure Dig",
+  theme: "Multiplier mine grid",
+  minBet: 10,
+  maxBet: 500,
+  minBetGold: 10,
+  maxBetGold: 500,
+  minBetRealCentsPlaceholder: 1,
+  maxBetRealCentsPlaceholder: 500,
+  maxPayout: 50000,
+  houseEdgeTarget: 0.05,
+  currency: "GOLD",
+  demoOnlyCopy,
+  rules: ["Pick safe treasure tiles on a 5x5 grid", "Cash out before uncovering a trap", "More traps create steeper multiplier curves"],
+  gridSize: 5,
+  minTraps: 1,
+  maxTraps: 10,
+  edge: 0.05,
+};
+
+export const tableGameConfigs: TableGameConfig[] = [blackjackConfig, rouletteConfig, diceConfig, crashConfig, treasureDigConfig];
