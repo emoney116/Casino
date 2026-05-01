@@ -29,7 +29,26 @@ import { blackjackCleanUxMarkers } from "./BlackjackPageClean";
 import { rouletteUiMarkers } from "./RoulettePage";
 import { overUnderUiMarkers } from "./DicePage";
 import { CoinBurst, GameResultBanner, WinOverlay, feedbackUiMarkers } from "../feedback/components";
-import { isSoundEnabled, playBet, playBigWin, playClick, playDeal, playError, playLose, playSpin, playWin, playBonus, setSoundEnabled } from "../feedback/feedbackService";
+import {
+  getFeedbackDebugCount,
+  isSoundEnabled,
+  playBet,
+  playBigWin,
+  playBlackjackWin,
+  playBonus,
+  playCardDeal,
+  playCardFlip,
+  playChip,
+  playClick,
+  playDeal,
+  playError,
+  playLose,
+  playPush,
+  playSpin,
+  playWin,
+  resetFeedbackDebugCounts,
+  setSoundEnabled,
+} from "../feedback/feedbackService";
 
 const memory: Record<string, string> = {};
 globalThis.localStorage = {
@@ -79,9 +98,38 @@ if (!isSoundEnabled() || localStorage.getItem("casino-feedback-sound-enabled") !
   throw new Error("Expected sound toggle setting to persist.");
 }
 setSoundEnabled(false);
-for (const feedback of [playClick, playBet, playDeal, playSpin, playWin, playBigWin, playLose, playBonus, playError]) {
+for (const feedback of [playClick, playBet, playDeal, playCardDeal, playCardFlip, playChip, playSpin, playWin, playBlackjackWin, playBigWin, playLose, playPush, playBonus, playError]) {
   feedback();
 }
+resetFeedbackDebugCounts();
+playCardDeal();
+if (getFeedbackDebugCount("playCardDeal") !== 1) {
+  throw new Error("Expected card deal feedback trigger to call playCardDeal.");
+}
+playCardFlip();
+if (getFeedbackDebugCount("playCardFlip") !== 1) {
+  throw new Error("Expected dealer flip feedback trigger to call playCardFlip.");
+}
+let audioContextCreations = 0;
+(globalThis as typeof globalThis & { AudioContext?: unknown }).AudioContext = class {
+  constructor() {
+    audioContextCreations += 1;
+  }
+} as unknown as typeof AudioContext;
+setSoundEnabled(false);
+playCardDeal();
+if (audioContextCreations !== 0) {
+  throw new Error("Expected disabled sound toggle to prevent AudioContext creation.");
+}
+(globalThis as typeof globalThis & { AudioContext?: unknown }).AudioContext = class {
+  constructor() {
+    throw new Error("Audio unavailable");
+  }
+} as unknown as typeof AudioContext;
+setSoundEnabled(true);
+playCardDeal();
+playCardFlip();
+setSoundEnabled(false);
 const bannerMarkup = renderToStaticMarkup(createElement(GameResultBanner, { tone: "win", title: "Win", amount: 125, message: "Paid" }));
 if (!bannerMarkup.includes("game-result-banner") || !bannerMarkup.includes("Win")) {
   throw new Error("Expected shared win result banner to render.");
@@ -504,7 +552,10 @@ if (
   !blackjackCleanUxMarkers.animationBlocksActions ||
   !blackjackCleanUxMarkers.compactSplitLayout ||
   !blackjackCleanUxMarkers.sharedResultBanner ||
-  !blackjackCleanUxMarkers.sharedSoundToggle
+  !blackjackCleanUxMarkers.sharedSoundToggle ||
+  !blackjackCleanUxMarkers.cardDealSound ||
+  !blackjackCleanUxMarkers.dealerFlipSound ||
+  !blackjackCleanUxMarkers.chipSound
 ) {
   throw new Error("Expected clean blackjack UI markers for centered layout, animated cards, numeric betting, inline offers, hidden dealer card, and no chip system.");
 }

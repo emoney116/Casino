@@ -30,7 +30,7 @@ export function DealerHandView({
               hidden={!revealed && index === 1}
               reveal={revealed && index === 1}
               index={index}
-              delayMs={index === 0 ? 120 : 360}
+              delayMs={index === 0 ? 120 : index === 1 ? 360 : 540 + (index - 2) * 160}
             />
           ))
         )}
