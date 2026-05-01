@@ -7992,6 +7992,13 @@ body {
   gap: 7px;
 }
 
+.over-under-main-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 58px;
+  align-items: center;
+  gap: 8px;
+}
+
 .over-under-number {
   width: clamp(92px, 30vw, 136px);
   aspect-ratio: 1;
@@ -8033,6 +8040,53 @@ body {
   color: #d1fae5;
   font-size: clamp(0.76rem, 3.2vw, 0.9rem);
   font-weight: 800;
+}
+
+.over-under-last-results {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  justify-items: center;
+  padding: 8px 5px;
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  border-radius: 14px;
+  background: rgba(2, 6, 23, 0.34);
+}
+
+.over-under-last-results > span {
+  color: #bae6fd;
+  font-size: 0.62rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.over-under-last-results div {
+  display: grid;
+  gap: 4px;
+}
+
+.over-under-last-results strong,
+.over-under-last-results em {
+  width: 32px;
+  min-height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #e5e7eb;
+  font-size: 0.74rem;
+  font-style: normal;
+  font-weight: 950;
+}
+
+.over-under-last-results strong.win {
+  color: #052e16;
+  background: #86efac;
+}
+
+.over-under-last-results strong.loss {
+  color: #450a0a;
+  background: #fca5a5;
 }
 
 .over-under-picks {
@@ -8084,7 +8138,7 @@ body {
 }
 
 .over-under-stats div,
-.over-under-bet-row div {
+.over-under-bet-row label {
   min-width: 0;
   display: grid;
   place-items: center;
@@ -8105,10 +8159,32 @@ body {
 }
 
 .over-under-stats strong,
-.over-under-bet-row strong {
+.over-under-bet-row input {
   color: #fff;
   font-size: clamp(0.78rem, 3.4vw, 1rem);
   overflow-wrap: anywhere;
+}
+
+.over-under-bet-row input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font-weight: 950;
+  text-align: center;
+  appearance: textfield;
+}
+
+.over-under-bet-row input::-webkit-outer-spin-button,
+.over-under-bet-row input::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.over-under-bet-row input:focus {
+  outline: 2px solid rgba(56, 189, 248, 0.55);
+  outline-offset: 2px;
+  border-radius: 8px;
 }
 
 .over-under-banner {
@@ -8200,6 +8276,7 @@ body {
 .over-under-currency-tabs button:disabled,
 .over-under-picks button:disabled,
 .over-under-bet-row button:disabled,
+.over-under-bet-row input:disabled,
 .over-under-quick-bets button:disabled {
   opacity: 0.52;
   cursor: not-allowed;
@@ -8247,6 +8324,22 @@ body {
 
   .over-under-controls {
     gap: 6px;
+  }
+
+  .over-under-main-row {
+    grid-template-columns: minmax(0, 1fr) 48px;
+    gap: 6px;
+  }
+
+  .over-under-last-results {
+    padding-inline: 4px;
+  }
+
+  .over-under-last-results strong,
+  .over-under-last-results em {
+    width: 28px;
+    min-height: 22px;
+    font-size: 0.68rem;
   }
 }
 

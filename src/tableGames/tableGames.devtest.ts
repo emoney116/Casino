@@ -506,9 +506,11 @@ if (
   !overUnderUiMarkers.targetSlider ||
   !overUnderUiMarkers.possibleReturn ||
   !overUnderUiMarkers.resultAnimation ||
-  !overUnderUiMarkers.mobileOneScreenLayout
+  !overUnderUiMarkers.mobileOneScreenLayout ||
+  !overUnderUiMarkers.manualBetInput ||
+  !overUnderUiMarkers.lastFiveResults
 ) {
-  throw new Error("Expected Over/Under UI markers for header, currency toggle, compact betting, payout, animation, and mobile layout.");
+  throw new Error("Expected Over/Under UI markers for header, currency toggle, compact betting, manual input, last five, payout, animation, and mobile layout.");
 }
 
 console.log("tableGames.devtest passed");

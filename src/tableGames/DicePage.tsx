@@ -20,6 +20,8 @@ export const overUnderUiMarkers = {
   possibleReturn: true,
   resultAnimation: true,
   mobileOneScreenLayout: true,
+  manualBetInput: true,
+  lastFiveResults: true,
 };
 
 export function DicePage({ onExit }: { onExit?: () => void }) {
@@ -27,10 +29,12 @@ export function DicePage({ onExit }: { onExit?: () => void }) {
   const notify = useToast();
   const [currency, setCurrency] = useState<Currency>("GOLD");
   const [betAmount, setBetAmount] = useState(diceConfig.minBet);
+  const [betInput, setBetInput] = useState(String(diceConfig.minBet));
   const [direction, setDirection] = useState<DiceDirection>("over");
   const [target, setTarget] = useState(50);
   const [result, setResult] = useState<DiceResult | null>(null);
   const [displayRoll, setDisplayRoll] = useState<number | null>(null);
+  const [recentRolls, setRecentRolls] = useState<DiceResult[]>([]);
   const [rolling, setRolling] = useState(false);
   const intervalRef = useRef<number | null>(null);
   const timeoutRef = useRef<number | null>(null);
@@ -56,7 +60,17 @@ export function DicePage({ onExit }: { onExit?: () => void }) {
   }
 
   function setBet(value: number) {
-    setBetAmount(clampBet(value));
+    const next = clampBet(value);
+    setBetAmount(next);
+    setBetInput(String(next));
+  }
+
+  function updateBetInput(value: string) {
+    setBetInput(value);
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      setBetAmount(Math.max(0, Math.min(diceConfig.maxBet, Math.round(parsed))));
+    }
   }
 
   function roll() {
@@ -74,6 +88,7 @@ export function DicePage({ onExit }: { onExit?: () => void }) {
         intervalRef.current = null;
         setDisplayRoll(next.roll);
         setResult(next);
+        setRecentRolls((current) => [next, ...current].slice(0, 5));
         setRolling(false);
         notify(next.won ? `Over/Under paid ${formatCoins(next.totalPaid)}.` : "Over/Under settled.", next.won ? "success" : "info");
       }, 520);
@@ -102,15 +117,18 @@ export function DicePage({ onExit }: { onExit?: () => void }) {
       </div>
 
       <main className="over-under-table">
-        <section className="over-under-result-zone" aria-live="polite">
-          <div className={rolling ? "over-under-number rolling" : result ? `over-under-number ${result.won ? "win" : "loss"}` : "over-under-number"}>
-            {displayRoll ?? "--"}
-          </div>
-          <div className="over-under-prompt">
-            <strong>{result ? `Rolled ${result.roll}` : "Choose Over or Under"}</strong>
-            <span>{result && comparison ? `It landed ${comparison} ${target}.` : `Target number ${target}`}</span>
-          </div>
-        </section>
+        <div className="over-under-main-row">
+          <section className="over-under-result-zone" aria-live="polite">
+            <div className={rolling ? "over-under-number rolling" : result ? `over-under-number ${result.won ? "win" : "loss"}` : "over-under-number"}>
+              {displayRoll ?? "--"}
+            </div>
+            <div className="over-under-prompt">
+              <strong>{result ? `Rolled ${result.roll}` : "Choose Over or Under"}</strong>
+              <span>{result && comparison ? `It landed ${comparison} ${target}.` : `Target number ${target}`}</span>
+            </div>
+          </section>
+          <LastOverUnderResults values={recentRolls} />
+        </div>
 
         <div className="over-under-picks" role="group" aria-label="Pick over or under">
           <button type="button" className={direction === "over" ? "active" : ""} disabled={rolling} onClick={() => setDirection("over")}>Over</button>
@@ -146,7 +164,20 @@ export function DicePage({ onExit }: { onExit?: () => void }) {
       <section className="over-under-controls">
         <div className="over-under-bet-row">
           <button type="button" disabled={rolling} onClick={() => setBet(betAmount - diceConfig.minBet)}>-</button>
-          <div><span>Bet</span><strong>{formatCoins(betAmount)}</strong></div>
+          <label>
+            <span>Bet</span>
+            <input
+              aria-label="Bet amount"
+              inputMode="numeric"
+              type="number"
+              min={diceConfig.minBet}
+              max={diceConfig.maxBet}
+              value={betInput}
+              disabled={rolling}
+              onChange={(event) => updateBetInput(event.target.value)}
+              onBlur={(event) => setBet(Number(event.target.value))}
+            />
+          </label>
           <button type="button" disabled={rolling} onClick={() => setBet(betAmount + diceConfig.minBet)}>+</button>
         </div>
         <div className="over-under-quick-bets">
@@ -165,5 +196,20 @@ export function DicePage({ onExit }: { onExit?: () => void }) {
         </button>
       </section>
     </section>
+  );
+}
+
+function LastOverUnderResults({ values }: { values: DiceResult[] }) {
+  return (
+    <aside className="over-under-last-results" aria-label="Last five Over/Under results">
+      <span>Last 5</span>
+      <div>
+        {values.length === 0 ? <em>--</em> : values.map((value, index) => (
+          <strong key={`${value.roll}-${index}`} className={value.won ? "win" : "loss"}>
+            {value.roll}
+          </strong>
+        ))}
+      </div>
+    </aside>
   );
 }
