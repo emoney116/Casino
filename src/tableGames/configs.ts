@@ -119,17 +119,17 @@ export const treasureDigConfig: TreasureDigConfig = {
   minBetRealCentsPlaceholder: 1,
   maxBetRealCentsPlaceholder: 10000,
   maxPayout: 9000000000000000,
-  houseEdgeTarget: 0.08,
+  houseEdgeTarget: 0.15,
   currency: "GOLD",
   demoOnlyCopy,
   rules: ["Pick safe treasure tiles on a 5x5 grid", "Cash out before uncovering a trap", "Multiplier gems can boost the total cash out"],
   gridSize: 5,
   minTraps: 1,
   maxTraps: 24,
-  edge: 0.08,
+  edge: 0.15,
   minMultiplierTiles: 0,
   maxMultiplierTiles: 2,
-  multiplierValues: [2, 2, 2, 3, 3, 5, 5, 10, 25, 50],
+  multiplierValues: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 5, 5, 10, 25, 50],
 };
 
 export const tableGameConfigs: TableGameConfig[] = [blackjackConfig, rouletteConfig, diceConfig, crashConfig, treasureDigConfig];

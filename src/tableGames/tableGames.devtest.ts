@@ -687,19 +687,19 @@ if (
 
 const treasureMultiplierOne = getTreasureDigMultiplier({ safePicks: 1, trapCount: 3 });
 const treasureMultiplierTwo = getTreasureDigMultiplier({ safePicks: 2, trapCount: 3 });
-if (treasureMultiplierOne !== 1.04 || treasureMultiplierTwo <= treasureMultiplierOne) {
+if (treasureMultiplierOne !== 1 || treasureMultiplierTwo <= treasureMultiplierOne) {
   throw new Error("Expected Treasure Dig multiplier curve to rise using probability and house edge.");
 }
 const treasureSurvivalTwo = (22 / 25) * (21 / 24);
-if (treasureSurvivalTwo * treasureMultiplierTwo > 0.92) {
-  throw new Error("Expected Treasure Dig multiplier math to keep RTP at or below 92% before rounding.");
+if (treasureSurvivalTwo * treasureMultiplierTwo > 0.85) {
+  throw new Error("Expected Treasure Dig base multiplier math to leave room for rare boost tile RTP.");
 }
 const deterministicTraps = createTreasureTrapIndexes({ trapCount: 3, random: () => 0, config: treasureDigConfig });
 if (deterministicTraps.length !== 3 || new Set(deterministicTraps).size !== 3) {
   throw new Error("Expected Treasure Dig trap generation to create unique trap tiles.");
 }
 const deterministicBoosts = createTreasureMultiplierTiles({ trapIndexes: [0, 1, 2], random: () => 0.99, config: treasureDigConfig });
-if (deterministicBoosts.length !== 2 || deterministicBoosts.some((tile) => [0, 1, 2].includes(tile.index))) {
+if (deterministicBoosts.length !== 1 || deterministicBoosts.some((tile) => [0, 1, 2].includes(tile.index))) {
   throw new Error("Expected Treasure Dig multiplier tiles to be safe, variable boost tiles.");
 }
 if (treasureDigConfig.minBet !== 1 || treasureDigConfig.maxTraps !== 24) {

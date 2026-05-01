@@ -36,8 +36,7 @@ export function getTreasureDigMultiplier({
     survivalProbability *= (safeTiles - pick) / (totalTiles - pick);
   }
 
-  const expectedBoost = getExpectedTreasureBoost({ safePicks: picks, safeTileCount: safeTiles, multiplierTiles });
-  const baseMultiplier = Math.min((1 / survivalProbability) * (1 - config.edge) / expectedBoost, getTreasureBaseMaxMultiplier(config));
+  const baseMultiplier = Math.min((1 / survivalProbability) * (1 - config.edge), getTreasureBaseMaxMultiplier(config));
   const multiplier = baseMultiplier * Math.max(1, boostMultiplier);
   return Math.max(1, Math.floor(multiplier * 100) / 100);
 }
@@ -131,7 +130,9 @@ export function createTreasureMultiplierTiles({
 
   const maxCount = Math.min(config.maxMultiplierTiles, safeIndexes.length);
   const minCount = Math.min(config.minMultiplierTiles, maxCount);
-  const count = minCount + Math.floor(random() * (maxCount - minCount + 1));
+  const countRoll = random();
+  const preferredCount = countRoll < 0.9875 ? 0 : countRoll < 0.9995 ? 1 : 2;
+  const count = Math.max(minCount, Math.min(maxCount, preferredCount));
   const shuffled = [...safeIndexes];
   for (let index = shuffled.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(random() * (index + 1));
