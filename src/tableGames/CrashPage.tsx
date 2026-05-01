@@ -21,6 +21,7 @@ export const crashUiMarkers = {
   multiplierPopThresholds: true,
   crashShakeFlash: true,
   cashOutAnytime: true,
+  lastFiveResults: true,
   sharedResultBanner: true,
   sharedSoundToggle: true,
   compactBottomBetControls: true,
@@ -35,6 +36,7 @@ export function CrashPage({ onExit }: { onExit?: () => void }) {
   const [round, setRound] = useState<CrashRound | null>(null);
   const [multiplier, setMultiplier] = useState(1);
   const [graphPoints, setGraphPoints] = useState<Array<{ x: number; y: number }>>([{ x: 0, y: 92 }]);
+  const [recentRounds, setRecentRounds] = useState<Array<{ multiplier: number; won: boolean; paid: number }>>([]);
   const [popKey, setPopKey] = useState(0);
   const [flashing, setFlashing] = useState(false);
   const frameRef = useRef<number | null>(null);
@@ -132,6 +134,10 @@ export function CrashPage({ onExit }: { onExit?: () => void }) {
       setRound(crashed);
       setMultiplier(liveRound.crashPoint);
       setFlashing(true);
+      setRecentRounds((current) => [
+        { multiplier: liveRound.crashPoint, won: false, paid: 0 },
+        ...current,
+      ].slice(0, 5));
       playCrashSound();
       window.setTimeout(() => setFlashing(false), 520);
       return;
@@ -151,10 +157,17 @@ export function CrashPage({ onExit }: { onExit?: () => void }) {
     if (frameRef.current) window.cancelAnimationFrame(frameRef.current);
     if (next.status === "CASHED_OUT") {
       playCrashCashOut();
-      notify(`Cashed out at ${next.cashOutMultiplier?.toFixed(2)}x for ${formatCoins(next.totalPaid ?? 0)}.`, "success");
+      setRecentRounds((current) => [
+        { multiplier: next.cashOutMultiplier ?? liveMultiplier, won: true, paid: next.totalPaid ?? 0 },
+        ...current,
+      ].slice(0, 5));
     } else {
       setFlashing(true);
       playCrashSound();
+      setRecentRounds((current) => [
+        { multiplier: next.cashOutMultiplier ?? liveMultiplier, won: false, paid: 0 },
+        ...current,
+      ].slice(0, 5));
       window.setTimeout(() => setFlashing(false), 520);
     }
   }
@@ -185,6 +198,7 @@ export function CrashPage({ onExit }: { onExit?: () => void }) {
 
       <ScreenShake active={status === "CRASHED"}>
         <main className={`crash-stage ${status.toLowerCase()} ${multiplierTone}`}>
+          <LastCrashResults values={recentRounds} />
           <section className="crash-multiplier-zone" aria-live="polite">
             <strong key={popKey} className="crash-multiplier">{multiplier.toFixed(2)}x</strong>
             <span>{running ? `Cash out for ${formatCoins(projectedWin)}` : status === "CASHED_OUT" ? `Locked at ${round?.cashOutMultiplier?.toFixed(2)}x` : status === "CRASHED" ? `Crashed at ${round?.crashPoint.toFixed(2)}x` : "Ready for takeoff"}</span>
@@ -203,7 +217,7 @@ export function CrashPage({ onExit }: { onExit?: () => void }) {
               <path className="crash-graph-shadow" d={`${path} L 100 100 L 0 100 Z`} />
               <path className="crash-graph-line" d={status === "CRASHED" ? `${path} L 98 96` : path} />
             </svg>
-            <div className="crash-rocket" style={{ left: `${Math.min(90, graphPoints.at(-1)?.x ?? 0)}%`, top: `${Math.min(88, graphPoints.at(-1)?.y ?? 92)}%` }}>
+            <div className="crash-rocket" style={{ left: `${Math.min(88, Math.max(8, graphPoints.at(-1)?.x ?? 8))}%`, top: `${Math.min(88, Math.max(12, graphPoints.at(-1)?.y ?? 88))}%` }}>
               <Rocket size={22} />
             </div>
           </div>
@@ -255,5 +269,20 @@ export function CrashPage({ onExit }: { onExit?: () => void }) {
         </button>
       </section>
     </section>
+  );
+}
+
+function LastCrashResults({ values }: { values: Array<{ multiplier: number; won: boolean; paid: number }> }) {
+  return (
+    <aside className="crash-last-results" aria-label="Last five Crash results">
+      <span>Last 5</span>
+      <div>
+        {values.length === 0 ? <em>--</em> : values.map((value, index) => (
+          <strong key={`${value.multiplier}-${value.paid}-${index}`} className={value.won ? "win" : "loss"}>
+            {value.multiplier.toFixed(2)}x
+          </strong>
+        ))}
+      </div>
+    </aside>
   );
 }

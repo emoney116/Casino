@@ -675,6 +675,7 @@ if (
   !crashUiMarkers.multiplierPopThresholds ||
   !crashUiMarkers.crashShakeFlash ||
   !crashUiMarkers.cashOutAnytime ||
+  !crashUiMarkers.lastFiveResults ||
   !crashUiMarkers.sharedResultBanner ||
   !crashUiMarkers.sharedSoundToggle ||
   !crashUiMarkers.compactBottomBetControls
