@@ -8203,6 +8203,31 @@ body {
   to { transform: rotate(-1100deg); }
 }
 
+@keyframes roulette-real-wheel-spin {
+  0% { transform: rotate(calc(var(--wheel-end, 0deg) - 1500deg)); }
+  72% { transform: rotate(calc(var(--wheel-end, 0deg) - 78deg)); }
+  86% { transform: rotate(calc(var(--wheel-end, 0deg) + 14deg)); }
+  94% { transform: rotate(calc(var(--wheel-end, 0deg) - 5deg)); }
+  100% { transform: rotate(var(--wheel-end, 0deg)); }
+}
+
+@keyframes roulette-real-ball-spin {
+  0% { transform: rotate(1280deg); }
+  62% { transform: rotate(250deg); }
+  78% { transform: rotate(76deg); }
+  88% { transform: rotate(-20deg); }
+  94% { transform: rotate(8deg); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes roulette-ball-bounce {
+  0%, 58% { top: 2.5%; }
+  66% { top: 5.5%; }
+  72% { top: 2.8%; }
+  80% { top: 4.3%; }
+  88%, 100% { top: 2.5%; }
+}
+
 @keyframes roulette-chip-win {
   from { transform: scale(1); }
   to { transform: scale(1.16); }
@@ -8292,6 +8317,7 @@ body {
 }
 
 .roulette-clean-page {
+  height: 100svh;
   min-height: 100svh;
   width: 100%;
   max-width: none;
@@ -8304,6 +8330,7 @@ body {
     linear-gradient(180deg, #050b12, #071611 58%, #050711);
   border: 1px solid rgba(245,158,11,0.42);
   border-radius: 0;
+  overflow: hidden;
 }
 
 .roulette-rotate-prompt {
@@ -8343,10 +8370,11 @@ body {
 }
 
 .roulette-layout {
+  height: 100%;
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(154px, 16vw, 188px);
-  grid-template-rows: minmax(318px, 1fr) minmax(0, 132px);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 132px);
   grid-template-areas:
     "board streets"
     "controls controls";
@@ -8412,7 +8440,7 @@ body {
   width: 100%;
   min-width: 0;
   height: 100%;
-  min-height: 302px;
+  min-height: 0;
   grid-template-columns: 58px repeat(12, 1fr) 58px;
   grid-template-rows: repeat(3, minmax(38px, 1fr)) 24px 36px 36px;
   gap: 3px;
@@ -8902,6 +8930,100 @@ body {
   overflow: hidden;
 }
 
+.roulette-wheel-visual.realistic {
+  isolation: isolate;
+  overflow: visible;
+  border: 0;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(250,204,21,0.2), transparent 52%),
+    radial-gradient(circle, rgba(69,26,3,0.68), rgba(2,6,23,0.92) 66%);
+  box-shadow: 0 18px 42px rgba(0,0,0,0.46), 0 0 24px rgba(245,158,11,0.2);
+}
+
+.roulette-wheel-visual.realistic::before,
+.roulette-wheel-visual.realistic::after {
+  content: none;
+}
+
+.roulette-wheel-svg {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,0.5));
+}
+
+.roulette-wheel-disc {
+  transform-box: view-box;
+  transform-origin: center;
+  transform: rotate(var(--wheel-end, 0deg));
+}
+
+.roulette-wheel-visual.is-spinning .roulette-wheel-disc {
+  animation: roulette-real-wheel-spin 2.9s cubic-bezier(0.1, 0.72, 0.16, 1) both;
+}
+
+.roulette-pocket-slice {
+  stroke: rgba(250,204,21,0.5);
+  stroke-width: 0.65;
+}
+
+.roulette-pocket-slice.red {
+  fill: url("#rouletteRedPocket");
+  fill: #b91c1c;
+}
+
+.roulette-pocket-slice.black {
+  fill: #07111f;
+}
+
+.roulette-pocket-slice.green {
+  fill: #047857;
+}
+
+.roulette-pocket-label {
+  fill: #fff;
+  font-size: 6.2px;
+  font-weight: 900;
+  text-anchor: middle;
+  dominant-baseline: central;
+  paint-order: stroke;
+  stroke: rgba(0,0,0,0.75);
+  stroke-width: 1.5px;
+}
+
+.roulette-ball-track {
+  position: absolute;
+  inset: 3.5%;
+  z-index: 5;
+  border-radius: 50%;
+  pointer-events: none;
+  transform: rotate(0deg);
+  transform-origin: center;
+}
+
+.roulette-wheel-visual.is-spinning .roulette-ball-track {
+  animation: roulette-real-ball-spin 2.9s cubic-bezier(0.12, 0.68, 0.16, 1) both;
+}
+
+.roulette-wheel-visual.realistic .roulette-ball {
+  position: absolute;
+  left: 50%;
+  top: 2.5%;
+  width: clamp(8px, 6.5%, 16px);
+  height: clamp(8px, 6.5%, 16px);
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, #fff, #f8fafc 46%, #cbd5e1 72%, #64748b);
+  box-shadow: 0 0 12px rgba(255,255,255,0.96), 0 5px 12px rgba(0,0,0,0.44);
+}
+
+.roulette-wheel-visual.is-spinning .roulette-ball {
+  animation: roulette-ball-bounce 2.9s cubic-bezier(0.16, 0.68, 0.14, 1) both;
+}
+
 .roulette-wheel-visual::before,
 .roulette-wheel-visual::after {
   content: "";
@@ -8994,6 +9116,13 @@ body {
   color: #fff;
   font-size: clamp(0.6rem, 1.2vw, 0.9rem);
   box-shadow: 0 0 16px rgba(0,0,0,0.55);
+}
+
+.roulette-wheel-visual.realistic > strong {
+  position: absolute;
+  z-index: 6;
+  width: 31%;
+  border-width: 2px;
 }
 
 .roulette-focus-wheel .roulette-wheel-stage {
@@ -9133,7 +9262,7 @@ body {
 
   .roulette-layout {
     grid-template-columns: minmax(0, 1fr) clamp(132px, 17vw, 160px);
-    grid-template-rows: minmax(230px, 1fr) 78px;
+    grid-template-rows: minmax(0, 1fr) 76px;
     gap: 6px;
   }
 
@@ -9148,9 +9277,9 @@ body {
   }
 
   .roulette-board {
-    min-height: 230px;
+    min-height: 0;
     grid-template-columns: 50px repeat(12, minmax(0, 1fr)) 50px;
-    grid-template-rows: repeat(3, minmax(32px, 1fr)) 28px 28px;
+    grid-template-rows: repeat(3, minmax(28px, 1fr)) 28px 28px;
     gap: 2px;
   }
 
@@ -9166,6 +9295,7 @@ body {
 
   .roulette-street-panel {
     padding: 7px;
+    overflow: hidden;
   }
 
   .roulette-street-selector {
@@ -9266,7 +9396,6 @@ body {
 
   .roulette-wheel-spin-button .roulette-wheel-visual {
     width: 54px;
-    border-width: 6px;
   }
 
   .roulette-wheel-spin-button > span {

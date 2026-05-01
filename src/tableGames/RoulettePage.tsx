@@ -353,23 +353,83 @@ function ChipStack({ bets, winningIds, className = "", style }: { bets: PlacedRo
 
 function RouletteWheel({ outcome, spinning }: { outcome: RouletteResult["outcome"] | null; spinning: boolean }) {
   const outcomeIndex = outcome ? americanWheel.findIndex((value) => value === outcome) : 0;
+  const pocketAngle = 360 / americanWheel.length;
+  const wheelEndAngle = -outcomeIndex * pocketAngle;
   return (
-    <div className="roulette-wheel-visual" style={{ "--wheel-stop-index": outcomeIndex } as CSSProperties}>
-      <div className="roulette-pocket-ring" aria-hidden="true">
-        {americanWheel.map((value, index) => (
-          <span
-            key={value}
-            className={`roulette-pocket ${getRouletteColor(value)}`}
-            style={{ "--pocket-index": index } as CSSProperties}
-          >
-            {value}
-          </span>
-        ))}
+    <div
+      className={spinning ? "roulette-wheel-visual realistic is-spinning" : "roulette-wheel-visual realistic"}
+      style={{ "--wheel-end": `${wheelEndAngle}deg` } as CSSProperties}
+    >
+      <svg className="roulette-wheel-svg" viewBox="0 0 200 200" aria-hidden="true">
+        <defs>
+          <radialGradient id="rouletteWood" cx="50%" cy="50%" r="56%">
+            <stop offset="0%" stopColor="#f59e0b" />
+            <stop offset="44%" stopColor="#7c2d12" />
+            <stop offset="100%" stopColor="#2b1206" />
+          </radialGradient>
+          <radialGradient id="rouletteHub" cx="38%" cy="34%" r="66%">
+            <stop offset="0%" stopColor="#cbd5e1" />
+            <stop offset="26%" stopColor="#64748b" />
+            <stop offset="100%" stopColor="#111827" />
+          </radialGradient>
+        </defs>
+        <circle cx="100" cy="100" r="98" fill="url(#rouletteWood)" />
+        <circle cx="100" cy="100" r="88" fill="#130b05" stroke="#b45309" strokeWidth="5" />
+        <g className="roulette-wheel-disc">
+          {americanWheel.map((value, index) => {
+            const color = getRouletteColor(value);
+            const midAngle = -90 + index * pocketAngle;
+            return (
+              <g key={value}>
+                <path
+                  className={`roulette-pocket-slice ${color}`}
+                  d={describeWheelSlice(100, 100, 52, 86, -90 + (index - 0.5) * pocketAngle, -90 + (index + 0.5) * pocketAngle)}
+                />
+                <text
+                  className="roulette-pocket-label"
+                  x={100 + 70 * Math.cos((midAngle * Math.PI) / 180)}
+                  y={100 + 70 * Math.sin((midAngle * Math.PI) / 180)}
+                  transform={`rotate(${midAngle + 90} ${100 + 70 * Math.cos((midAngle * Math.PI) / 180)} ${100 + 70 * Math.sin((midAngle * Math.PI) / 180)})`}
+                >
+                  {value}
+                </text>
+              </g>
+            );
+          })}
+        </g>
+        <circle cx="100" cy="100" r="52" fill="#2b1708" stroke="#d97706" strokeWidth="3" />
+        <circle cx="100" cy="100" r="40" fill="url(#rouletteHub)" stroke="#111827" strokeWidth="2" />
+        <circle cx="88" cy="82" r="10" fill="rgba(255,255,255,0.18)" />
+      </svg>
+      <div className="roulette-ball-track">
+        <span className="roulette-ball" />
       </div>
-      <div className="roulette-ball" />
       <strong>{spinning ? "..." : outcome ?? "Spin"}</strong>
     </div>
   );
+}
+
+function describeWheelSlice(cx: number, cy: number, innerRadius: number, outerRadius: number, startAngle: number, endAngle: number) {
+  const outerStart = polarPoint(cx, cy, outerRadius, startAngle);
+  const outerEnd = polarPoint(cx, cy, outerRadius, endAngle);
+  const innerEnd = polarPoint(cx, cy, innerRadius, endAngle);
+  const innerStart = polarPoint(cx, cy, innerRadius, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? 0 : 1;
+  return [
+    `M ${outerStart.x} ${outerStart.y}`,
+    `A ${outerRadius} ${outerRadius} 0 ${largeArcFlag} 1 ${outerEnd.x} ${outerEnd.y}`,
+    `L ${innerEnd.x} ${innerEnd.y}`,
+    `A ${innerRadius} ${innerRadius} 0 ${largeArcFlag} 0 ${innerStart.x} ${innerStart.y}`,
+    "Z",
+  ].join(" ");
+}
+
+function polarPoint(cx: number, cy: number, radius: number, angleDegrees: number) {
+  const angle = (angleDegrees * Math.PI) / 180;
+  return {
+    x: cx + radius * Math.cos(angle),
+    y: cy + radius * Math.sin(angle),
+  };
 }
 
 function LastResults({ values }: { values: Array<"0" | "00" | number> }) {
