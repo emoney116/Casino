@@ -90,7 +90,7 @@ export function DicePage({ onExit }: { onExit?: () => void }) {
         setResult(next);
         setRecentRolls((current) => [next, ...current].slice(0, 5));
         setRolling(false);
-        notify(next.won ? `Over/Under paid ${formatCoins(next.totalPaid)}.` : "Over/Under settled.", next.won ? "success" : "info");
+        if (next.won) notify(`Over/Under paid ${formatCoins(next.totalPaid)}.`, "success");
       }, 520);
     } catch (caught) {
       notify(caught instanceof Error ? caught.message : "Over/Under roll failed.", "error");
