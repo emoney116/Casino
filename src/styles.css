@@ -8272,6 +8272,20 @@ body {
 }
 
 /* Premium landscape Roulette override. */
+.game-mode .main-panel:has(.roulette-clean-page) {
+  width: 100%;
+  max-width: none;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+.page-stack:has(.roulette-clean-page) {
+  width: 100%;
+  min-width: 0;
+  gap: 0;
+}
+
 .roulette-clean-page {
   min-height: 100svh;
   width: 100%;
@@ -8326,38 +8340,42 @@ body {
 .roulette-layout {
   min-height: 0;
   display: grid;
-  grid-template-columns: 66px minmax(620px, 1fr) 188px;
+  grid-template-columns: minmax(0, 1fr) clamp(154px, 16vw, 188px);
   grid-template-rows: minmax(318px, 1fr) minmax(0, 132px);
   grid-template-areas:
-    "actions board streets"
-    "actions controls controls";
+    "board streets"
+    "controls controls";
   gap: 8px;
   align-items: stretch;
 }
 
 .roulette-side-actions {
   grid-area: actions;
-  display: grid;
-  align-content: center;
-  gap: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
 }
 
 .roulette-side-actions button {
-  min-height: 56px;
+  width: 46px;
+  min-width: 0;
+  min-height: 44px;
   display: grid;
   place-items: center;
   border: 1px solid rgba(245,158,11,0.34);
-  border-radius: 14px;
+  border-radius: 12px;
   background: rgba(2,6,23,0.76);
   color: #fff;
-  font-size: 0.82rem;
+  font-size: 1rem;
   font-weight: 950;
   line-height: 1;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 8px 18px rgba(0,0,0,0.28);
 }
 
 .roulette-side-actions button span {
-  font-size: 0.55rem;
+  font-size: 0.5rem;
   font-weight: 900;
 }
 
@@ -8540,8 +8558,8 @@ body {
   position: relative;
   top: auto;
   min-height: 0;
-  grid-template-columns: minmax(110px, 0.62fr) minmax(220px, 0.78fr) minmax(150px, 1fr) minmax(210px, 0.86fr);
-  grid-template-areas: "stats chip bets wheel";
+  grid-template-columns: minmax(190px, 0.9fr) minmax(96px, 0.48fr) minmax(162px, 0.72fr) minmax(128px, 1fr) minmax(184px, 0.86fr);
+  grid-template-areas: "actions stats chip bets wheel";
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
@@ -8742,6 +8760,16 @@ body {
 
 .roulette-wheel-spin-button .roulette-wheel-visual {
   width: 78px;
+}
+
+.roulette-wheel-spin-button .roulette-pocket {
+  display: none;
+}
+
+.roulette-wheel-spin-button .roulette-wheel-visual > strong {
+  width: 42%;
+  font-size: 0.58rem;
+  white-space: nowrap;
 }
 
 .roulette-wheel-spin-button.spinning .roulette-wheel-visual {
@@ -8979,47 +9007,184 @@ body {
 
 @media (orientation: landscape) and (max-height: 520px) {
   .roulette-clean-header {
-    min-height: 46px;
-    grid-template-columns: 42px minmax(0, 1fr) 150px 132px;
+    min-height: 42px;
+    grid-template-columns: 38px minmax(0, 1fr) 122px 118px;
+    padding: 3px 8px;
+  }
+
+  .roulette-title small {
+    display: none;
+  }
+
+  .roulette-header-balance {
+    min-width: 0;
+    padding: 3px 10px;
+  }
+
+  .roulette-header-balance strong {
+    font-size: 0.96rem;
+  }
+
+  .roulette-currency-tabs {
+    padding: 2px;
+  }
+
+  .roulette-currency-tabs button {
+    min-height: 32px;
+    padding-inline: 9px;
+    font-size: 0.72rem;
   }
 
   .roulette-title h1 {
-    font-size: 1.2rem;
+    font-size: 1.08rem;
   }
 
   .roulette-layout {
-    grid-template-columns: 58px minmax(570px, 1fr) 170px;
-    grid-template-rows: minmax(238px, 1fr) 82px;
+    grid-template-columns: minmax(0, 1fr) clamp(132px, 17vw, 160px);
+    grid-template-rows: minmax(230px, 1fr) 78px;
+    gap: 6px;
+  }
+
+  .roulette-board-wrap,
+  .roulette-street-panel,
+  .roulette-bets-panel {
+    border-radius: 13px;
+  }
+
+  .roulette-board-wrap {
+    padding: 8px;
   }
 
   .roulette-board {
-    min-height: 238px;
-    grid-template-rows: repeat(3, minmax(34px, 1fr)) 20px 29px 29px;
+    min-height: 230px;
+    grid-template-columns: 50px repeat(12, minmax(0, 1fr)) 50px;
+    grid-template-rows: repeat(3, minmax(32px, 1fr)) 28px 28px;
+    gap: 2px;
   }
 
-  .street-bets-row {
-    min-height: 20px;
-    grid-template-rows: 9px 8px;
+  .roulette-board button {
+    border-radius: 8px;
+    font-size: clamp(0.72rem, 1.9vw, 1rem);
   }
 
-  .street-bet-button {
-    height: 8px;
+  .roulette-board .zero-split {
+    height: 17px;
+    font-size: 0.48rem;
   }
 
-  .six-line-bet-button {
-    height: 7px;
+  .roulette-street-panel {
+    padding: 7px;
+  }
+
+  .roulette-street-selector {
+    gap: 5px;
+  }
+
+  .roulette-street-selector strong {
+    font-size: 0.7rem;
+  }
+
+  .roulette-street-selector span {
+    font-size: 0.58rem;
+  }
+
+  .roulette-street-grid {
+    gap: 4px;
+  }
+
+  .roulette-street-grid button {
+    border-radius: 8px;
+    font-size: 0.58rem;
+  }
+
+  .roulette-bets-panel {
+    grid-template-columns: minmax(154px, 0.8fr) minmax(76px, 0.44fr) minmax(138px, 0.7fr) minmax(104px, 1fr) minmax(142px, 0.72fr);
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .roulette-side-actions {
+    gap: 4px;
   }
 
   .roulette-side-actions button {
-    min-height: 44px;
+    width: 36px;
+    min-height: 36px;
+    border-radius: 10px;
+    font-size: 0.86rem;
   }
 
-  .roulette-spin {
+  .roulette-side-actions button span {
+    font-size: 0.42rem;
+  }
+
+  .roulette-stats {
+    font-size: 0.64rem;
+  }
+
+  .roulette-chip-picker {
+    grid-template-columns: 28px 46px 28px;
+    gap: 5px;
+  }
+
+  .roulette-chip-step {
+    width: 28px;
+    height: 28px;
+    font-size: 1rem;
+  }
+
+  .roulette-selected-chip-wrap {
+    width: 48px;
+    height: 48px;
+  }
+
+  .roulette-chip.active {
+    width: 46px;
+    height: 46px;
+    font-size: 0.82rem;
+  }
+
+  .roulette-active-bets {
+    max-height: 58px;
     min-height: 34px;
+    font-size: 0.66rem;
   }
 
-  .roulette-spin {
-    width: 66px;
-    height: 66px;
+  .roulette-bottom-wheel {
+    gap: 6px;
+  }
+
+  .roulette-wheel-spin-button {
+    width: 62px;
+    min-width: 62px;
+  }
+
+  .roulette-wheel-spin-button .roulette-wheel-visual {
+    width: 54px;
+    border-width: 6px;
+  }
+
+  .roulette-wheel-spin-button > span {
+    font-size: 0.5rem;
+  }
+
+  .roulette-wheel-spin-button .roulette-pocket {
+    display: none;
+  }
+
+  .roulette-wheel-spin-button .roulette-wheel-visual > strong {
+    font-size: 0.44rem;
+  }
+
+  .roulette-last-results {
+    gap: 3px;
+    font-size: 0.54rem;
+  }
+
+  .roulette-last-results strong,
+  .roulette-last-results em {
+    width: 22px;
+    height: 22px;
+    font-size: 0.58rem;
   }
 }

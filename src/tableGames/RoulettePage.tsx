@@ -1,4 +1,5 @@
 import { useMemo, useState, type CSSProperties } from "react";
+import { Repeat2, RotateCcw, Trash2 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
 import { formatCoins } from "../lib/format";
@@ -202,13 +203,6 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
       </header>
 
       <section className="roulette-layout">
-        <div className="roulette-side-actions">
-          <button onClick={undoLastBet}>Undo<span>Last</span></button>
-          <button onClick={clearBets}>Clear<span>Bets</span></button>
-          <button onClick={rebet}>Rebet<span>Last</span></button>
-          <button onClick={doubleBets} disabled={spinning || bets.length === 0}>2x<span>Double</span></button>
-        </div>
-
         <div className="roulette-board-wrap">
           <div className="roulette-board">
             <button className={`zero ${result?.outcome === "0" ? "winner" : ""} ${advancedSelection.includes("0") ? "selected" : ""}`} onClick={() => advancedMode ? toggleAdvanced("0") : placeBet({ kind: "straight", value: "0" })}>
@@ -258,6 +252,12 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
         </div>
 
         <aside className="roulette-bets-panel">
+          <div className="roulette-side-actions">
+            <button onClick={undoLastBet} aria-label="Undo last bet"><RotateCcw size={16} /><span>Undo</span></button>
+            <button onClick={clearBets} aria-label="Clear bets"><Trash2 size={16} /><span>Clear</span></button>
+            <button onClick={rebet} aria-label="Rebet last bets"><Repeat2 size={16} /><span>Rebet</span></button>
+            <button onClick={doubleBets} disabled={spinning || bets.length === 0} aria-label="Double all bets">2x<span>Double</span></button>
+          </div>
           <div className="roulette-stats">
             <span>Total Bet <strong>{formatCoins(totalBet)}</strong></span>
             <span>Min {rouletteConfig.minBet} / Max {rouletteConfig.maxTotalBetGold}</span>
