@@ -55,6 +55,7 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
   const [result, setResult] = useState<RouletteResult | null>(null);
   const [recentResults, setRecentResults] = useState<Array<"0" | "00" | number>>([]);
   const [spinning, setSpinning] = useState(false);
+  const [wheelFocus, setWheelFocus] = useState(false);
   if (!user) return null;
   const currentUser = user;
 
@@ -65,6 +66,7 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
   const winningIds = new Set(result?.winningBetIds ?? []);
   const winningZoneKeys = new Set(result ? getRouletteWinningZones(result.outcome).map(rouletteBetKey) : []);
   const groupedBets = useMemo(() => bets.slice(-4).reverse(), [bets]);
+  const coveragePercent = Math.round((getCoveredOutcomes(bets).size / americanWheel.length) * 100);
 
   function placeBet(bet: RouletteBet) {
     if (spinning) return;
@@ -161,6 +163,7 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
   function spin() {
     if (!canSpin) return;
     setSpinning(true);
+    setWheelFocus(true);
     setChipMenuOpen(false);
     const outcome = americanWheel[Math.floor(Math.random() * americanWheel.length)];
     window.setTimeout(() => {
@@ -174,6 +177,7 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
         notify(caught instanceof Error ? caught.message : "Roulette spin failed.", "error");
       } finally {
         setSpinning(false);
+        window.setTimeout(() => setWheelFocus(false), 2200);
       }
     }, 2400);
   }
@@ -228,11 +232,11 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
                   <ChipStack bets={bets.filter((placed) => rouletteBetKey(placed.bet) === `straight:${number}`)} winningIds={winningIds} />
                 </button>
               )))}
-              <InsideChipLayer bets={bets.filter((placed) => "numbers" in placed.bet && placed.bet.kind !== "basket")} winningIds={winningIds} />
+              <InsideChipLayer bets={bets.filter((placed) => "numbers" in placed.bet && placed.bet.kind !== "basket" && placed.bet.kind !== "street" && placed.bet.kind !== "sixLine")} winningIds={winningIds} />
               <InsideHitAreas onBet={placeBet} />
             </div>
             <div className="column-bets">
-              {[1, 2, 3].map((column) => {
+              {[3, 2, 1].map((column) => {
                 const bet = { kind: "column", value: column as 1 | 2 | 3 } satisfies RouletteBet;
                 return <button key={column} className={winningZoneKeys.has(rouletteBetKey(bet)) ? "winner" : ""} onClick={() => placeBet(bet)}>2:1<ChipStack bets={bets.filter((placed) => rouletteBetKey(placed.bet) === rouletteBetKey(bet))} winningIds={winningIds} /></button>;
               })}
@@ -253,10 +257,10 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
 
         <aside className="roulette-bets-panel">
           <div className="roulette-side-actions">
-            <button onClick={undoLastBet} aria-label="Undo last bet"><RotateCcw size={16} /><span>Undo</span></button>
-            <button onClick={clearBets} aria-label="Clear bets"><Trash2 size={16} /><span>Clear</span></button>
-            <button onClick={rebet} aria-label="Rebet last bets"><Repeat2 size={16} /><span>Rebet</span></button>
-            <button onClick={doubleBets} disabled={spinning || bets.length === 0} aria-label="Double all bets">2x<span>Double</span></button>
+            <button onClick={undoLastBet} aria-label="Undo last bet"><RotateCcw size={16} /></button>
+            <button onClick={clearBets} aria-label="Clear bets"><Trash2 size={16} /></button>
+            <button onClick={rebet} aria-label="Rebet last bets"><Repeat2 size={16} /></button>
+            <button onClick={doubleBets} disabled={spinning || bets.length === 0} aria-label="Double all bets">2x</button>
           </div>
           <div className="roulette-stats">
             <span>Total Bet <strong>{formatCoins(totalBet)}</strong></span>
@@ -291,6 +295,10 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
               </div>
             ))}
           </div>
+          <div className="roulette-coverage" style={{ "--coverage": coveragePercent } as CSSProperties} aria-label={`Board coverage ${coveragePercent}%`}>
+            <strong>{coveragePercent}%</strong>
+            <span>Cover</span>
+          </div>
           <div className="roulette-bottom-wheel">
             <button className={spinning ? "roulette-wheel-spin-button spinning" : "roulette-wheel-spin-button"} disabled={!canSpin} onClick={spin} aria-label={spinning ? "Roulette spinning" : "Spin roulette wheel"}>
               <RouletteWheel outcome={result?.outcome ?? null} spinning={spinning} />
@@ -301,7 +309,7 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
         </aside>
 
         <div className="roulette-street-panel">
-          <StreetBetPanel onBet={placeBet} />
+          <StreetBetPanel onBet={placeBet} bets={bets} winningIds={winningIds} />
           {result && (
             <div className={`roulette-result-banner ${result.color}`}>
               <strong>{result.outcome} {result.color}</strong>
@@ -310,6 +318,15 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
           )}
         </div>
       </section>
+      {wheelFocus && (
+        <div className={spinning ? "roulette-wheel-overlay spinning" : "roulette-wheel-overlay"}>
+          <div className="roulette-wheel-overlay-card">
+            <RouletteWheel outcome={result?.outcome ?? null} spinning={spinning} />
+            <strong>{spinning ? "Spinning..." : result ? `${result.outcome} ${result.color}` : "Spin"}</strong>
+            {result && <span>Won {formatCoins(result.totalPaid)} - Net {(result.net ?? 0) >= 0 ? "+" : ""}{formatCoins(result.net ?? 0)}</span>}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -323,10 +340,15 @@ const outsideBets: Array<{ label: string; bet: RouletteBet; className?: string }
   { label: "19-36", bet: { kind: "range", value: "high" } },
 ];
 
-function ChipStack({ bets, winningIds }: { bets: PlacedRouletteBet[]; winningIds: Set<string> }) {
+function ChipStack({ bets, winningIds, className = "", style }: { bets: PlacedRouletteBet[]; winningIds: Set<string>; className?: string; style?: CSSProperties }) {
   if (bets.length === 0) return null;
   const total = bets.reduce((sum, bet) => sum + bet.amount, 0);
-  return <span className={bets.some((bet) => winningIds.has(bet.id)) ? "board-chip win" : "board-chip"}>{total}</span>;
+  return (
+    <span className={`${bets.some((bet) => winningIds.has(bet.id)) ? "board-chip win" : "board-chip"} ${className}`.trim()} style={style}>
+      {formatCoins(total)}
+      {bets.length > 1 && <small>x{bets.length}</small>}
+    </span>
+  );
 }
 
 function RouletteWheel({ outcome, spinning }: { outcome: RouletteResult["outcome"] | null; spinning: boolean }) {
@@ -363,7 +385,7 @@ function LastResults({ values }: { values: Array<"0" | "00" | number> }) {
   );
 }
 
-function StreetBetPanel({ onBet }: { onBet: (bet: RouletteBet) => void }) {
+function StreetBetPanel({ onBet, bets, winningIds }: { onBet: (bet: RouletteBet) => void; bets: PlacedRouletteBet[]; winningIds: Set<string> }) {
   const streets = Array.from({ length: 12 }, (_, index) => index * 3 + 1);
   return (
     <div className="roulette-street-selector">
@@ -373,12 +395,19 @@ function StreetBetPanel({ onBet }: { onBet: (bet: RouletteBet) => void }) {
       </div>
       <div className="roulette-street-grid">
         {streets.map((street) => (
+          (() => {
+            const bet = { kind: "street", numbers: [street, street + 1, street + 2] } satisfies RouletteBet;
+            const key = rouletteBetKey(bet);
+            return (
           <button
             key={`street-panel-${street}`}
-            onClick={() => onBet({ kind: "street", numbers: [street, street + 1, street + 2] })}
+            onClick={() => onBet(bet)}
           >
             {street}-{street + 2}
+            <ChipStack bets={bets.filter((placed) => rouletteBetKey(placed.bet) === key)} winningIds={winningIds} />
           </button>
+            );
+          })()
         ))}
       </div>
       <div>
@@ -387,12 +416,19 @@ function StreetBetPanel({ onBet }: { onBet: (bet: RouletteBet) => void }) {
       </div>
       <div className="roulette-street-grid six">
         {streets.slice(0, -1).map((street) => (
+          (() => {
+            const bet = { kind: "sixLine", numbers: [street, street + 1, street + 2, street + 3, street + 4, street + 5] } satisfies RouletteBet;
+            const key = rouletteBetKey(bet);
+            return (
           <button
             key={`six-panel-${street}`}
-            onClick={() => onBet({ kind: "sixLine", numbers: [street, street + 1, street + 2, street + 3, street + 4, street + 5] })}
+            onClick={() => onBet(bet)}
           >
             {street}-{street + 5}
+            <ChipStack bets={bets.filter((placed) => rouletteBetKey(placed.bet) === key)} winningIds={winningIds} />
           </button>
+            );
+          })()
         ))}
       </div>
     </div>
@@ -413,15 +449,34 @@ function InsideHitAreas({ onBet }: { onBet: (bet: RouletteBet) => void }) {
 }
 
 function InsideChipLayer({ bets, winningIds }: { bets: PlacedRouletteBet[]; winningIds: Set<string> }) {
+  const grouped = new Map<string, PlacedRouletteBet[]>();
+  bets.forEach((bet) => {
+    const key = rouletteBetKey(bet.bet);
+    grouped.set(key, [...(grouped.get(key) ?? []), bet]);
+  });
   return (
     <div className="inside-chip-layer">
-      {bets.map((bet) => {
-        const position = getRouletteInsideChipPosition(bet.bet);
+      {[...grouped.entries()].map(([key, stack]) => {
+        const position = getRouletteInsideChipPosition(stack[0].bet);
         if (!position) return null;
-        return <span key={bet.id} className={winningIds.has(bet.id) ? "board-chip inside win" : "board-chip inside"} style={{ left: `${position.left}%`, top: `${position.top}%` }}>{bet.amount}</span>;
+        return <ChipStack key={key} bets={stack} winningIds={winningIds} className="inside" style={{ left: `${position.left}%`, top: `${position.top}%` }} />;
       })}
     </div>
   );
+}
+
+function getCoveredOutcomes(bets: PlacedRouletteBet[]) {
+  const covered = new Set<"0" | "00" | number>();
+  bets.forEach(({ bet }) => {
+    if (bet.kind === "straight") covered.add(bet.value);
+    else if (bet.kind === "split" || bet.kind === "street" || bet.kind === "corner" || bet.kind === "sixLine" || bet.kind === "basket") bet.numbers.forEach((number) => covered.add(number));
+    else if (bet.kind === "color") americanWheel.forEach((number) => { if (getRouletteColor(number) === bet.value) covered.add(number); });
+    else if (bet.kind === "parity") americanWheel.forEach((number) => { if (typeof number === "number" && (bet.value === "odd" ? number % 2 === 1 : number % 2 === 0)) covered.add(number); });
+    else if (bet.kind === "range") americanWheel.forEach((number) => { if (typeof number === "number" && (bet.value === "low" ? number <= 18 : number >= 19)) covered.add(number); });
+    else if (bet.kind === "dozen") americanWheel.forEach((number) => { if (typeof number === "number" && Math.ceil(number / 12) === bet.value) covered.add(number); });
+    else if (bet.kind === "column") americanWheel.forEach((number) => { if (typeof number === "number" && (((number - 1) % 3) + 1) === bet.value) covered.add(number); });
+  });
+  return covered;
 }
 
 function numberColumn(number: number) {

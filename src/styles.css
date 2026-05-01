@@ -8208,6 +8208,11 @@ body {
   to { transform: scale(1.16); }
 }
 
+@keyframes roulette-overlay-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 @media (max-width: 860px) {
   .roulette-layout {
     grid-template-columns: 1fr;
@@ -8543,6 +8548,14 @@ body {
   color: #fff;
   font-size: 0.58rem;
   font-weight: 1000;
+  line-height: 0.9;
+  text-align: center;
+}
+
+.board-chip small {
+  display: block;
+  font-size: 0.42rem;
+  line-height: 0.8;
 }
 
 .board-chip.inside {
@@ -8558,8 +8571,8 @@ body {
   position: relative;
   top: auto;
   min-height: 0;
-  grid-template-columns: minmax(190px, 0.9fr) minmax(96px, 0.48fr) minmax(162px, 0.72fr) minmax(128px, 1fr) minmax(184px, 0.86fr);
-  grid-template-areas: "actions stats chip bets wheel";
+  grid-template-columns: minmax(170px, 0.82fr) minmax(96px, 0.44fr) minmax(150px, 0.66fr) 58px minmax(128px, 1fr) minmax(184px, 0.86fr);
+  grid-template-areas: "actions stats chip coverage bets wheel";
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
@@ -8575,6 +8588,34 @@ body {
   grid-area: bets;
   max-height: 88px;
   min-height: 44px;
+}
+
+.roulette-coverage {
+  grid-area: coverage;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  border: 2px solid rgba(125,211,252,0.55);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(14,165,233,0.22), transparent 58%),
+    conic-gradient(from -90deg, rgba(56,189,248,0.82) calc(var(--coverage, 0) * 1%), rgba(15,23,42,0.86) 0);
+  color: #f8fafc;
+  box-shadow: 0 0 16px rgba(14,165,233,0.18), inset 0 0 12px rgba(0,0,0,0.34);
+}
+
+.roulette-coverage strong {
+  font-size: 0.72rem;
+  line-height: 0.9;
+}
+
+.roulette-coverage span {
+  color: #bae6fd;
+  font-size: 0.44rem;
+  font-weight: 950;
+  text-transform: uppercase;
 }
 
 .roulette-chip-picker {
@@ -8704,6 +8745,7 @@ body {
 }
 
 .roulette-street-grid button {
+  position: relative;
   min-height: 0;
   border: 1px solid rgba(125,211,252,0.36);
   border-radius: 10px;
@@ -8770,6 +8812,56 @@ body {
   width: 42%;
   font-size: 0.58rem;
   white-space: nowrap;
+}
+
+.roulette-wheel-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 14px;
+  background: rgba(2,6,23,0.78);
+  animation: roulette-overlay-fade 180ms ease both;
+}
+
+.roulette-wheel-overlay-card {
+  width: min(76vh, 460px);
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  padding: 18px;
+  border: 1px solid rgba(245,158,11,0.5);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(56,189,248,0.12), transparent 50%),
+    linear-gradient(180deg, rgba(2,6,23,0.95), rgba(3,7,18,0.98));
+  color: #f8fafc;
+  box-shadow: 0 28px 70px rgba(0,0,0,0.56);
+}
+
+.roulette-wheel-overlay-card .roulette-wheel-visual {
+  width: min(62vh, 360px);
+}
+
+.roulette-wheel-overlay-card > strong {
+  color: #fff;
+  font-size: clamp(1rem, 2.4vw, 1.5rem);
+  text-transform: uppercase;
+}
+
+.roulette-wheel-overlay-card > span {
+  color: #bae6fd;
+  font-weight: 900;
+}
+
+.roulette-wheel-overlay.spinning .roulette-pocket-ring {
+  animation: roulette-wheel-spin 2.2s cubic-bezier(0.14, 0.72, 0.2, 1) both;
+}
+
+.roulette-wheel-overlay .roulette-ball {
+  z-index: 6;
+  opacity: 1;
 }
 
 .roulette-wheel-spin-button.spinning .roulette-wheel-visual {
@@ -9098,7 +9190,7 @@ body {
   }
 
   .roulette-bets-panel {
-    grid-template-columns: minmax(154px, 0.8fr) minmax(76px, 0.44fr) minmax(138px, 0.7fr) minmax(104px, 1fr) minmax(142px, 0.72fr);
+    grid-template-columns: minmax(140px, 0.72fr) minmax(72px, 0.38fr) minmax(126px, 0.62fr) 44px minmax(96px, 1fr) minmax(128px, 0.66fr);
     gap: 6px;
     padding: 6px 8px;
   }
@@ -9150,6 +9242,19 @@ body {
     font-size: 0.66rem;
   }
 
+  .roulette-coverage {
+    width: 38px;
+    height: 38px;
+  }
+
+  .roulette-coverage strong {
+    font-size: 0.6rem;
+  }
+
+  .roulette-coverage span {
+    font-size: 0.36rem;
+  }
+
   .roulette-bottom-wheel {
     gap: 6px;
   }
@@ -9186,5 +9291,14 @@ body {
     width: 22px;
     height: 22px;
     font-size: 0.58rem;
+  }
+
+  .roulette-wheel-overlay-card {
+    width: min(82vh, 370px);
+    padding: 12px;
+  }
+
+  .roulette-wheel-overlay-card .roulette-wheel-visual {
+    width: min(60vh, 280px);
   }
 }
