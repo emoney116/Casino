@@ -1,13 +1,15 @@
-import { blackjackConfig, diceConfig, rouletteConfig } from "./configs";
+import { blackjackConfig, crashConfig, diceConfig, rouletteConfig } from "./configs";
 import { createDeck, handValue, shuffleDeck } from "./blackjackEngine";
 import { americanWheel, rouletteBetWins } from "./rouletteEngine";
 import { getDiceReturnMultiplier } from "./diceEngine";
+import { generateCrashPoint } from "./crashEngine";
 import type { TableGameConfig, TableGameId, TableSimulationResult } from "./types";
 
 export function simulateTableGame(gameId: TableGameId, rounds = 100000): TableSimulationResult {
   if (gameId === "blackjack") return simulateBlackjack(rounds);
   if (gameId === "roulette") return simulateRoulette(rounds);
-  return simulateDice(rounds);
+  if (gameId === "dice") return simulateDice(rounds);
+  return simulateCrash(rounds);
 }
 
 function baseResult(wagered: number, paid: number, biggestWin: number, caps: number): TableSimulationResult {
@@ -72,6 +74,23 @@ function simulateDice(rounds: number) {
     const roll = Math.floor(Math.random() * 100) + 1;
     const payout = roll > target ? bet * getDiceReturnMultiplier("over", target, diceConfig) : 0;
     const capped = Math.min(Math.round(payout), diceConfig.maxPayout);
+    if (capped < payout) caps += 1;
+    biggest = Math.max(biggest, capped);
+    paid += capped;
+  }
+  return baseResult(rounds * bet, paid, biggest, caps);
+}
+
+function simulateCrash(rounds: number) {
+  const bet = crashConfig.minBet;
+  const autoCashOut = 2;
+  let paid = 0;
+  let biggest = 0;
+  let caps = 0;
+  for (let index = 0; index < rounds; index += 1) {
+    const crashPoint = generateCrashPoint(Math.random(), crashConfig);
+    const payout = crashPoint > autoCashOut ? bet * autoCashOut : 0;
+    const capped = Math.min(Math.round(payout), crashConfig.maxPayout);
     if (capped < payout) caps += 1;
     biggest = Math.max(biggest, capped);
     paid += capped;

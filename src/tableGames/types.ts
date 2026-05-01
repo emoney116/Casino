@@ -1,6 +1,6 @@
 import type { Currency, Transaction } from "../types";
 
-export type TableGameId = "blackjack" | "roulette" | "dice";
+export type TableGameId = "blackjack" | "roulette" | "dice" | "crash";
 export type TableGameStatus = "IDLE" | "BETTING" | "PLAYER_TURN" | "DEALER_TURN" | "RESOLVED" | "ERROR";
 
 export interface TableGameConfig {
@@ -124,6 +124,25 @@ export interface DiceResult {
   totalReturnMultiplier: number;
   totalPaid: number;
   settlement: TableSettlement;
+}
+
+export interface CrashConfig extends TableGameConfig {
+  edge: number;
+  minCrashPoint: number;
+  maxCrashPoint: number;
+}
+
+export interface CrashRound {
+  id: string;
+  status: "RUNNING" | "CASHED_OUT" | "CRASHED";
+  currency: Currency;
+  betAmount: number;
+  crashPoint: number;
+  startedAt: number;
+  cashedOutAt?: number;
+  cashOutMultiplier?: number;
+  totalPaid?: number;
+  settlement?: TableSettlement;
 }
 
 export interface TableSimulationResult {

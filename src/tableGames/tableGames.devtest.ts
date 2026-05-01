@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { creditCurrency, getBalance, getTransactions } from "../wallet/walletService";
 import type { CasinoData, User } from "../types";
-import { blackjackConfig, diceConfig, rouletteConfig } from "./configs";
+import { blackjackConfig, crashConfig, diceConfig, rouletteConfig } from "./configs";
 import {
   acceptEvenMoneyBlackjack,
   canDoubleBlackjack,
@@ -22,12 +22,14 @@ import {
 } from "./blackjackEngine";
 import { americanWheel, getRouletteInsideChipPosition, getRouletteWinningZones, resolveRouletteBet, resolveRouletteBets, rouletteBetKey } from "./rouletteEngine";
 import { getDiceReturnMultiplier, resolveDiceBet } from "./diceEngine";
+import { cashOutCrashRound, crashCrashRound, generateCrashPoint, getCrashMultiplier, startCrashRound } from "./crashEngine";
 import { assertTableBet } from "./ledger";
 import { simulateTableGame } from "./tableMath";
 import type { PlayingCard } from "./types";
 import { blackjackCleanUxMarkers } from "./BlackjackPageClean";
 import { rouletteUiMarkers } from "./RoulettePage";
 import { overUnderUiMarkers } from "./DicePage";
+import { crashUiMarkers } from "./CrashPage";
 import { CoinBurst, GameResultBanner, WinOverlay, feedbackUiMarkers } from "../feedback/components";
 import {
   getFeedbackDebugCount,
@@ -36,6 +38,9 @@ import {
   playBigWin,
   playBlackjackWin,
   playBonus,
+  playCrashCashOut,
+  playCrashSound,
+  playCrashTick,
   playCardDeal,
   playCardFlip,
   playChip,
@@ -98,7 +103,7 @@ if (!isSoundEnabled() || localStorage.getItem("casino-feedback-sound-enabled") !
   throw new Error("Expected sound toggle setting to persist.");
 }
 setSoundEnabled(false);
-for (const feedback of [playClick, playBet, playDeal, playCardDeal, playCardFlip, playChip, playSpin, playWin, playBlackjackWin, playBigWin, playLose, playPush, playBonus, playError]) {
+for (const feedback of [playClick, playBet, playDeal, playCardDeal, playCardFlip, playChip, playSpin, playWin, playBlackjackWin, playBigWin, playLose, playPush, playBonus, playCrashCashOut, playCrashSound, playCrashTick, playError]) {
   feedback();
 }
 resetFeedbackDebugCounts();
@@ -529,14 +534,14 @@ for (const type of ["TABLE_BET", "TABLE_WIN", "TABLE_PUSH", "TABLE_LOSS"]) {
   if (!tableTypes.has(type as never)) throw new Error(`Expected ${type} ledger entry.`);
 }
 
-for (const gameId of ["blackjack", "roulette", "dice"] as const) {
+for (const gameId of ["blackjack", "roulette", "dice", "crash"] as const) {
   const sim = simulateTableGame(gameId, 1000);
   if (!Number.isFinite(sim.observedRtp) || !Number.isFinite(sim.houseEdge)) {
     throw new Error(`Expected ${gameId} simulation to produce math stats.`);
   }
 }
 
-if (blackjackConfig.minBetGold !== 1 || rouletteConfig.minBetRealCentsPlaceholder !== 1 || diceConfig.minBetRealCentsPlaceholder !== 1) {
+if (blackjackConfig.minBetGold !== 1 || rouletteConfig.minBetRealCentsPlaceholder !== 1 || diceConfig.minBetRealCentsPlaceholder !== 1 || crashConfig.minBetRealCentsPlaceholder !== 1) {
   throw new Error("Expected table configs to preserve one-cent future placeholder minimums.");
 }
 
@@ -595,6 +600,86 @@ if (
   !overUnderUiMarkers.rollingNumberFlip
 ) {
   throw new Error("Expected Over/Under UI markers for header, currency toggle, compact betting, manual input, last five, payout, animation, and mobile layout.");
+}
+
+const crashLow = generateCrashPoint(0, crashConfig);
+const crashMid = generateCrashPoint(0.52, crashConfig);
+const crashHigh = generateCrashPoint(0.98, crashConfig);
+if (crashLow !== 1 || crashMid <= 1 || crashHigh <= crashMid || crashHigh > crashConfig.maxCrashPoint) {
+  throw new Error("Expected Crash exponential distribution to produce bounded increasing crash points.");
+}
+if (getCrashMultiplier(0) !== 1 || getCrashMultiplier(6000) <= getCrashMultiplier(1000)) {
+  throw new Error("Expected Crash multiplier to rise over time.");
+}
+
+const crashBetCountBefore = getTransactions(user.id).filter((tx) => tx.type === "TABLE_BET").length;
+const crashWinCountBefore = getTransactions(user.id).filter((tx) => tx.type === "TABLE_WIN").length;
+creditCurrency({ userId: user.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 1000 });
+const crashGoldBefore = getBalance(user.id, "GOLD");
+const crashRound = startCrashRound({
+  userId: user.id,
+  currency: "GOLD",
+  betAmount: 100,
+  crashPoint: 3,
+  now: 1000,
+});
+if (getBalance(user.id, "GOLD") !== crashGoldBefore - 100) {
+  throw new Error("Expected Crash start to deduct bet from balance.");
+}
+if (getTransactions(user.id).filter((tx) => tx.type === "TABLE_BET").length !== crashBetCountBefore + 1) {
+  throw new Error("Expected Crash start to create TABLE_BET.");
+}
+const crashCashOut = cashOutCrashRound({ round: crashRound, userId: user.id, multiplier: 2.5, now: 2400 });
+if (crashCashOut.status !== "CASHED_OUT" || crashCashOut.totalPaid !== 250) {
+  throw new Error("Expected Crash cash out before crash to pay bet times multiplier.");
+}
+if (getTransactions(user.id).filter((tx) => tx.type === "TABLE_WIN").length !== crashWinCountBefore + 1) {
+  throw new Error("Expected Crash cash out to create TABLE_WIN.");
+}
+const crashLossRound = startCrashRound({
+  userId: user.id,
+  currency: "BONUS",
+  betAmount: 100,
+  crashPoint: 1.5,
+  now: 3000,
+});
+const crashLoss = crashCrashRound({ round: crashLossRound, userId: user.id, multiplier: 1.5, now: 3600 });
+if (crashLoss.status !== "CRASHED" || crashLoss.totalPaid !== 0 || !getTransactions(user.id).some((tx) => tx.type === "TABLE_LOSS" && tx.metadata?.tableGameId === "crash")) {
+  throw new Error("Expected Crash before cash out to lose with no payout.");
+}
+const crashTooLateRound = startCrashRound({
+  userId: user.id,
+  currency: "GOLD",
+  betAmount: 100,
+  crashPoint: 2,
+  now: 4000,
+});
+const crashTooLate = cashOutCrashRound({ round: crashTooLateRound, userId: user.id, multiplier: 2.01, now: 4800 });
+if (crashTooLate.status !== "CRASHED" || crashTooLate.totalPaid !== 0) {
+  throw new Error("Expected late Crash cash out to resolve as a crash loss.");
+}
+const lowCrashUser = "low-crash-user";
+creditCurrency({ userId: lowCrashUser, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: crashConfig.minBet - 1 });
+try {
+  startCrashRound({ userId: lowCrashUser, currency: "GOLD", betAmount: crashConfig.minBet, crashPoint: 2 });
+  throw new Error("Expected Crash start to block insufficient balance.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("Insufficient")) throw error;
+}
+
+if (
+  crashUiMarkers.gameName !== "Crash" ||
+  !crashUiMarkers.goldBonusToggle ||
+  !crashUiMarkers.liveMultiplier ||
+  !crashUiMarkers.risingGraph ||
+  !crashUiMarkers.multiplierPopThresholds ||
+  !crashUiMarkers.crashShakeFlash ||
+  !crashUiMarkers.cashOutAnytime ||
+  !crashUiMarkers.sharedResultBanner ||
+  !crashUiMarkers.sharedSoundToggle ||
+  !crashUiMarkers.compactBottomBetControls
+) {
+  throw new Error("Expected Crash UI markers for multiplier, graph, cash out, crash feedback, sound, currency, and compact betting.");
 }
 
 console.log("tableGames.devtest passed");

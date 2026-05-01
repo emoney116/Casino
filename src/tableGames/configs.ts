@@ -1,4 +1,4 @@
-import type { BlackjackConfig, DiceConfig, RouletteConfig, TableGameConfig } from "./types";
+import type { BlackjackConfig, CrashConfig, DiceConfig, RouletteConfig, TableGameConfig } from "./types";
 
 const demoOnlyCopy =
   "Demo table game using virtual coins only. No cash value, deposits, withdrawals, prizes, or redemptions.";
@@ -88,4 +88,24 @@ export const diceConfig: DiceConfig = {
   maxTarget: 98,
 };
 
-export const tableGameConfigs: TableGameConfig[] = [blackjackConfig, rouletteConfig, diceConfig];
+export const crashConfig: CrashConfig = {
+  id: "crash",
+  name: "Crash",
+  theme: "Rising multiplier race",
+  minBet: 10,
+  maxBet: 500,
+  minBetGold: 10,
+  maxBetGold: 500,
+  minBetRealCentsPlaceholder: 1,
+  maxBetRealCentsPlaceholder: 500,
+  maxPayout: 25000,
+  houseEdgeTarget: 0.04,
+  currency: "GOLD",
+  demoOnlyCopy,
+  rules: ["Multiplier rises from 1.00x", "Cash out before the crash to win", "Crash point uses a demo exponential distribution with house edge"],
+  edge: 0.04,
+  minCrashPoint: 1,
+  maxCrashPoint: 100,
+};
+
+export const tableGameConfigs: TableGameConfig[] = [blackjackConfig, rouletteConfig, diceConfig, crashConfig];

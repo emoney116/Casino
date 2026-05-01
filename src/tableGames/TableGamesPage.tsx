@@ -5,6 +5,7 @@ import { TableGameCard } from "./TableGameCard";
 import { BlackjackPage } from "./BlackjackPage";
 import { RoulettePage } from "./RoulettePage";
 import { DicePage } from "./DicePage";
+import { CrashPage } from "./CrashPage";
 
 export function TableGamesPage({
   activeGameId,
@@ -28,10 +29,11 @@ export function TableGamesPage({
 
   if (activeGameId) {
     return (
-      <section className={activeGameId === "blackjack" ? "page-stack blackjack-game-host" : activeGameId === "dice" ? "page-stack over-under-game-host" : "page-stack"}>
+      <section className={activeGameId === "blackjack" ? "page-stack blackjack-game-host" : activeGameId === "dice" ? "page-stack over-under-game-host" : activeGameId === "crash" ? "page-stack crash-game-host" : "page-stack"}>
         {activeGameId === "blackjack" && <BlackjackPage onExit={onExit} />}
         {activeGameId === "roulette" && <RoulettePage onExit={onExit} />}
         {activeGameId === "dice" && <DicePage onExit={onExit} />}
+        {activeGameId === "crash" && <CrashPage onExit={onExit} />}
       </section>
     );
   }

@@ -105,3 +105,6 @@ export function playBigWin() { mark("playBigWin"); tone(560, 0.09); tone(760, 0.
 export function playLose() { mark("playLose"); tone(190, 0.08, 0.018); tone(145, 0.08, 0.016, 0.08); }
 export function playBonus() { mark("playBonus"); tone(900, 0.12); tone(1120, 0.14, 0.024, 0.11); }
 export function playError() { mark("playError"); tone(120, 0.075, 0.018); tone(95, 0.09, 0.016, 0.085); }
+export function playCrashTick(multiplier = 1) { mark("playCrashTick"); tone(Math.min(980, 250 + multiplier * 90), 0.025, 0.01); }
+export function playCrashCashOut() { mark("playCrashCashOut"); tone(620, 0.07, 0.024); tone(920, 0.08, 0.022, 0.06); }
+export function playCrashSound() { mark("playCrashSound"); tone(170, 0.08, 0.024); tone(85, 0.16, 0.022, 0.07); }
