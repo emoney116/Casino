@@ -1,4 +1,5 @@
 import { ArrowUpDown, CircleDot, Spade } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { TableGameConfig } from "./types";
 
 const icons = {
@@ -10,22 +11,36 @@ const icons = {
 export function TableGameCard({ game, onPlay }: { game: TableGameConfig; onPlay: (gameId: TableGameConfig["id"]) => void }) {
   const Icon = icons[game.id];
   return (
-    <article className={`table-game-card ${game.id}`}>
+    <button type="button" className={`table-game-card title-card ${game.id}`} onClick={() => onPlay(game.id)}>
       <div className="table-game-art">
-        <Icon size={52} />
+        <GamePreview gameId={game.id} Icon={Icon} />
       </div>
-      <div className="game-card-body">
-        <div>
-          <h3>{game.name}</h3>
-          <p>{game.theme}</p>
+      <strong>{game.name}</strong>
+    </button>
+  );
+}
+
+function GamePreview({ gameId, Icon }: { gameId: TableGameConfig["id"]; Icon: LucideIcon }) {
+  return (
+    <div className={`table-game-preview ${gameId}`} aria-hidden="true">
+      {gameId === "blackjack" && (
+        <>
+          <div className="preview-card back" />
+          <div className="preview-card face"><Icon size={42} /></div>
+        </>
+      )}
+      {gameId === "roulette" && (
+        <div className="preview-wheel">
+          <span><Icon size={20} /></span>
         </div>
-        <div className="game-meta">
-          <span>House edge {(game.houseEdgeTarget * 100).toFixed(1)}%</span>
-          <span>{game.minBet}-{game.maxBet} coins</span>
-          <span>Virtual only</span>
+      )}
+      {gameId === "dice" && (
+        <div className="preview-over-under">
+          <span>48</span>
+          <Icon size={48} />
+          <span>52</span>
         </div>
-        <button className="primary-button" onClick={() => onPlay(game.id)}>Play {game.name}</button>
-      </div>
-    </article>
+      )}
+    </div>
   );
 }

@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import type { TableGameId } from "./types";
 import { tableGameConfigs } from "./configs";
 import { TableGameCard } from "./TableGameCard";
@@ -14,6 +15,17 @@ export function TableGamesPage({
   onGameChange: (gameId: TableGameId) => void;
   onExit: () => void;
 }) {
+  const [query, setQuery] = useState("");
+  const visibleGames = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return tableGameConfigs;
+    return tableGameConfigs.filter((game) => (
+      game.name.toLowerCase().includes(normalized) ||
+      game.theme.toLowerCase().includes(normalized) ||
+      game.rules.some((rule) => rule.toLowerCase().includes(normalized))
+    ));
+  }, [query]);
+
   if (activeGameId) {
     return (
       <section className={activeGameId === "blackjack" ? "page-stack blackjack-game-host" : activeGameId === "dice" ? "page-stack over-under-game-host" : "page-stack"}>
@@ -25,23 +37,26 @@ export function TableGamesPage({
   }
 
   return (
-    <section className="page-stack">
-      <div className="page-heading">
+    <section className="page-stack table-games-lobby">
+      <div className="page-heading table-games-lobby-heading">
         <div>
           <p className="eyebrow">Virtual table games</p>
           <h1>Table Games</h1>
-          <p className="muted">
-            Blackjack, American roulette, and Over/Under built with virtual coins, configurable limits, and ledgered outcomes.
-          </p>
         </div>
+        <label className="table-game-search">
+          <span>Search games</span>
+          <input
+            type="search"
+            value={query}
+            placeholder="Search table games"
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </label>
       </div>
       <div className="game-grid table-game-grid">
-        {tableGameConfigs.map((game) => <TableGameCard key={game.id} game={game} onPlay={onGameChange} />)}
+        {visibleGames.map((game) => <TableGameCard key={game.id} game={game} onPlay={onGameChange} />)}
       </div>
-      <div className="notice-card">
-        Demo social casino prototype. Table games use Gold Coins or Bonus Coins only. No real-money gambling,
-        deposits, withdrawals, prizes, or redemptions are available.
-      </div>
+      {visibleGames.length === 0 && <div className="table-game-empty">No table games found.</div>}
     </section>
   );
 }
