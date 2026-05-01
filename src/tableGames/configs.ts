@@ -127,8 +127,8 @@ export const treasureDigConfig: TreasureDigConfig = {
   minTraps: 1,
   maxTraps: 24,
   edge: 0.08,
-  minMultiplierTiles: 1,
-  maxMultiplierTiles: 5,
+  minMultiplierTiles: 0,
+  maxMultiplierTiles: 2,
   multiplierValues: [2, 2, 2, 3, 3, 5, 5, 10, 25, 50],
 };
 

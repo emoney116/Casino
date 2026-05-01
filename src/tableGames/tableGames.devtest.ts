@@ -699,14 +699,19 @@ if (deterministicTraps.length !== 3 || new Set(deterministicTraps).size !== 3) {
   throw new Error("Expected Treasure Dig trap generation to create unique trap tiles.");
 }
 const deterministicBoosts = createTreasureMultiplierTiles({ trapIndexes: [0, 1, 2], random: () => 0.99, config: treasureDigConfig });
-if (deterministicBoosts.length < 1 || deterministicBoosts.length > treasureDigConfig.maxMultiplierTiles || deterministicBoosts.some((tile) => [0, 1, 2].includes(tile.index))) {
+if (deterministicBoosts.length !== 2 || deterministicBoosts.some((tile) => [0, 1, 2].includes(tile.index))) {
   throw new Error("Expected Treasure Dig multiplier tiles to be safe, variable boost tiles.");
 }
 if (treasureDigConfig.minBet !== 1 || treasureDigConfig.maxTraps !== 24) {
   throw new Error("Expected Treasure Dig to allow 1 coin bets and 1-24 traps.");
 }
-if (getTreasurePotentialMaxMultiplier({ trapCount: 8 }) <= getTreasurePotentialMaxMultiplier({ trapCount: 4 })) {
-  throw new Error("Expected Treasure Dig potential max win to keep scaling above 4 traps.");
+const oneTrapMax = getTreasurePotentialMaxMultiplier({ trapCount: 1 });
+const twentyFourTrapMax = getTreasurePotentialMaxMultiplier({ trapCount: 24 });
+if (oneTrapMax !== twentyFourTrapMax) {
+  throw new Error("Expected Treasure Dig max base win to match between 1 trap full-clear and 24 traps one-pick.");
+}
+if (getTreasurePotentialMaxMultiplier({ trapCount: 16 }) > oneTrapMax) {
+  throw new Error("Expected Treasure Dig displayed max win to stay on the base mine curve, not stacked boost jackpots.");
 }
 if (getTreasureDigMultiplier({ safePicks: 1, trapCount: 24 }) === getTreasureDigMultiplier({ safePicks: 1, trapCount: 4 })) {
   throw new Error("Expected Treasure Dig 1-24 trap settings to use different payout curves.");

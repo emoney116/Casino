@@ -37,8 +37,14 @@ export function getTreasureDigMultiplier({
   }
 
   const expectedBoost = getExpectedTreasureBoost({ safePicks: picks, safeTileCount: safeTiles, multiplierTiles });
-  const multiplier = (1 / survivalProbability) * (1 - config.edge) * Math.max(1, boostMultiplier) / expectedBoost;
+  const baseMultiplier = Math.min((1 / survivalProbability) * (1 - config.edge) / expectedBoost, getTreasureBaseMaxMultiplier(config));
+  const multiplier = baseMultiplier * Math.max(1, boostMultiplier);
   return Math.max(1, Math.floor(multiplier * 100) / 100);
+}
+
+export function getTreasureBaseMaxMultiplier(config: TreasureDigConfig = treasureDigConfig) {
+  const totalTiles = getTreasureTileCount(config);
+  return Math.floor(totalTiles * (1 - config.edge) * 100) / 100;
 }
 
 export function getTreasureBoostMultiplier(pickedIndexes: number[], multiplierTiles: TreasureMultiplierTile[]) {
@@ -275,28 +281,14 @@ export function cashOutTreasureDigRound({
 
 export function getTreasurePotentialMaxMultiplier({
   trapCount,
-  betMultiplierTiles,
   config = treasureDigConfig,
 }: {
   trapCount: number;
-  betMultiplierTiles?: TreasureMultiplierTile[];
   config?: TreasureDigConfig;
 }) {
   const traps = clampTreasureTrapCount(trapCount, config);
-  const safeTileCount = getTreasureTileCount(config) - traps;
-  const multiplierTiles = betMultiplierTiles ?? Array.from(
-    { length: Math.min(config.maxMultiplierTiles, safeTileCount) },
-    (_, index) => ({ index, value: Math.max(...config.multiplierValues) }),
+  return Math.min(
+    getTreasureBaseMaxMultiplier(config),
+    getTreasureDigMultiplier({ safePicks: getTreasureTileCount(config) - traps, trapCount: traps, config }),
   );
-  let bestMultiplier = 1;
-  for (let safePicks = 1; safePicks <= safeTileCount; safePicks += 1) {
-    const boostMultiplier = multiplierTiles
-      .slice(0, Math.min(safePicks, multiplierTiles.length))
-      .reduce((product, tile) => product * tile.value, 1);
-    bestMultiplier = Math.max(
-      bestMultiplier,
-      getTreasureDigMultiplier({ safePicks, trapCount: traps, multiplierTiles, boostMultiplier, config }),
-    );
-  }
-  return bestMultiplier;
 }

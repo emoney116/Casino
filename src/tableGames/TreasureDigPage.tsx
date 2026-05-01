@@ -201,7 +201,7 @@ export function TreasureDigPage({ onExit }: { onExit?: () => void }) {
 
       <section className="treasure-dig-controls">
         <label className="treasure-risk">
-          <span>Traps <strong>{trapCount}</strong> <em>Max win {formatCompactCoins(maxWin)}</em></span>
+          <span>Traps <strong>{trapCount}</strong> <em>Base max {formatCompactCoins(maxWin)}</em></span>
           <input
             type="range"
             min={treasureDigConfig.minTraps}
