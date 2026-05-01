@@ -7822,6 +7822,434 @@ body {
   }
 }
 
+/* Over/Under table game: compact mobile-first felt layout. */
+.over-under-page {
+  min-height: 100svh;
+  width: min(100%, 520px);
+  max-width: 520px;
+  margin-inline: auto;
+  padding: max(8px, env(safe-area-inset-top)) 9px max(12px, env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, auto) auto;
+  align-content: start;
+  gap: 8px;
+  overflow-x: hidden;
+  color: #f8fafc;
+  background:
+    radial-gradient(circle at 50% 15%, rgba(34, 197, 94, 0.2), transparent 30%),
+    linear-gradient(180deg, #07111f 0%, #062218 48%, #030712 100%);
+}
+
+.game-mode .main-panel:has(.over-under-page) {
+  width: 100%;
+  max-width: none;
+  padding: 0;
+  margin: 0;
+  overflow-x: hidden;
+}
+
+.over-under-game-host:has(.over-under-page) {
+  width: 100%;
+  max-width: none;
+  min-height: 100svh;
+  margin: 0;
+  padding: 0;
+  display: block;
+}
+
+.over-under-header {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.over-under-back,
+.over-under-currency-tabs button,
+.over-under-picks button,
+.over-under-bet-row button,
+.over-under-quick-bets button,
+.over-under-roll {
+  border: 0;
+  color: #f8fafc;
+  font-weight: 950;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 6px 14px rgba(0,0,0,0.2);
+}
+
+.over-under-back {
+  width: 36px;
+  min-height: 36px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.82);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  font-size: 1.2rem;
+}
+
+.over-under-title {
+  min-width: 0;
+}
+
+.over-under-title h1 {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: clamp(1.03rem, 4.8vw, 1.5rem);
+  line-height: 1.05;
+}
+
+.over-under-title p {
+  margin: 2px 0 0;
+  color: #bae6fd;
+  font-size: clamp(0.62rem, 2.7vw, 0.76rem);
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.over-under-logo {
+  width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #d1fae5;
+  background: radial-gradient(circle at 40% 35%, rgba(255,255,255,0.24), transparent 30%), linear-gradient(145deg, #0f172a, #047857);
+  border: 1px solid rgba(125, 211, 252, 0.55);
+  flex: 0 0 auto;
+}
+
+.over-under-currency-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: clamp(92px, 31vw, 132px);
+  min-width: 0;
+  padding: 3px;
+  border: 1px solid rgba(125, 211, 252, 0.32);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.82);
+}
+
+.over-under-currency-tabs button {
+  min-height: 29px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: clamp(0.66rem, 2.6vw, 0.82rem);
+}
+
+.over-under-currency-tabs button.active {
+  color: #06111f;
+  background: linear-gradient(180deg, #67e8f9, #38bdf8);
+}
+
+.over-under-balance {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(125, 211, 252, 0.24);
+  border-radius: 14px;
+  background: rgba(8, 47, 73, 0.54);
+  font-size: clamp(0.76rem, 3.2vw, 0.95rem);
+}
+
+.over-under-balance span,
+.over-under-balance strong {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.over-under-table {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: clamp(8px, 2.4vw, 12px);
+  border: 1px solid rgba(134, 239, 172, 0.25);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 50% 16%, rgba(34, 197, 94, 0.26), transparent 34%),
+    linear-gradient(145deg, rgba(6, 95, 70, 0.94), rgba(5, 46, 22, 0.96));
+  box-shadow: inset 0 0 36px rgba(0,0,0,0.28), 0 18px 38px rgba(0,0,0,0.34);
+  overflow: hidden;
+}
+
+.over-under-result-zone {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+}
+
+.over-under-number {
+  width: clamp(92px, 30vw, 136px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  color: #052e16;
+  background: linear-gradient(145deg, #f8fafc, #86efac);
+  border: 4px solid rgba(255,255,255,0.74);
+  font-size: clamp(2.45rem, 13vw, 4rem);
+  font-weight: 1000;
+  box-shadow: 0 16px 34px rgba(0,0,0,0.28);
+}
+
+.over-under-number.rolling {
+  animation: over-under-pulse 120ms linear infinite alternate;
+}
+
+.over-under-number.win {
+  background: linear-gradient(145deg, #ecfdf5, #22c55e);
+}
+
+.over-under-number.loss {
+  background: linear-gradient(145deg, #fff7ed, #f87171);
+}
+
+.over-under-prompt {
+  display: grid;
+  gap: 2px;
+  text-align: center;
+}
+
+.over-under-prompt strong {
+  color: #ecfeff;
+  font-size: clamp(0.9rem, 3.8vw, 1.08rem);
+}
+
+.over-under-prompt span {
+  color: #d1fae5;
+  font-size: clamp(0.76rem, 3.2vw, 0.9rem);
+  font-weight: 800;
+}
+
+.over-under-picks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.over-under-picks button {
+  min-height: 42px;
+  border-radius: 13px;
+  background: linear-gradient(180deg, #1e293b, #0f172a);
+}
+
+.over-under-picks button.active:first-child {
+  background: linear-gradient(180deg, #0ea5e9, #1d4ed8);
+}
+
+.over-under-picks button.active:last-child {
+  background: linear-gradient(180deg, #22c55e, #15803d);
+}
+
+.over-under-slider {
+  display: grid;
+  gap: 5px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  background: rgba(2, 6, 23, 0.25);
+  color: #bae6fd;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.over-under-slider span {
+  display: flex;
+  justify-content: space-between;
+}
+
+.over-under-slider input {
+  width: 100%;
+  accent-color: #38bdf8;
+}
+
+.over-under-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.over-under-stats div,
+.over-under-bet-row div {
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.58);
+  padding: 7px 4px;
+  text-align: center;
+}
+
+.over-under-stats span,
+.over-under-bet-row span {
+  color: #a9b4c7;
+  font-size: clamp(0.58rem, 2.5vw, 0.7rem);
+  text-transform: uppercase;
+  font-weight: 900;
+}
+
+.over-under-stats strong,
+.over-under-bet-row strong {
+  color: #fff;
+  font-size: clamp(0.78rem, 3.4vw, 1rem);
+  overflow-wrap: anywhere;
+}
+
+.over-under-banner {
+  display: grid;
+  gap: 1px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.78);
+  text-align: center;
+}
+
+.over-under-banner strong {
+  font-size: 1.1rem;
+}
+
+.over-under-banner.win strong {
+  color: #86efac;
+}
+
+.over-under-banner.loss strong {
+  color: #fca5a5;
+}
+
+.over-under-controls {
+  display: grid;
+  gap: 7px;
+  padding: 9px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 18px;
+  background: rgba(2, 6, 23, 0.82);
+  box-shadow: 0 -12px 34px rgba(0,0,0,0.25);
+}
+
+.over-under-bet-row {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  gap: 8px;
+  align-items: center;
+}
+
+.over-under-bet-row button {
+  min-height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #334155, #0f172a);
+  font-size: 1.25rem;
+}
+
+.over-under-quick-bets {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.over-under-quick-bets button {
+  min-height: 32px;
+  padding: 0 3px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #1e293b, #0f172a);
+  color: #dbeafe;
+  font-size: clamp(0.68rem, 2.9vw, 0.82rem);
+}
+
+.over-under-quick-bets button.active {
+  background: linear-gradient(180deg, #38bdf8, #2563eb);
+  color: #fff;
+}
+
+.over-under-note {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  color: #cbd5e1;
+  font-size: clamp(0.66rem, 2.9vw, 0.8rem);
+}
+
+.over-under-note.warning {
+  color: #fecaca;
+}
+
+.over-under-roll {
+  min-height: 45px;
+  border-radius: 13px;
+  background: linear-gradient(180deg, #22c55e, #047857);
+  font-size: 1.05rem;
+}
+
+.over-under-roll:disabled,
+.over-under-back:disabled,
+.over-under-currency-tabs button:disabled,
+.over-under-picks button:disabled,
+.over-under-bet-row button:disabled,
+.over-under-quick-bets button:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+}
+
+@keyframes over-under-pulse {
+  from {
+    transform: scale(0.98) rotate(-1deg);
+  }
+
+  to {
+    transform: scale(1.02) rotate(1deg);
+  }
+}
+
+@media (max-width: 360px) {
+  .over-under-page {
+    padding-inline: 0;
+    gap: 6px;
+  }
+
+  .over-under-header {
+    grid-template-columns: 34px minmax(0, 1fr) 96px;
+  }
+
+  .over-under-back {
+    width: 34px;
+    min-height: 34px;
+  }
+
+  .over-under-currency-tabs {
+    width: 96px;
+  }
+
+  .over-under-table {
+    padding: 8px;
+    gap: 6px;
+    border-radius: 16px;
+  }
+
+  .over-under-number {
+    width: 88px;
+    border-radius: 16px;
+  }
+
+  .over-under-controls {
+    gap: 6px;
+  }
+}
+
 /* Clean American Roulette table. */
 .roulette-clean-page {
   width: min(100%, 1180px);

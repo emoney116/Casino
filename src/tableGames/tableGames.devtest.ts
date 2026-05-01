@@ -25,6 +25,7 @@ import { simulateTableGame } from "./tableMath";
 import type { PlayingCard } from "./types";
 import { blackjackCleanUxMarkers } from "./BlackjackPageClean";
 import { rouletteUiMarkers } from "./RoulettePage";
+import { overUnderUiMarkers } from "./DicePage";
 
 const memory: Record<string, string> = {};
 globalThis.localStorage = {
@@ -382,7 +383,13 @@ try {
   if (!(error instanceof Error) || !error.message.includes("Maximum total roulette bet")) throw error;
 }
 
+if (diceConfig.name !== "Over/Under" || diceConfig.theme.toLowerCase().includes("dice")) {
+  throw new Error("Expected Dice table config to display as Over/Under.");
+}
+
 const diceMultiplier = getDiceReturnMultiplier("over", 50, diceConfig);
+const diceBetCountBefore = getTransactions(user.id).filter((tx) => tx.type === "TABLE_BET").length;
+const diceWinCountBefore = getTransactions(user.id).filter((tx) => tx.type === "TABLE_WIN").length;
 const diceWin = resolveDiceBet({
   userId: user.id,
   currency: "BONUS",
@@ -394,6 +401,12 @@ const diceWin = resolveDiceBet({
 if (!diceWin.won || Math.round(diceWin.totalPaid) !== Math.round(100 * diceMultiplier)) {
   throw new Error("Expected dice payout math to use probability minus edge.");
 }
+if (getTransactions(user.id).filter((tx) => tx.type === "TABLE_BET").length !== diceBetCountBefore + 1) {
+  throw new Error("Expected Over/Under roll to debit TABLE_BET.");
+}
+if (getTransactions(user.id).filter((tx) => tx.type === "TABLE_WIN").length !== diceWinCountBefore + 1) {
+  throw new Error("Expected Over/Under win to credit TABLE_WIN.");
+}
 const diceLoss = resolveDiceBet({
   userId: user.id,
   currency: "BONUS",
@@ -404,6 +417,21 @@ const diceLoss = resolveDiceBet({
 });
 if (diceLoss.won || !getTransactions(user.id).some((tx) => tx.type === "TABLE_LOSS")) {
   throw new Error("Expected dice loss to create TABLE_LOSS event.");
+}
+const lowOverUnderUser = "low-over-under-user";
+creditCurrency({ userId: lowOverUnderUser, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: diceConfig.minBet - 1 });
+try {
+  resolveDiceBet({
+    userId: lowOverUnderUser,
+    currency: "GOLD",
+    betAmount: diceConfig.minBet,
+    direction: "over",
+    target: 50,
+    roll: 80,
+  });
+  throw new Error("Expected Over/Under roll to block insufficient balance.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("Insufficient")) throw error;
 }
 
 try {
@@ -468,6 +496,19 @@ if (
   !rouletteUiMarkers.sequencedAmericanWheel
 ) {
   throw new Error("Expected Roulette UI markers for American board, CSS chips, multi-bet slip, wheel animation, and advanced inside bets.");
+}
+
+if (
+  overUnderUiMarkers.gameName !== "Over/Under" ||
+  !overUnderUiMarkers.blackjackStyleHeader ||
+  !overUnderUiMarkers.noBottomCurrencyDropdown ||
+  !overUnderUiMarkers.compactBottomBetControls ||
+  !overUnderUiMarkers.targetSlider ||
+  !overUnderUiMarkers.possibleReturn ||
+  !overUnderUiMarkers.resultAnimation ||
+  !overUnderUiMarkers.mobileOneScreenLayout
+) {
+  throw new Error("Expected Over/Under UI markers for header, currency toggle, compact betting, payout, animation, and mobile layout.");
 }
 
 console.log("tableGames.devtest passed");

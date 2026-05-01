@@ -1,10 +1,10 @@
-import { Dices, CircleDot, Spade } from "lucide-react";
+import { ArrowUpDown, CircleDot, Spade } from "lucide-react";
 import type { TableGameConfig } from "./types";
 
 const icons = {
   blackjack: Spade,
   roulette: CircleDot,
-  dice: Dices,
+  dice: ArrowUpDown,
 };
 
 export function TableGameCard({ game, onPlay }: { game: TableGameConfig; onPlay: (gameId: TableGameConfig["id"]) => void }) {

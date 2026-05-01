@@ -70,8 +70,8 @@ export const rouletteConfig: RouletteConfig = {
 
 export const diceConfig: DiceConfig = {
   id: "dice",
-  name: "Dice Hi-Lo",
-  theme: "Probability dice table",
+  name: "Over/Under",
+  theme: "Higher or lower table",
   minBet: 10,
   maxBet: 500,
   minBetGold: 10,
@@ -82,7 +82,7 @@ export const diceConfig: DiceConfig = {
   houseEdgeTarget: 0.03,
   currency: "GOLD",
   demoOnlyCopy,
-  rules: ["Choose over or under a target", "Payout is based on probability minus a configurable demo house edge"],
+  rules: ["Pick over or under the target", "Payout is based on probability minus a configurable demo house edge"],
   edge: 0.03,
   minTarget: 2,
   maxTarget: 98,

@@ -16,11 +16,10 @@ export function TableGamesPage({
 }) {
   if (activeGameId) {
     return (
-      <section className={activeGameId === "blackjack" ? "page-stack blackjack-game-host" : "page-stack"}>
-        {activeGameId === "dice" && <button className="ghost-button table-back-button" onClick={onExit}>Back to Table Games</button>}
+      <section className={activeGameId === "blackjack" ? "page-stack blackjack-game-host" : activeGameId === "dice" ? "page-stack over-under-game-host" : "page-stack"}>
         {activeGameId === "blackjack" && <BlackjackPage onExit={onExit} />}
         {activeGameId === "roulette" && <RoulettePage onExit={onExit} />}
-        {activeGameId === "dice" && <DicePage />}
+        {activeGameId === "dice" && <DicePage onExit={onExit} />}
       </section>
     );
   }
@@ -32,7 +31,7 @@ export function TableGamesPage({
           <p className="eyebrow">Virtual table games</p>
           <h1>Table Games</h1>
           <p className="muted">
-            Blackjack, American roulette, and dice built with virtual coins, configurable limits, and ledgered outcomes.
+            Blackjack, American roulette, and Over/Under built with virtual coins, configurable limits, and ledgered outcomes.
           </p>
         </div>
       </div>
