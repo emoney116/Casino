@@ -1,5 +1,3 @@
-import { Play } from "lucide-react";
-import { formatCoins } from "../lib/format";
 import type { SlotConfig } from "../games/types";
 import { GameLogo } from "../games/GameLogo";
 import { Star } from "lucide-react";
@@ -17,7 +15,7 @@ export function GameCard({
 }) {
   return (
     <article
-      className="game-card"
+      className="game-card title-card"
       style={
         {
           "--accent": game.visual.accent,
@@ -26,34 +24,17 @@ export function GameCard({
         } as React.CSSProperties
       }
     >
-      <div className="game-art">
-        {onToggleFavorite && (
-          <button className={`favorite-button ${favorite ? "active" : ""}`} onClick={() => onToggleFavorite(game.id)} title="Favorite">
-            <Star size={17} />
-          </button>
-        )}
-        <GameLogo game={game} />
-      </div>
-      <div className="game-card-body">
-        <div>
-          <h3>{game.name}</h3>
-          <p>{game.theme}</p>
+      {onToggleFavorite && (
+        <button className={`favorite-button ${favorite ? "active" : ""}`} onClick={() => onToggleFavorite(game.id)} title="Favorite" aria-label={`${favorite ? "Remove" : "Add"} ${game.name} favorite`}>
+          <Star size={17} />
+        </button>
+      )}
+      <button type="button" className="game-card-link" onClick={() => onPlay(game.id)}>
+        <div className="game-art">
+          <GameLogo game={game} showName={false} />
         </div>
-        <div className="game-meta">
-          <span>{game.volatility}</span>
-          <span>RTP {(game.targetRtp * 100).toFixed(1)}%</span>
-          <span>
-            {formatCoins(game.minBet)}-{formatCoins(game.maxBet)}
-          </span>
-        </div>
-        <div className="card-footer-row">
-          <small>Virtual coins only</small>
-          <button className="primary-button icon-button" onClick={() => onPlay(game.id)}>
-            <Play size={16} />
-            Play
-          </button>
-        </div>
-      </div>
+        <strong>{game.name}</strong>
+      </button>
     </article>
   );
 }

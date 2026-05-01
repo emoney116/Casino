@@ -351,7 +351,7 @@ function ChipStack({ bets, winningIds, className = "", style }: { bets: PlacedRo
   );
 }
 
-function RouletteWheel({ outcome, spinning }: { outcome: RouletteResult["outcome"] | null; spinning: boolean }) {
+export function RouletteWheel({ outcome, spinning, showLabel = true }: { outcome: RouletteResult["outcome"] | null; spinning: boolean; showLabel?: boolean }) {
   const outcomeIndex = outcome ? americanWheel.findIndex((value) => value === outcome) : 0;
   const pocketAngle = 360 / americanWheel.length;
   const wheelEndAngle = -outcomeIndex * pocketAngle;
@@ -404,7 +404,7 @@ function RouletteWheel({ outcome, spinning }: { outcome: RouletteResult["outcome
       <div className="roulette-ball-track">
         <span className="roulette-ball" />
       </div>
-      <strong>{spinning ? "..." : outcome ?? "Spin"}</strong>
+      {showLabel && <strong>{spinning ? "..." : outcome ?? "Spin"}</strong>}
     </div>
   );
 }

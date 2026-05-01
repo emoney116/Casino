@@ -1,5 +1,5 @@
 import { Gift, WalletCards } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { BalanceCard } from "../components/BalanceCard";
 import { GameCard } from "../components/GameCard";
@@ -9,7 +9,7 @@ import { canClaimDailyBonus, claimDailyBonus, DAILY_BONUS_AMOUNT } from "../wall
 import { getBalance } from "../wallet/walletService";
 import { getRecentGames } from "./recentGames";
 import { exposedSlotConfigs } from "./slotConfigs";
-import type { SlotConfig, Volatility } from "./types";
+import type { SlotConfig } from "./types";
 import { getProgression } from "../progression/progressionService";
 import { ProgressionBar } from "../progression/ProgressionBar";
 import { StreakCard } from "../streaks/StreakCard";
@@ -30,8 +30,6 @@ export function LobbyPage({
 }) {
   const { user, refreshUser } = useAuth();
   const notify = useToast();
-  const [search, setSearch] = useState("");
-  const [volatility, setVolatility] = useState<"All" | Volatility>("All");
   const [version, setVersion] = useState(0);
   if (!user) return null;
   const currentUser = user;
@@ -40,14 +38,6 @@ export function LobbyPage({
   const progression = getProgression(currentUser.id);
   const favorites = getFavorites(currentUser.id);
   const dailyAvailable = canClaimDailyBonus(currentUser);
-  const filteredGames = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return exposedSlotConfigs.filter((game) => {
-      const matchesSearch = !term || `${game.name} ${game.theme}`.toLowerCase().includes(term);
-      const matchesVolatility = volatility === "All" || game.volatility === volatility;
-      return matchesSearch && matchesVolatility;
-    });
-  }, [search, volatility]);
   const recent = getRecentGames()
     .map((id) => exposedSlotConfigs.find((game) => game.id === id))
     .filter(Boolean)
@@ -67,11 +57,8 @@ export function LobbyPage({
     <section className="page-stack">
       <div className="lobby-hero">
         <div>
-          <p className="eyebrow">Virtual casino lobby</p>
-          <h1>Play demo slots with virtual coins</h1>
-          <p className="muted">
-            No real-money gambling, deposits, withdrawals, prizes, or redemptions are available.
-          </p>
+          <p className="eyebrow">Virtual casino</p>
+          <h1>Casino Lobby</h1>
           <div className="hero-actions">
             <button className="primary-button icon-button" onClick={claim} disabled={!dailyAvailable}>
               <Gift size={18} />
@@ -93,34 +80,12 @@ export function LobbyPage({
       <StreakCard onClaimed={() => setVersion((value) => value + 1)} />
       <MissionsPanel compact />
 
-      <div className="lobby-filters card">
-        <label>
-          Search games
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Theme or title" />
-        </label>
-        <label>
-          Volatility
-          <select value={volatility} onChange={(event) => setVolatility(event.target.value as "All" | Volatility)}>
-            <option value="All">All</option>
-            <option value="Low">Low</option>
-            <option value="Medium">Medium</option>
-            <option value="High">High</option>
-          </select>
-        </label>
-      </div>
-
-      {search || volatility !== "All" ? (
-        <GameSection title="Filtered Games" games={filteredGames} onPlay={onPlay} emptyText="No games match those filters." />
-      ) : (
-        <>
-          <GameSection title="Favorites" games={favorites.map((id) => exposedSlotConfigs.find((game) => game.id === id)).filter(Boolean) as SlotConfig[]} onPlay={onPlay} emptyText="No favorites yet. Tap the star on any game tile." favorites={favorites} onToggleFavorite={(id) => { toggleFavorite(currentUser.id, id); setVersion((value) => value + 1); }} />
-          <GameSection title="Featured Flagship" games={exposedSlotConfigs} onPlay={onPlay} favorites={favorites} onToggleFavorite={(id) => { toggleFavorite(currentUser.id, id); setVersion((value) => value + 1); }} />
-          <TableGameSection onPlay={onTablePlay} />
-          <GameSection title="Hold and Win" games={exposedSlotConfigs.filter((game) => game.featureTypes?.includes("HOLD_AND_WIN"))} onPlay={onPlay} />
-          <GameSection title="Bonus Game" games={exposedSlotConfigs.filter((game) => game.buyBonus?.enabled)} onPlay={onPlay} />
-          <GameSection title="Recently Played" games={recent} onPlay={onPlay} emptyText="No recently played games yet. Pick a game to start your history." />
-        </>
+      {favorites.length > 0 && (
+        <GameSection title="Favorites" games={favorites.map((id) => exposedSlotConfigs.find((game) => game.id === id)).filter(Boolean) as SlotConfig[]} onPlay={onPlay} favorites={favorites} onToggleFavorite={(id) => { toggleFavorite(currentUser.id, id); setVersion((value) => value + 1); }} />
       )}
+      <GameSection title="Slots" games={exposedSlotConfigs} onPlay={onPlay} favorites={favorites} onToggleFavorite={(id) => { toggleFavorite(currentUser.id, id); setVersion((value) => value + 1); }} />
+      <TableGameSection onPlay={onTablePlay} />
+      {recent.length > 0 && <GameSection title="Recently Played" games={recent} onPlay={onPlay} />}
     </section>
   );
 }
@@ -130,7 +95,7 @@ function TableGameSection({ onPlay }: { onPlay: (gameId: TableGameId) => void })
     <section className="page-stack">
       <div className="section-title">
         <h2>Table Games</h2>
-        <span>{tableGameConfigs.length} games</span>
+        <span>{formatGameCount(tableGameConfigs.length)}</span>
       </div>
       <div className="game-grid table-game-grid">
         {tableGameConfigs.map((game) => <TableGameCard key={game.id} game={game} onPlay={onPlay} />)}
@@ -158,7 +123,7 @@ function GameSection({
     <section className="page-stack">
       <div className="section-title">
         <h2>{title}</h2>
-        <span>{games.length} games</span>
+        <span>{formatGameCount(games.length)}</span>
       </div>
       {games.length === 0 ? (
         <div className="empty-state">{emptyText ?? "No games found."}</div>
@@ -171,4 +136,8 @@ function GameSection({
       )}
     </section>
   );
+}
+
+function formatGameCount(count: number) {
+  return `${count} ${count === 1 ? "game" : "games"}`;
 }

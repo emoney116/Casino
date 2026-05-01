@@ -1,5 +1,6 @@
 import { ArrowUpDown, CircleDot, Spade } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { RouletteWheel } from "./RoulettePage";
 import type { TableGameConfig } from "./types";
 
 const icons = {
@@ -30,9 +31,7 @@ function GamePreview({ gameId, Icon }: { gameId: TableGameConfig["id"]; Icon: Lu
         </>
       )}
       {gameId === "roulette" && (
-        <div className="preview-wheel">
-          <span><Icon size={20} /></span>
-        </div>
+        <RouletteWheel outcome={null} spinning={false} showLabel={false} />
       )}
       {gameId === "dice" && (
         <div className="preview-over-under">

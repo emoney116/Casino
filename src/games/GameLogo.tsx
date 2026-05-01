@@ -1,6 +1,6 @@
 import type { SlotConfig } from "./types";
 
-export function GameLogo({ game, small = false }: { game: SlotConfig; small?: boolean }) {
+export function GameLogo({ game, small = false, showName = true }: { game: SlotConfig; small?: boolean; showName?: boolean }) {
   return (
     <div
       className={`game-logo ${small ? "small" : ""}`}
@@ -15,7 +15,7 @@ export function GameLogo({ game, small = false }: { game: SlotConfig; small?: bo
       <div className="logo-orbit">
         <span>{game.visual.logo}</span>
       </div>
-      <strong>{game.name}</strong>
+      {showName && <strong>{game.name}</strong>}
     </div>
   );
 }

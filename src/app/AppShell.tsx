@@ -18,6 +18,7 @@ import type { TableGameId } from "../tableGames/types";
 
 function getInitialRoute(): { view: AppView; tableGameId: TableGameId | null } {
   const path = window.location.pathname;
+  if (path.startsWith("/games")) return { view: "games", tableGameId: null };
   if (path.startsWith("/table-games/blackjack")) return { view: "tableGames", tableGameId: "blackjack" };
   if (path.startsWith("/table-games/roulette")) return { view: "tableGames", tableGameId: "roulette" };
   if (path.startsWith("/table-games/dice")) return { view: "tableGames", tableGameId: "dice" };
@@ -40,12 +41,14 @@ export function AppShell() {
   function playGame(gameId: string) {
     setActiveGameId(gameId);
     setActiveView("games");
+    window.history.pushState(null, "", `/games/${gameId}`);
   }
 
   function setView(view: AppView) {
     setActiveView(view);
     if (view !== "tableGames") setActiveTableGameId(null);
-    const route = view === "tableGames" ? "/table-games" : "/";
+    if (view === "games") setActiveGameId(null);
+    const route = view === "tableGames" ? "/table-games" : view === "games" ? "/games" : "/";
     window.history.pushState(null, "", route);
   }
 
@@ -55,7 +58,7 @@ export function AppShell() {
     window.history.pushState(null, "", `/table-games/${gameId}`);
   }
 
-  const hideMobileNav = activeView === "games" || (activeView === "tableGames" && activeTableGameId);
+  const hideMobileNav = (activeView === "games" && Boolean(activeGameId)) || (activeView === "tableGames" && Boolean(activeTableGameId));
 
   return (
     <div className={`shell ${hideMobileNav ? "game-mode" : ""}`}>
