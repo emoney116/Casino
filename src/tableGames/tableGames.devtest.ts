@@ -854,6 +854,12 @@ if (brickHits.length === 0 || brickHitTotal !== 200) {
 if (new Set(brickHits.map((hit) => hit.brickIndex)).size !== brickHits.length) {
   throw new Error("Expected Brick Break Bonus hit list to use unique bricks.");
 }
+if (brickHits.some((hit, index, hits) => index > 0 && Math.floor(hit.brickIndex / 6) > Math.floor(hits[index - 1].brickIndex / 6))) {
+  throw new Error("Expected Brick Break Bonus bricks to break from bottom to top.");
+}
+if (!brickHits.some((hit) => hit.breakType === "full") || !createBrickBreakHitList({ betAmount: 100, desiredMultiplier: 0.5 }).every((hit) => hit.breakType === "partial")) {
+  throw new Error("Expected Brick Break Bonus hits to include understandable full and partial break types.");
+}
 const brickSim = simulateBrickBreakBonus(100000);
 if (brickSim.observedRtp > 0.95 || brickBreakBonusConfig.targetRtp > 0.95) {
   throw new Error("Expected Brick Break Bonus RTP simulation and target to stay under 95%.");
@@ -908,6 +914,10 @@ if (
   !brickBreakBonusUiMarkers.deterministicReplay ||
   !brickBreakBonusUiMarkers.hiddenBrickValues ||
   !brickBreakBonusUiMarkers.runningWinningsMeter ||
+  !brickBreakBonusUiMarkers.bottomToTopBreakOrder ||
+  !brickBreakBonusUiMarkers.stagedBrickBreaks ||
+  !brickBreakBonusUiMarkers.readableBrickInterior ||
+  !brickBreakBonusUiMarkers.ballTargetsActiveBrick ||
   !brickBreakBonusUiMarkers.compactBottomBetControls ||
   !brickBreakBonusUiMarkers.rtpUnder95Warning ||
   !brickBreakBonusUiMarkers.sharedSoundToggle

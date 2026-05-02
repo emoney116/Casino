@@ -21,6 +21,10 @@ export const brickBreakBonusUiMarkers = {
   deterministicReplay: true,
   hiddenBrickValues: true,
   runningWinningsMeter: true,
+  bottomToTopBreakOrder: true,
+  stagedBrickBreaks: true,
+  readableBrickInterior: true,
+  ballTargetsActiveBrick: true,
   compactBottomBetControls: true,
   rtpUnder95Warning: true,
   sharedSoundToggle: true,
@@ -36,6 +40,7 @@ export function BrickBreakBonusPage({ onExit }: { onExit?: () => void }) {
   const [result, setResult] = useState<BrickBreakResult | null>(null);
   const [revealedHits, setRevealedHits] = useState<BrickBreakHit[]>([]);
   const [activeHitIndex, setActiveHitIndex] = useState(-1);
+  const [crackingHit, setCrackingHit] = useState<BrickBreakHit | null>(null);
   const [recentRounds, setRecentRounds] = useState<Array<{ paid: number; net: number }>>([]);
   const timersRef = useRef<number[]>([]);
 
@@ -55,9 +60,9 @@ export function BrickBreakBonusPage({ onExit }: { onExit?: () => void }) {
     const column = index % 6;
     const row = Math.floor(index / 6);
     return {
-      "--ball-x": `${12 + column * 15}%`,
-      "--ball-y": `${13 + row * 9}%`,
-      "--paddle-x": `${8 + column * 14}%`,
+      "--ball-x": `${8.33 + column * 16.66}%`,
+      "--ball-y": `${22 + row * 10.5}%`,
+      "--paddle-x": `${Math.max(6, Math.min(72, 8.33 + column * 16.66 - 14))}%`,
     } as CSSProperties;
   }, [activeHit]);
 
@@ -90,6 +95,7 @@ export function BrickBreakBonusPage({ onExit }: { onExit?: () => void }) {
       setResult(next);
       setRevealedHits([]);
       setActiveHitIndex(-1);
+      setCrackingHit(null);
       setGameState("playing");
       playBet();
 
@@ -102,15 +108,21 @@ export function BrickBreakBonusPage({ onExit }: { onExit?: () => void }) {
       next.hitList.forEach((hit, index) => {
         const timer = window.setTimeout(() => {
           setActiveHitIndex(index);
+          setCrackingHit(hit);
+        }, 720 + index * 680);
+        const revealTimer = window.setTimeout(() => {
           setRevealedHits((current) => [...current, hit]);
+          setCrackingHit(null);
           playWin();
-        }, 650 + index * 430);
+        }, 1080 + index * 680);
         timersRef.current.push(timer);
+        timersRef.current.push(revealTimer);
       });
 
       const ending = window.setTimeout(() => {
         setGameState("gameOver");
         setActiveHitIndex(-1);
+        setCrackingHit(null);
         setRecentRounds((current) => [{ paid: next.totalPaid, net: next.net }, ...current].slice(0, 5));
         recordRetentionRound({
           userId: currentUser.id,
@@ -127,7 +139,7 @@ export function BrickBreakBonusPage({ onExit }: { onExit?: () => void }) {
         } else {
           playLose();
         }
-      }, 920 + Math.max(1, next.hitList.length) * 430);
+      }, 1420 + Math.max(1, next.hitList.length) * 680);
       timersRef.current.push(ending);
     } catch (caught) {
       notify(caught instanceof Error ? caught.message : "Unable to play Brick Break Bonus.", "error");
@@ -163,12 +175,22 @@ export function BrickBreakBonusPage({ onExit }: { onExit?: () => void }) {
           <div className="brick-break-grid" aria-label="Brick field">
             {Array.from({ length: brickCount }, (_, index) => {
               const hit = revealedHits.find((candidate) => candidate.brickIndex === index);
+              const cracking = crackingHit?.brickIndex === index;
+              const targeted = activeHit?.brickIndex === index;
               return (
-                <div key={index} className={`brick-tile ${hit ? "broken" : ""} ${hit?.bonusBall ? "bonus" : ""}`.trim()}>
+                <div key={index} className={`brick-tile ${targeted ? "targeted" : ""} ${cracking ? "cracking" : ""} ${hit ? `broken ${hit.breakType}` : ""} ${hit?.bonusBall ? "bonus" : ""}`.trim()}>
+                  {cracking && (
+                    <span className="brick-crack-label">
+                      <small>Crack</small>
+                    </span>
+                  )}
                   {hit && (
                     <>
                       <Sparkles size={13} />
-                      <span>+{hit.multiplier >= 1 ? `${hit.multiplier}x` : formatCoins(hit.amount)}</span>
+                      <span className="brick-prize-label">
+                        <small>{hit.breakType === "partial" ? "Chip" : "Prize"}</small>
+                        <strong>+{hit.multiplier >= 1 ? `${hit.multiplier}x` : formatCoins(hit.amount)}</strong>
+                      </span>
                     </>
                   )}
                 </div>
@@ -176,8 +198,9 @@ export function BrickBreakBonusPage({ onExit }: { onExit?: () => void }) {
             })}
           </div>
           <div className="brick-break-lane" aria-hidden="true">
-            <span className="brick-ball" />
-            <span className="brick-paddle" />
+            {activeHit && <span className="brick-target-beam" />}
+            <span key={`ball-${gameState}-${activeHitIndex}`} className="brick-ball" />
+            <span key={`paddle-${gameState}-${activeHitIndex}`} className="brick-paddle" />
           </div>
           {revealedHits.slice(-4).map((hit, index) => (
             <span key={hit.id} className="brick-float" style={{ "--float-left": `${12 + (hit.brickIndex % 6) * 15}%`, "--float-delay": `${index * 45}ms` } as CSSProperties}>

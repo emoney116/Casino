@@ -11991,12 +11991,14 @@ body {
 .brick-break-grid {
   position: absolute;
   z-index: 1;
-  top: 42px;
+  top: 18%;
   left: 12px;
   right: 12px;
+  height: 55%;
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-rows: repeat(5, minmax(30px, 1fr));
+  gap: 8px 6px;
 }
 
 .brick-tile {
@@ -12011,22 +12013,120 @@ body {
   overflow: hidden;
 }
 
+.brick-tile::before,
+.brick-tile::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.brick-tile::before {
+  border-radius: 4px;
+  border-top: 1px solid rgba(255,255,255,0.3);
+  border-left: 1px solid rgba(255,255,255,0.18);
+}
+
+.brick-tile::after {
+  background:
+    linear-gradient(36deg, transparent 0 43%, rgba(15,23,42,0.75) 44% 48%, transparent 49%),
+    linear-gradient(142deg, transparent 0 50%, rgba(15,23,42,0.7) 51% 55%, transparent 56%);
+}
+
 .brick-tile:nth-child(3n) { background: linear-gradient(135deg, rgba(34,197,94,0.9), rgba(14,165,233,0.84)); }
 .brick-tile:nth-child(5n) { background: linear-gradient(135deg, rgba(250,204,21,0.92), rgba(244,63,94,0.84)); }
 
+.brick-tile.cracking {
+  animation: brickCrackPulse 230ms ease both;
+  background: linear-gradient(135deg, rgba(250,204,21,0.92), rgba(56,189,248,0.86));
+}
+
+.brick-tile.targeted {
+  outline: 2px solid rgba(254,243,199,0.92);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(250,204,21,0.18), 0 0 24px rgba(250,204,21,0.42);
+}
+
+.brick-tile.cracking::after {
+  opacity: 1;
+}
+
 .brick-tile.broken {
   animation: brickBreakPop 380ms ease both;
-  background: rgba(15,23,42,0.46);
+  background:
+    radial-gradient(circle at 50% 38%, rgba(255,255,255,0.14), transparent 38%),
+    rgba(15,23,42,0.76);
+  border-color: rgba(250,204,21,0.24);
 }
 
 .brick-tile.bonus { box-shadow: 0 0 22px rgba(250,204,21,0.48); }
 
+.brick-tile.partial {
+  background:
+    linear-gradient(135deg, rgba(15,23,42,0.72), rgba(8,47,73,0.76)),
+    rgba(15,23,42,0.76);
+}
+
+.brick-tile.partial::after {
+  opacity: 0.78;
+}
+
+.brick-tile.full {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(250,204,21,0.24), transparent 44%),
+    linear-gradient(135deg, rgba(88,28,135,0.76), rgba(2,132,199,0.74));
+}
+
 .brick-tile span {
   position: relative;
   z-index: 2;
-  font-size: 0.67rem;
   font-weight: 950;
   color: #fef3c7;
+}
+
+.brick-crack-label {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  color: #031525;
+  text-transform: uppercase;
+}
+
+.brick-crack-label small {
+  font-size: 0.55rem;
+  font-weight: 950;
+}
+
+.brick-prize-label {
+  display: grid;
+  place-items: center;
+  gap: 0;
+  min-width: 0;
+  width: 100%;
+  padding: 1px 2px;
+  line-height: 1;
+  text-align: center;
+  text-shadow: 0 1px 5px rgba(0,0,0,0.72);
+}
+
+.brick-prize-label small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #bae6fd;
+  font-size: 0.47rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.brick-prize-label strong {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #fef3c7;
+  font-size: 0.68rem;
+  font-weight: 950;
 }
 
 .brick-tile svg {
@@ -12036,6 +12136,20 @@ body {
 
 .brick-break-lane { position: absolute; inset: 0; }
 
+.brick-target-beam {
+  position: absolute;
+  z-index: 1;
+  left: calc(var(--ball-x) - 1px);
+  top: var(--ball-y);
+  width: 2px;
+  height: calc(86% - var(--ball-y));
+  min-height: 34px;
+  background: linear-gradient(180deg, rgba(254,243,199,0.75), rgba(56,189,248,0.08));
+  box-shadow: 0 0 16px rgba(250,204,21,0.5);
+  transform: translateY(8px);
+  opacity: 0.76;
+}
+
 .brick-ball {
   position: absolute;
   z-index: 2;
@@ -12043,21 +12157,22 @@ body {
   height: 18px;
   border-radius: 999px;
   left: 50%;
-  top: 73%;
+  top: 80%;
+  transform: translate(-50%, -50%);
   background: radial-gradient(circle at 35% 30%, #fff7ed, #facc15 45%, #f97316);
   box-shadow: 0 0 24px rgba(250,204,21,0.78);
 }
 
 .brick-break-board.playing .brick-ball,
 .brick-break-board.revealing .brick-ball {
-  animation: brickBallFlight 430ms ease-in-out infinite alternate;
+  animation: brickBallFlight 680ms cubic-bezier(0.16, 0.84, 0.22, 1) both;
 }
 
 .brick-paddle {
   position: absolute;
   z-index: 2;
   left: 38%;
-  bottom: 24px;
+  bottom: 12px;
   width: 88px;
   max-width: 28%;
   height: 13px;
@@ -12068,7 +12183,7 @@ body {
 
 .brick-break-board.playing .brick-paddle,
 .brick-break-board.revealing .brick-paddle {
-  animation: brickCpuPaddle 430ms ease-in-out infinite alternate;
+  animation: brickCpuPaddle 680ms cubic-bezier(0.16, 0.84, 0.22, 1) both;
 }
 
 .brick-float {
@@ -12221,16 +12336,24 @@ body {
   100% { transform: scale(0.96); filter: brightness(0.76); }
 }
 
+@keyframes brickCrackPulse {
+  0% { transform: scale(1); filter: brightness(1); }
+  52% { transform: scale(1.08) rotate(-1deg); filter: brightness(1.55); }
+  100% { transform: scale(1.02); filter: brightness(1.2); }
+}
+
 @keyframes brickBallFlight {
-  0% { left: 50%; top: 73%; }
-  45% { left: var(--ball-x); top: var(--ball-y); }
-  100% { left: 48%; top: 72%; }
+  0% { left: 50%; top: 82%; transform: translate(-50%, -50%) scale(1); }
+  24% { left: var(--paddle-x); top: 82%; transform: translate(44px, -50%) scale(1.02); }
+  58% { left: var(--ball-x); top: var(--ball-y); transform: translate(-50%, -50%) scale(1.08); }
+  72% { left: var(--ball-x); top: var(--ball-y); transform: translate(-50%, -50%) scale(1.18); }
+  100% { left: var(--ball-x); top: calc(var(--ball-y) + 6%); transform: translate(-50%, -50%) scale(0.98); }
 }
 
 @keyframes brickCpuPaddle {
   0% { left: 36%; }
-  55% { left: var(--paddle-x); }
-  100% { left: 44%; }
+  52% { left: var(--paddle-x); }
+  100% { left: var(--paddle-x); }
 }
 
 @keyframes brickFloatUp {

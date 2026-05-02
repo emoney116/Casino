@@ -25,6 +25,7 @@ export interface BrickBreakHit {
   multiplier: number;
   amount: number;
   bonusBall: boolean;
+  breakType: "partial" | "full";
 }
 
 export interface BrickBreakResult {
@@ -94,10 +95,12 @@ export function pickBrickBreakOutcome(random = Math.random, config = brickBreakB
 }
 
 function createBrickIndexes(count: number, random: () => number) {
-  const available = Array.from({ length: 30 }, (_, index) => index);
   const indexes: number[] = [];
-  while (indexes.length < count && available.length > 0) {
-    indexes.push(available.splice(Math.floor(random() * available.length), 1)[0]);
+  for (let row = 4; row >= 0 && indexes.length < count; row -= 1) {
+    const rowIndexes = Array.from({ length: 6 }, (_, column) => row * 6 + column);
+    while (rowIndexes.length > 0 && indexes.length < count) {
+      indexes.push(rowIndexes.splice(Math.floor(random() * rowIndexes.length), 1)[0]);
+    }
   }
   return indexes;
 }
@@ -132,6 +135,7 @@ export function createBrickBreakHitList({
     multiplier,
     amount: Math.round(betAmount * multiplier),
     bonusBall: multiplier >= 2 && random() < config.rareBonusBrickChance,
+    breakType: multiplier >= 1 ? "full" : "partial",
   }));
 }
 
