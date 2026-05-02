@@ -11,9 +11,13 @@ export type TransactionType =
   | "LEVEL_REWARD"
   | "MISSION_REWARD"
   | "STREAK_REWARD"
+  | "RETENTION_REWARD"
+  | "PROMO_REWARD"
   | "BUY_BONUS"
   | "BONUS_WIN"
   | "JACKPOT_WIN"
+  | "ARCADE_BET"
+  | "ARCADE_WIN"
   | "TABLE_BET"
   | "TABLE_WIN"
   | "TABLE_PUSH"
@@ -64,6 +68,7 @@ export interface CasinoData {
   streaks: Record<string, DailyStreak>;
   missions: Record<string, MissionState>;
   favorites: Record<string, string[]>;
+  retention: Record<string, RetentionState>;
 }
 
 export interface PlayerProgression {
@@ -77,6 +82,7 @@ export interface PlayerProgression {
   biggestWin: number;
   currentStreakDays: number;
   lastActiveAt?: string;
+  boosts?: Record<string, number>;
 }
 
 export interface DailyStreak {
@@ -97,3 +103,25 @@ export interface MissionProgress {
 }
 
 export type MissionState = Record<string, MissionProgress>;
+
+export interface RetentionGameStats {
+  plays: number;
+  wins: number;
+  wagered: number;
+  won: number;
+  lastPlayedAt: string;
+}
+
+export interface RetentionClaimRecord {
+  claimedAt: string;
+}
+
+export interface RetentionState {
+  userId: string;
+  dailyGameIds: string[];
+  dailyGameRewardClaimedAt?: string;
+  dailyGameResetAt: string;
+  mostPlayed: Record<string, RetentionGameStats>;
+  lowBalanceClaims: Record<string, RetentionClaimRecord>;
+  promotionClaims: Record<string, RetentionClaimRecord>;
+}

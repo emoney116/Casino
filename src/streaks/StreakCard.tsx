@@ -1,7 +1,7 @@
 import { useAuth } from "../auth/AuthContext";
-import { formatCoins } from "../lib/format";
 import { canClaimStreak, claimStreak, getStreak, streakRewards } from "./streakService";
 import { useToast } from "../components/ToastContext";
+import { formatCoins } from "../lib/format";
 
 export function StreakCard({ onClaimed }: { onClaimed?: () => void }) {
   const { user, refreshUser } = useAuth();
@@ -13,10 +13,9 @@ export function StreakCard({ onClaimed }: { onClaimed?: () => void }) {
 
   function claim() {
     try {
-      const reward = claimStreak(currentUser.id);
+      claimStreak(currentUser.id);
       refreshUser();
       onClaimed?.();
-      notify(`Streak claimed: ${formatCoins(reward.bonus)} Bonus Coins${reward.gold ? ` + ${reward.gold} Gold Coins` : ""}.`, "success");
     } catch (error) {
       notify(error instanceof Error ? error.message : "Streak unavailable.", "error");
     }

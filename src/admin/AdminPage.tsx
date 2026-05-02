@@ -223,6 +223,10 @@ export function AdminPage() {
                     <span>House edge</span><strong>{(sim.houseEdge * 100).toFixed(2)}%</strong>
                     <span>Biggest win</span><strong>{formatCoins(sim.biggestWin)}</strong>
                     <span>Cap hits</span><strong>{formatCoins(sim.maxPayoutCapHits)}</strong>
+                    {typeof sim.averagePayout === "number" && <><span>Average payout</span><strong>{formatCoins(sim.averagePayout)}</strong></>}
+                    {typeof sim.bustRate === "number" && <><span>Bust rate</span><strong>{(sim.bustRate * 100).toFixed(2)}%</strong></>}
+                    {typeof sim.averageBricksHit === "number" && <><span>Avg bricks hit</span><strong>{sim.averageBricksHit.toFixed(2)}</strong></>}
+                    {typeof sim.maxCapHitRate === "number" && <><span>Cap hit rate</span><strong>{(sim.maxCapHitRate * 100).toFixed(2)}%</strong></>}
                   </div>
                 ) : (
                   <p className="muted">Run simulation to inspect table game math.</p>

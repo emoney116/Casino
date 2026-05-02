@@ -1,6 +1,6 @@
 import type { Currency, Transaction } from "../types";
 
-export type TableGameId = "blackjack" | "roulette" | "dice" | "crash" | "treasureDig";
+export type TableGameId = "blackjack" | "roulette" | "dice" | "crash" | "treasureDig" | "brickBreakBonus";
 export type TableGameStatus = "IDLE" | "BETTING" | "PLAYER_TURN" | "DEALER_TURN" | "RESOLVED" | "ERROR";
 
 export interface TableGameConfig {
@@ -185,4 +185,8 @@ export interface TableSimulationResult {
   houseEdge: number;
   biggestWin: number;
   maxPayoutCapHits: number;
+  bustRate?: number;
+  averagePayout?: number;
+  averageBricksHit?: number;
+  maxCapHitRate?: number;
 }

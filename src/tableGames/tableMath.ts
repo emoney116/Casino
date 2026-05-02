@@ -4,9 +4,25 @@ import { americanWheel, rouletteBetWins } from "./rouletteEngine";
 import { getDiceReturnMultiplier } from "./diceEngine";
 import { generateCrashPoint } from "./crashEngine";
 import { createTreasureMultiplierTiles, createTreasureTrapIndexes, getTreasureBoostMultiplier, getTreasureDigMultiplier } from "./treasureDigEngine";
+import { getBrickBreakMathWarnings, simulateBrickBreakBonus } from "./brickBreakBonusEngine";
 import type { TableGameConfig, TableGameId, TableSimulationResult } from "./types";
 
 export function simulateTableGame(gameId: TableGameId, rounds = 100000): TableSimulationResult {
+  if (gameId === "brickBreakBonus") {
+    const result = simulateBrickBreakBonus(rounds);
+    return {
+      totalWagered: result.totalWagered,
+      totalPaid: result.totalPaid,
+      observedRtp: result.observedRtp,
+      houseEdge: 1 - result.observedRtp,
+      biggestWin: result.biggestWin,
+      maxPayoutCapHits: result.maxPayoutCapHits,
+      bustRate: result.bustRate,
+      averagePayout: result.averagePayout,
+      averageBricksHit: result.averageBricksHit,
+      maxCapHitRate: result.maxCapHitRate,
+    };
+  }
   if (gameId === "blackjack") return simulateBlackjack(rounds);
   if (gameId === "roulette") return simulateRoulette(rounds);
   if (gameId === "dice") return simulateDice(rounds);
@@ -139,6 +155,12 @@ function simulateTreasureDig(rounds: number) {
 }
 
 export function getTableMathWarnings(config: TableGameConfig, simulation?: TableSimulationResult) {
+  if (config.id === "brickBreakBonus") {
+    const brickSimulation = simulation && typeof simulation.averagePayout === "number" && typeof simulation.bustRate === "number" && typeof simulation.averageBricksHit === "number" && typeof simulation.maxCapHitRate === "number"
+      ? { ...simulation, averagePayout: simulation.averagePayout, bustRate: simulation.bustRate, averageBricksHit: simulation.averageBricksHit, maxCapHitRate: simulation.maxCapHitRate }
+      : undefined;
+    return getBrickBreakMathWarnings(brickSimulation);
+  }
   const warnings: string[] = [];
   if (simulation?.observedRtp && simulation.observedRtp > 0.99) warnings.push(`${config.name} observed RTP is above 99%.`);
   if (config.maxPayout > config.maxBet * 50) warnings.push(`${config.name} max payout is high versus max bet.`);

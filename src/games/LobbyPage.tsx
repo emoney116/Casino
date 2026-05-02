@@ -1,19 +1,11 @@
-import { Gift, WalletCards } from "lucide-react";
+import { Dices, Flame, Gamepad2, Gift, Sparkles, WalletCards } from "lucide-react";
+import type { ReactNode } from "react";
 import { useState } from "react";
 import { useAuth } from "../auth/AuthContext";
-import { BalanceCard } from "../components/BalanceCard";
 import { GameCard } from "../components/GameCard";
-import { useToast } from "../components/ToastContext";
-import { formatCoins } from "../lib/format";
-import { canClaimDailyBonus, claimDailyBonus, DAILY_BONUS_AMOUNT } from "../wallet/dailyBonusService";
-import { getBalance } from "../wallet/walletService";
 import { getRecentGames } from "./recentGames";
 import { exposedSlotConfigs } from "./slotConfigs";
 import type { SlotConfig } from "./types";
-import { getProgression } from "../progression/progressionService";
-import { ProgressionBar } from "../progression/ProgressionBar";
-import { StreakCard } from "../streaks/StreakCard";
-import { MissionsPanel } from "../missions/MissionsPanel";
 import { getFavorites, toggleFavorite } from "./favorites";
 import { tableGameConfigs } from "../tableGames/configs";
 import { TableGameCard } from "../tableGames/TableGameCard";
@@ -23,46 +15,48 @@ export function LobbyPage({
   onPlay,
   onTablePlay,
   onWallet,
+  onRewards,
+  onSlots,
+  onGames,
 }: {
   onPlay: (gameId: string) => void;
   onTablePlay: (gameId: TableGameId) => void;
   onWallet: () => void;
+  onRewards: () => void;
+  onSlots: () => void;
+  onGames: () => void;
 }) {
-  const { user, refreshUser } = useAuth();
-  const notify = useToast();
+  const { user } = useAuth();
   const [version, setVersion] = useState(0);
   if (!user) return null;
   const currentUser = user;
 
-  const balances = getBalance(currentUser.id);
-  const progression = getProgression(currentUser.id);
   const favorites = getFavorites(currentUser.id);
-  const dailyAvailable = canClaimDailyBonus(currentUser);
   const recent = getRecentGames()
     .map((id) => exposedSlotConfigs.find((game) => game.id === id))
     .filter(Boolean)
     .slice(0, 3) as SlotConfig[];
-
-  function claim() {
-    try {
-      claimDailyBonus(currentUser.id);
-      refreshUser();
-      notify(`Claimed ${formatCoins(DAILY_BONUS_AMOUNT)} Bonus Coins.`, "success");
-    } catch (caught) {
-      notify(caught instanceof Error ? caught.message : "Daily bonus unavailable.", "error");
-    }
-  }
+  const newSlots = exposedSlotConfigs.slice(0, 4);
+  const trendingTables = tableGameConfigs.slice(0, 4);
 
   return (
     <section className="page-stack">
-      <div className="lobby-hero">
+      <div className="lobby-hero lobby-home">
         <div>
           <p className="eyebrow">Virtual casino</p>
           <h1>Casino Lobby</h1>
-          <div className="hero-actions">
-            <button className="primary-button icon-button" onClick={claim} disabled={!dailyAvailable}>
+          <div className="lobby-shortcuts">
+            <button className="ghost-button icon-button" onClick={onSlots}>
+              <Gamepad2 size={18} />
+              Slots
+            </button>
+            <button className="ghost-button icon-button" onClick={onGames}>
+              <Dices size={18} />
+              Games
+            </button>
+            <button className="ghost-button icon-button" onClick={onRewards}>
               <Gift size={18} />
-              {dailyAvailable ? "Claim Daily Bonus" : "Daily Bonus Claimed"}
+              Rewards
             </button>
             <button className="ghost-button icon-button" onClick={onWallet}>
               <WalletCards size={18} />
@@ -70,35 +64,37 @@ export function LobbyPage({
             </button>
           </div>
         </div>
-        <div className="hero-balances">
-          <BalanceCard label="Gold Coins" amount={balances.GOLD} tone="gold" />
-          <BalanceCard label="Bonus Coins" amount={balances.BONUS} tone="bonus" />
-        </div>
       </div>
-
-      <ProgressionBar progress={progression} />
-      <StreakCard onClaimed={() => setVersion((value) => value + 1)} />
-      <MissionsPanel compact />
 
       {favorites.length > 0 && (
         <GameSection title="Favorites" games={favorites.map((id) => exposedSlotConfigs.find((game) => game.id === id)).filter(Boolean) as SlotConfig[]} onPlay={onPlay} favorites={favorites} onToggleFavorite={(id) => { toggleFavorite(currentUser.id, id); setVersion((value) => value + 1); }} />
       )}
-      <GameSection title="Slots" games={exposedSlotConfigs} onPlay={onPlay} favorites={favorites} onToggleFavorite={(id) => { toggleFavorite(currentUser.id, id); setVersion((value) => value + 1); }} />
-      <TableGameSection onPlay={onTablePlay} />
       {recent.length > 0 && <GameSection title="Recently Played" games={recent} onPlay={onPlay} />}
+      <GameSection title="New Slots" games={newSlots} onPlay={onPlay} favorites={favorites} onToggleFavorite={(id) => { toggleFavorite(currentUser.id, id); setVersion((value) => value + 1); }} icon={<Sparkles size={18} />} />
+      <TableGameSection title="Trending Games" games={trendingTables} onPlay={onTablePlay} icon={<Flame size={18} />} />
     </section>
   );
 }
 
-function TableGameSection({ onPlay }: { onPlay: (gameId: TableGameId) => void }) {
+function TableGameSection({
+  title,
+  games,
+  onPlay,
+  icon,
+}: {
+  title: string;
+  games: typeof tableGameConfigs;
+  onPlay: (gameId: TableGameId) => void;
+  icon?: ReactNode;
+}) {
   return (
     <section className="page-stack">
       <div className="section-title">
-        <h2>Games</h2>
-        <span>{formatGameCount(tableGameConfigs.length)}</span>
+        <h2>{icon}{title}</h2>
+        <span>{formatGameCount(games.length)}</span>
       </div>
       <div className="game-grid table-game-grid">
-        {tableGameConfigs.map((game) => <TableGameCard key={game.id} game={game} onPlay={onPlay} />)}
+        {games.map((game) => <TableGameCard key={game.id} game={game} onPlay={onPlay} />)}
       </div>
     </section>
   );
@@ -111,6 +107,7 @@ function GameSection({
   emptyText,
   favorites = [],
   onToggleFavorite,
+  icon,
 }: {
   title: string;
   games: SlotConfig[];
@@ -118,11 +115,12 @@ function GameSection({
   emptyText?: string;
   favorites?: string[];
   onToggleFavorite?: (gameId: string) => void;
+  icon?: ReactNode;
 }) {
   return (
     <section className="page-stack">
       <div className="section-title">
-        <h2>{title}</h2>
+        <h2>{icon}{title}</h2>
         <span>{formatGameCount(games.length)}</span>
       </div>
       {games.length === 0 ? (

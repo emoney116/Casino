@@ -19,7 +19,6 @@ export function MissionsPanel({ compact = false }: { compact?: boolean }) {
       claimMission(currentUser.id, id);
       refreshUser();
       setVersion((value) => value + 1);
-      notify("Mission reward credited to your virtual wallet.", "success");
     } catch (error) {
       notify(error instanceof Error ? error.message : "Mission unavailable.", "error");
     }

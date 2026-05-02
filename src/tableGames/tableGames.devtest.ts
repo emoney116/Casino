@@ -20,10 +20,20 @@ import {
   standBlackjack,
   visibleDealerValue,
 } from "./blackjackEngine";
+import {
+  blackjackActionsDisabled,
+  blackjackAnimationConfig,
+  dealerDisplayTotal,
+  dealerRevealAnimationMs,
+  hitAnimationMs,
+  initialDealAnimationMs,
+  initialDealSequence,
+} from "./blackjackAnimations";
 import { americanWheel, getRouletteInsideChipPosition, getRouletteWinningZones, resolveRouletteBet, resolveRouletteBets, rouletteBetKey } from "./rouletteEngine";
 import { getDiceReturnMultiplier, resolveDiceBet } from "./diceEngine";
 import { cashOutCrashRound, crashCrashRound, generateCrashPoint, getCrashMultiplier, startCrashRound } from "./crashEngine";
 import { cashOutTreasureDigRound, createTreasureMultiplierTiles, createTreasureTrapIndexes, getTreasureDigMultiplier, getTreasurePotentialMaxMultiplier, pickTreasureTile, startTreasureDigRound } from "./treasureDigEngine";
+import { brickBreakBonusConfig, createBrickBreakHitList, generateBrickBreakResult, pickBrickBreakOutcome, simulateBrickBreakBonus } from "./brickBreakBonusEngine";
 import { assertTableBet } from "./ledger";
 import { simulateTableGame } from "./tableMath";
 import type { PlayingCard } from "./types";
@@ -32,6 +42,7 @@ import { rouletteUiMarkers } from "./RoulettePage";
 import { overUnderUiMarkers } from "./DicePage";
 import { crashUiMarkers } from "./CrashPage";
 import { treasureDigUiMarkers } from "./TreasureDigPage";
+import { brickBreakBonusUiMarkers } from "./BrickBreakBonusPage";
 import { CoinBurst, GameResultBanner, WinOverlay, feedbackUiMarkers } from "../feedback/components";
 import {
   getFeedbackDebugCount,
@@ -167,15 +178,39 @@ if (blackjack.status !== "PLAYER_TURN" || handValue(blackjack.playerCards).total
 if (blackjack.dealerRevealed || visibleDealerValue(blackjack) !== 9) {
   throw new Error("Expected dealer hole card to stay hidden before resolution.");
 }
+if (blackjackAnimationConfig.initialDealDelayMs < 300 || blackjackAnimationConfig.initialDealDelayMs > 500) {
+  throw new Error("Expected blackjack initial deal delay to stay within the requested 300-500ms table cadence.");
+}
+if (JSON.stringify(initialDealSequence) !== JSON.stringify(["player-card-1", "dealer-upcard", "player-card-2", "dealer-hole-card"])) {
+  throw new Error("Expected blackjack initial deal animation to follow player, dealer, player, dealer order.");
+}
+if (!blackjackActionsDisabled(true, false)) {
+  throw new Error("Expected blackjack actions to be disabled during initial deal animation.");
+}
+if (initialDealAnimationMs() < blackjackAnimationConfig.initialDealDelayMs * 3 + blackjackAnimationConfig.cardSlideMs) {
+  throw new Error("Expected initial deal lock to include all card slides.");
+}
 if (!canDoubleBlackjack(blackjack, user.id)) throw new Error("Expected double to be legal on first two cards.");
 const blackjackHit = hitBlackjack(blackjack, user.id);
 if (blackjackHit.playerCards.length !== 3) throw new Error("Expected hit to draw a card.");
+if (!blackjackActionsDisabled(true, false) || hitAnimationMs() < blackjackAnimationConfig.cardSlideMs) {
+  throw new Error("Expected hit to wait for card animation before re-enabling actions.");
+}
 if (canDoubleBlackjack(blackjackHit, user.id)) throw new Error("Expected double to be unavailable after hit.");
 const blackjackSettled = standBlackjack(blackjack, user.id);
 if (!blackjackSettled.result || blackjackSettled.status !== "RESOLVED") {
   throw new Error("Expected stand to resolve blackjack.");
 }
 if (!blackjackSettled.dealerRevealed) throw new Error("Expected dealer hole card to reveal after stand.");
+if (dealerDisplayTotal(blackjackSettled, false) !== visibleDealerValue({ ...blackjackSettled, dealerRevealed: false })) {
+  throw new Error("Expected dealer total to stay hidden until the hole-card flip finishes.");
+}
+if (dealerDisplayTotal(blackjackSettled, true) !== handValue(blackjackSettled.dealerCards).total) {
+  throw new Error("Expected dealer total to reveal after the hole-card flip finishes.");
+}
+if (dealerRevealAnimationMs(blackjack.dealerCards.length, blackjackSettled.dealerCards.length) < blackjackAnimationConfig.flipMs) {
+  throw new Error("Expected dealer draw sequence to resolve after hole-card flip and draw animations.");
+}
 if (getTransactions(user.id).length <= blackjackBefore) throw new Error("Expected blackjack ledger entries.");
 
 try {
@@ -536,7 +571,7 @@ for (const type of ["TABLE_BET", "TABLE_WIN", "TABLE_PUSH", "TABLE_LOSS"]) {
   if (!tableTypes.has(type as never)) throw new Error(`Expected ${type} ledger entry.`);
 }
 
-for (const gameId of ["blackjack", "roulette", "dice", "crash", "treasureDig"] as const) {
+for (const gameId of ["blackjack", "roulette", "dice", "crash", "treasureDig", "brickBreakBonus"] as const) {
   const sim = simulateTableGame(gameId, 1000);
   if (!Number.isFinite(sim.observedRtp) || !Number.isFinite(sim.houseEdge)) {
     throw new Error(`Expected ${gameId} simulation to produce math stats.`);
@@ -800,6 +835,84 @@ if (
   !treasureDigUiMarkers.compactBottomBetControls
 ) {
   throw new Error("Expected Treasure Dig UI markers for grid, risk, multiplier, cash out, feedback, and compact betting.");
+}
+
+const brickSequence = [0.999, 0.2, 0.34, 0.48, 0.62, 0.76, 0.9, 0.1, 0.4, 0.8];
+let brickCursor = 0;
+const brickRandom = () => brickSequence[brickCursor++ % brickSequence.length];
+if (pickBrickBreakOutcome(() => 0, brickBreakBonusConfig) !== 0) {
+  throw new Error("Expected Brick Break Bonus lowest RNG bucket to bust.");
+}
+if (pickBrickBreakOutcome(() => 0.999, brickBreakBonusConfig) !== 10) {
+  throw new Error("Expected Brick Break Bonus highest RNG bucket to reach very rare 10x outcome.");
+}
+const brickHits = createBrickBreakHitList({ betAmount: 100, desiredMultiplier: 2, random: brickRandom });
+const brickHitTotal = brickHits.reduce((sum, hit) => sum + hit.amount, 0);
+if (brickHits.length === 0 || brickHitTotal !== 200) {
+  throw new Error("Expected broken Brick Break Bonus bricks to add to the generated total.");
+}
+if (new Set(brickHits.map((hit) => hit.brickIndex)).size !== brickHits.length) {
+  throw new Error("Expected Brick Break Bonus hit list to use unique bricks.");
+}
+const brickSim = simulateBrickBreakBonus(100000);
+if (brickSim.observedRtp > 0.95 || brickBreakBonusConfig.targetRtp > 0.95) {
+  throw new Error("Expected Brick Break Bonus RTP simulation and target to stay under 95%.");
+}
+if (!Number.isFinite(brickSim.averagePayout) || !Number.isFinite(brickSim.bustRate) || !Number.isFinite(brickSim.averageBricksHit)) {
+  throw new Error("Expected Brick Break Bonus simulation to expose admin stats.");
+}
+const brickBetCountBefore = getTransactions(user.id).filter((tx) => tx.type === "ARCADE_BET").length;
+const brickWinCountBefore = getTransactions(user.id).filter((tx) => tx.type === "ARCADE_WIN").length;
+creditCurrency({ userId: user.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 1000 });
+const brickGoldBefore = getBalance(user.id, "GOLD");
+const brickRound = generateBrickBreakResult({
+  userId: user.id,
+  currency: "GOLD",
+  betAmount: 100,
+  random: () => 0.999,
+});
+if (getBalance(user.id, "GOLD") !== brickGoldBefore - 100 + brickRound.totalPaid) {
+  throw new Error("Expected Brick Break Bonus play to debit bet and credit payout through wallet ledger.");
+}
+if (getTransactions(user.id).filter((tx) => tx.type === "ARCADE_BET").length !== brickBetCountBefore + 1) {
+  throw new Error("Expected Brick Break Bonus play to create ARCADE_BET.");
+}
+if (brickRound.totalPaid > 0 && getTransactions(user.id).filter((tx) => tx.type === "ARCADE_WIN").length !== brickWinCountBefore + 1) {
+  throw new Error("Expected Brick Break Bonus payout to create ARCADE_WIN.");
+}
+if (brickRound.totalPaid > brickRound.betAmount * brickBreakBonusConfig.maxWinMultiplier) {
+  throw new Error("Expected Brick Break Bonus payout to never exceed max cap.");
+}
+const brickBust = generateBrickBreakResult({
+  userId: user.id,
+  currency: "BONUS",
+  betAmount: 100,
+  random: () => 0,
+});
+if (brickBust.totalPaid !== 0 || !brickBust.bust || brickBust.transactions.some((tx) => tx.type === "ARCADE_WIN")) {
+  throw new Error("Expected Brick Break Bonus bust to lose wager without crediting a win.");
+}
+const lowBrickUser = "low-brick-break-user";
+creditCurrency({ userId: lowBrickUser, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: brickBreakBonusConfig.minBet - 1 });
+try {
+  generateBrickBreakResult({ userId: lowBrickUser, currency: "GOLD", betAmount: brickBreakBonusConfig.minBet });
+  throw new Error("Expected Brick Break Bonus to block insufficient balance.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("Insufficient")) throw error;
+}
+if (
+  brickBreakBonusUiMarkers.gameName !== "Brick Break Bonus" ||
+  !brickBreakBonusUiMarkers.goldBonusToggle ||
+  !brickBreakBonusUiMarkers.noSkillAutoplay ||
+  !brickBreakBonusUiMarkers.cpuPaddle ||
+  !brickBreakBonusUiMarkers.deterministicReplay ||
+  !brickBreakBonusUiMarkers.hiddenBrickValues ||
+  !brickBreakBonusUiMarkers.runningWinningsMeter ||
+  !brickBreakBonusUiMarkers.compactBottomBetControls ||
+  !brickBreakBonusUiMarkers.rtpUnder95Warning ||
+  !brickBreakBonusUiMarkers.sharedSoundToggle
+) {
+  throw new Error("Expected Brick Break Bonus UI markers for no-skill autoplay, hidden brick values, replay, currency, RTP, and compact betting.");
 }
 
 console.log("tableGames.devtest passed");

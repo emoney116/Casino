@@ -4,34 +4,38 @@ import { useAuth } from "../auth/AuthContext";
 import { BalanceCard } from "../components/BalanceCard";
 import { Modal } from "../components/Modal";
 import { TransactionTable } from "../components/TransactionTable";
-import { useToast } from "../components/ToastContext";
 import { formatCoins, formatDateTime } from "../lib/format";
 import { coinPacks } from "../store/coinPacks";
 import { fakePurchasePack } from "../store/fakePurchaseService";
 import type { Transaction, TransactionType } from "../types";
 import { getBalance, getTransactions } from "./walletService";
-import { StreakCard } from "../streaks/StreakCard";
 
 type Filter = "ALL" | "PURCHASES" | "BONUSES" | "BETS" | "WINS" | "ADMIN";
 
 const filterMap: Record<Filter, TransactionType[]> = {
   ALL: [],
   PURCHASES: ["PURCHASE_FAKE"],
-  BONUSES: ["DAILY_BONUS", "STREAK_REWARD", "MISSION_REWARD", "LEVEL_REWARD"],
-  BETS: ["GAME_BET", "BUY_BONUS", "TABLE_BET"],
-  WINS: ["GAME_WIN", "BONUS_WIN", "JACKPOT_WIN", "TABLE_WIN", "TABLE_PUSH", "TABLE_REFUND", "TABLE_LOSS"],
+  BONUSES: ["DAILY_BONUS", "STREAK_REWARD", "MISSION_REWARD", "LEVEL_REWARD", "RETENTION_REWARD", "PROMO_REWARD"],
+  BETS: ["GAME_BET", "BUY_BONUS", "TABLE_BET", "ARCADE_BET"],
+  WINS: ["GAME_WIN", "BONUS_WIN", "JACKPOT_WIN", "TABLE_WIN", "TABLE_PUSH", "TABLE_REFUND", "TABLE_LOSS", "ARCADE_WIN"],
   ADMIN: ["ADMIN_ADJUSTMENT"],
 };
 
+function titleCase(value: string) {
+  return value.toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 export function WalletPage() {
   const { user, refreshUser } = useAuth();
-  const notify = useToast();
   const [filter, setFilter] = useState<Filter>("ALL");
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [version, setVersion] = useState(0);
 
   if (!user) return null;
   const currentUser = user;
+  const filters: Filter[] = currentUser.roles.includes("ADMIN")
+    ? ["ALL", "PURCHASES", "BONUSES", "BETS", "WINS", "ADMIN"]
+    : ["ALL", "PURCHASES", "BONUSES", "BETS", "WINS"];
   const balances = getBalance(currentUser.id);
   const transactions = getTransactions(currentUser.id).filter((tx) => {
     const allowed = filterMap[filter];
@@ -42,7 +46,6 @@ export function WalletPage() {
     fakePurchasePack(currentUser, packId);
     refreshUser();
     setVersion((value) => value + 1);
-    notify("Demo purchase completed. No real money was charged.", "success");
   }
 
   function exportJson() {
@@ -74,8 +77,6 @@ export function WalletPage() {
         <BalanceCard label="Bonus Coins" amount={balances.BONUS} tone="bonus" />
       </div>
 
-      <StreakCard onClaimed={() => setVersion((value) => value + 1)} />
-
       <section className="card">
         <div className="section-title">
           <h2>Fake Coin Store</h2>
@@ -101,9 +102,9 @@ export function WalletPage() {
           <span>{transactions.length} records</span>
         </div>
         <div className="filter-row">
-          {(["ALL", "PURCHASES", "BONUSES", "BETS", "WINS", "ADMIN"] as Filter[]).map((item) => (
+          {filters.map((item) => (
             <button className={filter === item ? "active" : ""} key={item} onClick={() => setFilter(item)}>
-              {item.toLowerCase()}
+              {titleCase(item)}
             </button>
           ))}
         </div>
@@ -114,8 +115,8 @@ export function WalletPage() {
         <Modal title="Transaction Detail" onClose={() => setSelectedTx(null)}>
           <div className="detail-list">
             <span>ID</span><strong>{selectedTx.id}</strong>
-            <span>Type</span><strong>{selectedTx.type}</strong>
-            <span>Currency</span><strong>{selectedTx.currency}</strong>
+            <span>Type</span><strong>{titleCase(selectedTx.type.replaceAll("_", " "))}</strong>
+            <span>Currency</span><strong>{titleCase(selectedTx.currency)}</strong>
             <span>Amount</span><strong>{formatCoins(selectedTx.amount)}</strong>
             <span>Balance After</span><strong>{formatCoins(selectedTx.balanceAfter)}</strong>
             <span>Created</span><strong>{formatDateTime(selectedTx.createdAt)}</strong>

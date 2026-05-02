@@ -5,6 +5,7 @@ import { useToast } from "../components/ToastContext";
 import { CoinBurst, ScreenShake, SoundToggle } from "../feedback/components";
 import { playBet, playCardFlip, playError, playLose, playWin } from "../feedback/feedbackService";
 import { formatCoins } from "../lib/format";
+import { recordRetentionRound } from "../retention/retentionService";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
 import { treasureDigConfig } from "./configs";
@@ -33,7 +34,7 @@ export const treasureDigUiMarkers = {
 };
 
 export function TreasureDigPage({ onExit }: { onExit?: () => void }) {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const notify = useToast();
   const [currency, setCurrency] = useState<Currency>("GOLD");
   const [betAmount, setBetAmount] = useState(treasureDigConfig.minBet);
@@ -108,6 +109,7 @@ export function TreasureDigPage({ onExit }: { onExit?: () => void }) {
       setLastOpened(tileIndex);
       playCardFlip();
       if (next.status === "TRAPPED") {
+        recordTreasureRetention(next.betAmount, 0, next.currentMultiplier);
         playLose();
       }
     } catch (caught) {
@@ -120,7 +122,19 @@ export function TreasureDigPage({ onExit }: { onExit?: () => void }) {
     if (!round || round.status !== "RUNNING") return;
     const next = cashOutTreasureDigRound({ round, userId: currentUser.id });
     setRound(next);
+    recordTreasureRetention(next.betAmount, next.totalPaid ?? 0, next.currentMultiplier);
     playWin();
+  }
+
+  function recordTreasureRetention(wager: number, won: number, multiplierValue: number) {
+    recordRetentionRound({
+      userId: currentUser.id,
+      gameId: "treasureDig",
+      wager,
+      won,
+      multiplier: multiplierValue,
+    });
+    refreshUser();
   }
 
   function mainAction() {

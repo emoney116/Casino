@@ -29,6 +29,7 @@ export function recordMissionEvent(input: {
   won: number;
   bonusTriggered: boolean;
   leveledUp: boolean;
+  multiplier?: number;
 }) {
   let completed: string[] = [];
   updateData((data) => {
@@ -36,11 +37,13 @@ export function recordMissionEvent(input: {
     for (const def of missionDefs) {
       const mission = state[def.id];
       if (mission.status === "CLAIMED") continue;
+      if (def.metric === "ROUNDS") mission.progress += 1;
       if (def.metric === "SPINS") mission.progress += 1;
       if (def.metric === "WINS" && input.won > 0) mission.progress += 1;
       if (def.metric === "WAGER") mission.progress += input.wager;
       if (def.metric === "BONUS" && input.bonusTriggered) mission.progress += 1;
       if (def.metric === "LEVEL" && input.leveledUp) mission.progress += 1;
+      if (def.metric === "MULTIPLIER" && (input.multiplier ?? 0) > 2) mission.progress += 1;
       if (def.metric === "GAMES") {
         const played = new Set(mission.playedGames ?? []);
         played.add(input.gameId);

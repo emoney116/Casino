@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { blackjackAnimationConfig } from "./blackjackAnimations";
 import type { PlayingCard as Card } from "./types";
 
 const suits: Record<Card["suit"], string> = {
@@ -24,10 +25,15 @@ export function PlayingCard({
   mini?: boolean;
 }) {
   const delay = delayMs ?? index * 90;
+  const animationStyle = {
+    "--deal-delay": `${delay}ms`,
+    "--card-slide-ms": `${blackjackAnimationConfig.cardSlideMs}ms`,
+    "--card-flip-ms": `${blackjackAnimationConfig.flipMs}ms`,
+  } as CSSProperties;
   if (!card && !hidden) return <div className="blackjack-clean-card placeholder">Card</div>;
   if (hidden) {
     return (
-      <div className="blackjack-clean-card back" style={{ "--deal-delay": `${delay}ms` } as CSSProperties}>
+      <div className="blackjack-clean-card back" style={animationStyle}>
         BJ
       </div>
     );
@@ -36,7 +42,7 @@ export function PlayingCard({
   const red = card?.suit === "H" || card?.suit === "D";
   const className = `${red ? "blackjack-clean-card red" : "blackjack-clean-card"}${reveal ? " reveal" : ""}${mini ? " mini" : ""}`;
   return (
-    <div className={className} style={{ "--deal-delay": `${delay}ms` } as CSSProperties}>
+    <div className={className} style={animationStyle}>
       <strong>{card?.rank}</strong>
       <span>{card ? suits[card.suit] : ""}</span>
     </div>

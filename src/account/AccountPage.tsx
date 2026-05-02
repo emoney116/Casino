@@ -1,15 +1,11 @@
 import { LogOut } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { formatDateTime } from "../lib/format";
-import { getProgression } from "../progression/progressionService";
-import { ProgressionBar } from "../progression/ProgressionBar";
-import { MissionsPanel } from "../missions/MissionsPanel";
 import { SupabaseDebugPanel } from "../components/SupabaseDebugPanel";
 
 export function AccountPage() {
   const { user, logout } = useAuth();
   if (!user) return null;
-  const progression = getProgression(user.id);
 
   return (
     <section className="page-stack">
@@ -25,7 +21,6 @@ export function AccountPage() {
         </button>
       </div>
 
-      <ProgressionBar progress={progression} />
       <SupabaseDebugPanel />
 
       <div className="grid two">
@@ -61,7 +56,6 @@ export function AccountPage() {
           <label><input type="checkbox" /> Self-exclusion placeholder</label>
         </div>
       </article>
-      <MissionsPanel />
     </section>
   );
 }

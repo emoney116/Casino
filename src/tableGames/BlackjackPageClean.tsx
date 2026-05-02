@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
 import { formatCoins } from "../lib/format";
+import { recordRetentionRound } from "../retention/retentionService";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
 import { GameResultBanner, ScreenShake, SoundToggle } from "../feedback/components";
@@ -24,12 +25,22 @@ import {
   splitBlackjack,
   standBlackjack,
   startBlackjackRound,
-  visibleDealerValue,
 } from "./blackjackEngine";
+import {
+  blackjackActionsDisabled,
+  blackjackAnimationConfig,
+  dealerDisplayTotal,
+  dealerDrawDelay,
+  dealerRevealAnimationMs,
+  hitAnimationMs,
+  initialDealAnimationMs,
+  initialDealStepDelay,
+  splitAnimationMs,
+} from "./blackjackAnimations";
 import { BlackjackControlsClean } from "./BlackjackControlsClean";
 import { DealerHandView, PlayerHandView, SplitHandSummary } from "./BlackjackHandView";
 import { blackjackConfig } from "./configs";
-import type { BlackjackRound } from "./types";
+import type { BlackjackHand, BlackjackRound } from "./types";
 
 export const blackjackCleanUxMarkers = {
   cleanPage: true,
@@ -50,24 +61,30 @@ export const blackjackCleanUxMarkers = {
 };
 
 export const blackjackSoundTimings = {
-  initialDealMs: [0, 120, 240, 360],
-  playerHitMs: 80,
-  dealerFlipMs: 360,
-  dealerDrawStartMs: 540,
-  dealerDrawStepMs: 160,
-  splitDealMs: [0, 120],
+  initialDealMs: [0, blackjackAnimationConfig.initialDealDelayMs, blackjackAnimationConfig.initialDealDelayMs * 2, blackjackAnimationConfig.initialDealDelayMs * 3],
+  playerHitMs: 0,
+  dealerFlipMs: 0,
+  dealerDrawStartMs: blackjackAnimationConfig.flipMs,
+  dealerDrawStepMs: blackjackAnimationConfig.dealerDrawDelayMs,
+  splitDealMs: [blackjackAnimationConfig.splitSlideMs, blackjackAnimationConfig.splitSlideMs + blackjackAnimationConfig.initialDealDelayMs],
 };
 
+type BlackjackAnimationKind = "initial" | "hit" | "dealer" | "double" | "split" | null;
+
 export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const notify = useToast();
   const [currency, setCurrency] = useState<Currency>("GOLD");
   const [betAmount, setBetAmount] = useState(25);
   const [round, setRound] = useState<BlackjackRound | null>(null);
   const [shoe, setShoe] = useState(() => shuffleDeck(createShoe()));
   const [cardsAnimating, setCardsAnimating] = useState(false);
+  const [animationKind, setAnimationKind] = useState<BlackjackAnimationKind>(null);
+  const [initialDealVisibleCount, setInitialDealVisibleCount] = useState(0);
   const [dealerTotalRevealed, setDealerTotalRevealed] = useState(false);
+  const [resultVisible, setResultVisible] = useState(false);
   const soundTimers = useRef<number[]>([]);
+  const recordedRoundIds = useRef<Set<string>>(new Set());
 
   useEffect(() => () => clearSoundTimers(), []);
 
@@ -76,23 +93,31 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
       setDealerTotalRevealed(false);
       return;
     }
-    const timer = window.setTimeout(() => setDealerTotalRevealed(true), 520);
+    const timer = window.setTimeout(() => setDealerTotalRevealed(true), blackjackAnimationConfig.flipMs);
     return () => window.clearTimeout(timer);
   }, [round?.dealerRevealed, round?.dealerCards.length]);
 
   useEffect(() => {
-    if (!round?.result) return;
-    const extraDealerCards = Math.max(0, round.dealerCards.length - 2);
-    const resultDelay = round.dealerRevealed ? blackjackSoundTimings.dealerDrawStartMs + extraDealerCards * blackjackSoundTimings.dealerDrawStepMs + 160 : 520;
-    const timer = window.setTimeout(() => {
-      if (round.result?.result === "WIN") {
-        if (round.playerHands.some((hand) => isBlackjack(hand.cards) && hand.result?.result === "WIN")) playBlackjackWin();
-        else playWin();
-      } else if (round.result?.result === "LOSS") playLose();
-      else if (round.result?.result === "PUSH") playPush();
-    }, resultDelay);
-    return () => window.clearTimeout(timer);
-  }, [round?.result]);
+    if (!round?.result || !resultVisible) return;
+    if (round.result.result === "WIN") {
+      if (round.playerHands.some((hand) => isBlackjack(hand.cards) && hand.result?.result === "WIN")) playBlackjackWin();
+      else playWin();
+    } else if (round.result.result === "LOSS") playLose();
+    else if (round.result.result === "PUSH") playPush();
+  }, [round?.result, resultVisible]);
+
+  useEffect(() => {
+    if (!round?.result || !resultVisible || !user || recordedRoundIds.current.has(round.id)) return;
+    recordedRoundIds.current.add(round.id);
+    recordRetentionRound({
+      userId: user.id,
+      gameId: "blackjack",
+      wager: round.totalBet,
+      won: round.result.amountPaid,
+      multiplier: round.totalBet > 0 ? round.result.amountPaid / round.totalBet : 0,
+    });
+    refreshUser();
+  }, [round?.result, resultVisible, user, refreshUser, notify]);
 
   if (!user) return null;
   const currentUser = user;
@@ -103,11 +128,18 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
   const insuranceOffer = round ? canOfferInsurance(round, blackjackConfig, currentUser.id) : false;
   const evenMoneyOffer = round ? canOfferEvenMoney(round) : false;
   const actionBlocked = insuranceOffer || evenMoneyOffer;
+  const actionsDisabled = blackjackActionsDisabled(cardsAnimating, actionBlocked);
   const canDeal = !active && !cardsAnimating && betAmount >= blackjackConfig.minBet && betAmount <= blackjackConfig.maxBet && balance >= betAmount;
+  const visibleRound = round ? getVisibleBlackjackRound(round, animationKind, initialDealVisibleCount) : null;
 
-  function lockForAnimation(ms = 1050) {
+  function lockForAnimation(ms: number, kind: BlackjackAnimationKind, after?: () => void) {
+    setAnimationKind(kind);
     setCardsAnimating(true);
-    window.setTimeout(() => setCardsAnimating(false), ms);
+    scheduleTimer(() => {
+      setCardsAnimating(false);
+      setAnimationKind(null);
+      after?.();
+    }, ms);
   }
 
   function clearSoundTimers() {
@@ -116,13 +148,23 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
   }
 
   function scheduleSound(sound: () => void, delayMs: number) {
-    const timer = window.setTimeout(sound, delayMs);
+    scheduleTimer(sound, delayMs);
+  }
+
+  function scheduleTimer(callback: () => void, delayMs: number) {
+    const timer = window.setTimeout(callback, delayMs);
     soundTimers.current.push(timer);
   }
 
   function scheduleInitialDealSounds() {
     clearSoundTimers();
-    blackjackSoundTimings.initialDealMs.forEach((delay) => scheduleSound(playCardDeal, delay));
+    setInitialDealVisibleCount(0);
+    blackjackSoundTimings.initialDealMs.forEach((delay, index) => {
+      scheduleTimer(() => {
+        playCardDeal();
+        setInitialDealVisibleCount(index + 1);
+      }, delay);
+    });
   }
 
   function scheduleDealerRevealSounds(previous: BlackjackRound, next: BlackjackRound) {
@@ -130,7 +172,7 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
     scheduleSound(playCardFlip, blackjackSoundTimings.dealerFlipMs);
     const extraDealerCards = Math.max(0, next.dealerCards.length - Math.max(2, previous.dealerCards.length));
     for (let index = 0; index < extraDealerCards; index += 1) {
-      scheduleSound(playCardDeal, blackjackSoundTimings.dealerDrawStartMs + index * blackjackSoundTimings.dealerDrawStepMs);
+      scheduleSound(playCardDeal, dealerDrawDelay(index));
     }
   }
 
@@ -138,9 +180,12 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
     try {
       const next = startBlackjackRound({ userId: currentUser.id, currency, betAmount, deck: shoe });
       scheduleInitialDealSounds();
+      setDealerTotalRevealed(false);
+      setResultVisible(false);
       setRound(next);
       setShoe(prepareNextShoe(next.deck));
-      lockForAnimation(next.status === "RESOLVED" ? 1400 : 1250);
+      const revealDelay = next.dealerRevealed ? dealerRevealAnimationMs(0, next.dealerCards.length) : 0;
+      lockForAnimation(initialDealAnimationMs() + revealDelay, "initial", () => setResultVisible(Boolean(next.result)));
     } catch (caught) {
       notify(caught instanceof Error ? caught.message : "Unable to deal.", "error");
       playError();
@@ -158,6 +203,7 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
             ? doubleDownBlackjack(round, currentUser.id)
           : splitBlackjack(round, currentUser.id);
       clearSoundTimers();
+      setResultVisible(false);
       if (action === "hit") scheduleSound(playCardDeal, blackjackSoundTimings.playerHitMs);
       if (action === "double") {
         playChip();
@@ -169,7 +215,12 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
       scheduleDealerRevealSounds(round, next);
       setRound(next);
       setShoe(prepareNextShoe(next.deck));
-      lockForAnimation(action === "split" ? 950 : next.dealerRevealed ? 1100 : 520);
+      const animationMs = action === "split"
+        ? splitAnimationMs()
+        : next.dealerRevealed
+          ? dealerRevealAnimationMs(round.dealerCards.length, next.dealerCards.length)
+          : hitAnimationMs();
+      lockForAnimation(animationMs, action === "stand" || next.dealerRevealed ? "dealer" : action, () => setResultVisible(Boolean(next.result)));
     } catch (caught) {
       notify(caught instanceof Error ? caught.message : "Action failed.", "error");
       playError();
@@ -198,7 +249,7 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
           <button
             type="button"
             className={currency === "GOLD" ? "active" : ""}
-            disabled={active}
+            disabled={active || cardsAnimating}
             onClick={() => setCurrency("GOLD")}
           >
             Gold
@@ -206,7 +257,7 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
           <button
             type="button"
             className={currency === "BONUS" ? "active" : ""}
-            disabled={active}
+            disabled={active || cardsAnimating}
             onClick={() => setCurrency("BONUS")}
           >
             Bonus
@@ -222,39 +273,42 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
 
       <ScreenShake active={Boolean(round?.result && round.result.result === "WIN" && round.result.amountPaid >= betAmount * 3)}>
       <main className="blackjack-clean-table">
+        <div className="blackjack-clean-deck-source" aria-hidden="true">
+          <span />
+          <span />
+        </div>
         <DealerHandView
-          cards={round?.dealerCards ?? []}
-          total={round && dealerTotalRevealed ? visibleDealerValue(round) : round ? visibleDealerValue({ ...round, dealerRevealed: false }) : 0}
-          revealed={Boolean(round?.dealerRevealed)}
+          cards={visibleRound?.dealerCards ?? []}
+          total={round ? dealerDisplayTotal(round, dealerTotalRevealed) : 0}
+          revealed={Boolean(round?.dealerRevealed) && animationKind !== "initial"}
           totalRevealed={dealerTotalRevealed}
+          immediateDeal={animationKind === "initial"}
         />
         {insuranceOffer && <InlineOffer title="Insurance?" onYes={() => insurance(true)} onNo={() => insurance(false)} />}
         {evenMoneyOffer && <InlineOffer title="Even Money?" onYes={() => evenMoney(true)} onNo={() => evenMoney(false)} />}
 
         <section className="blackjack-clean-player">
-          {(round?.playerHands ?? []).length === 0 ? (
+          {(visibleRound?.playerHands ?? []).length === 0 ? (
             <div className="blackjack-clean-empty">Set your bet and deal.</div>
-          ) : round!.playerHands.length > 1 ? (
+          ) : visibleRound!.playerHands.length > 1 ? (
             <>
-              <PlayerHandView
-                key={round!.playerHands[round!.activeHandIndex]?.id ?? round!.playerHands[0].id}
-                hand={round!.playerHands[round!.activeHandIndex] ?? round!.playerHands[0]}
-                index={round!.activeHandIndex}
-                split
-                active={active}
-              />
+              <div className={animationKind === "split" ? "blackjack-clean-split-hands splitting" : "blackjack-clean-split-hands"}>
+                {visibleRound!.playerHands.map((hand, index) => (
+                  <PlayerHandView key={hand.id} hand={hand} index={index} split active={active && index === round!.activeHandIndex} immediateDeal={animationKind === "initial"} />
+                ))}
+              </div>
               <div className="blackjack-clean-split-strip">
-                {round!.playerHands.map((hand, index) => (
+                {visibleRound!.playerHands.map((hand, index) => (
                   <SplitHandSummary key={hand.id} hand={hand} index={index} active={index === round!.activeHandIndex && active} />
                 ))}
               </div>
             </>
           ) : (
-            <PlayerHandView hand={round!.playerHands[0]} index={0} split={false} active={active} />
+            <PlayerHandView hand={visibleRound!.playerHands[0]} index={0} split={false} active={active} immediateDeal={animationKind === "initial"} />
           )}
         </section>
 
-        {round?.result && (
+        {round?.result && resultVisible && (
           <GameResultBanner
             tone={round.result.result === "LOSS" ? "loss" : round.result.result === "PUSH" ? "push" : "win"}
             title={round.result.result === "LOSS" ? "Dealer Wins" : round.result.result}
@@ -272,7 +326,7 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
         canDeal={canDeal}
         canDouble={Boolean(round && canDoubleBlackjack(round, currentUser.id))}
         canSplit={Boolean(round && canSplitBlackjack(round, currentUser.id))}
-        disabled={cardsAnimating}
+        disabled={actionsDisabled}
         onBetChange={setBetAmount}
         onDeal={deal}
         onHit={() => apply("hit")}
@@ -282,6 +336,22 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
       />
     </section>
   );
+}
+
+function getVisibleBlackjackRound(round: BlackjackRound, animationKind: BlackjackAnimationKind, initialDealVisibleCount: number): BlackjackRound {
+  if (animationKind !== "initial") return round;
+  const playerVisibleCount = Number(initialDealVisibleCount >= 1) + Number(initialDealVisibleCount >= 3);
+  const dealerVisibleCount = Number(initialDealVisibleCount >= 2) + Number(initialDealVisibleCount >= 4);
+  const firstHand = round.playerHands[0];
+  const visibleHands: BlackjackHand[] = firstHand && playerVisibleCount > 0
+    ? [{ ...firstHand, cards: firstHand.cards.slice(0, playerVisibleCount) }]
+    : [];
+  return {
+    ...round,
+    playerCards: firstHand?.cards.slice(0, playerVisibleCount) ?? [],
+    playerHands: visibleHands,
+    dealerCards: round.dealerCards.slice(0, dealerVisibleCount),
+  };
 }
 
 function InlineOffer({ title, onYes, onNo }: { title: string; onYes: () => void; onNo: () => void }) {

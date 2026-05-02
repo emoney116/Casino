@@ -1,4 +1,5 @@
 import type { BlackjackConfig, CrashConfig, DiceConfig, RouletteConfig, TableGameConfig, TreasureDigConfig } from "./types";
+import { brickBreakBonusConfig } from "./brickBreakBonusEngine";
 
 const demoOnlyCopy =
   "Demo table game using virtual coins only. No cash value, deposits, withdrawals, prizes, or redemptions.";
@@ -132,4 +133,21 @@ export const treasureDigConfig: TreasureDigConfig = {
   multiplierValues: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 5, 5, 10, 25, 50],
 };
 
-export const tableGameConfigs: TableGameConfig[] = [blackjackConfig, rouletteConfig, diceConfig, crashConfig, treasureDigConfig];
+export const brickBreakBonusTableConfig: TableGameConfig = {
+  id: "brickBreakBonus",
+  name: brickBreakBonusConfig.name,
+  theme: brickBreakBonusConfig.theme,
+  minBet: brickBreakBonusConfig.minBet,
+  maxBet: brickBreakBonusConfig.maxBet,
+  minBetGold: brickBreakBonusConfig.minBet,
+  maxBetGold: brickBreakBonusConfig.maxBet,
+  minBetRealCentsPlaceholder: 1,
+  maxBetRealCentsPlaceholder: 500,
+  maxPayout: brickBreakBonusConfig.maxPayout,
+  houseEdgeTarget: 1 - brickBreakBonusConfig.targetRtp,
+  currency: "GOLD",
+  demoOnlyCopy,
+  rules: ["Place a wager and press Play", "CPU autoplay controls the paddle and ball", "RNG result is generated before animation starts"],
+};
+
+export const tableGameConfigs: TableGameConfig[] = [brickBreakBonusTableConfig, blackjackConfig, rouletteConfig, diceConfig, crashConfig, treasureDigConfig];

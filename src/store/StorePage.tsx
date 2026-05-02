@@ -1,19 +1,16 @@
 import { ShoppingCart } from "lucide-react";
 import { formatCoins } from "../lib/format";
 import { useAuth } from "../auth/AuthContext";
-import { useToast } from "../components/ToastContext";
 import { coinPacks } from "./coinPacks";
 import { fakePurchasePack } from "./fakePurchaseService";
 
 export function StorePage({ onBack }: { onBack: () => void }) {
   const { user, refreshUser } = useAuth();
-  const notify = useToast();
 
   function buy(packId: string) {
     if (!user) return;
     fakePurchasePack(user, packId);
     refreshUser();
-    notify("Demo purchase completed. No real money was charged.", "success");
   }
 
   return (

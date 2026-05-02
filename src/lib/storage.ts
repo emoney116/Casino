@@ -12,6 +12,7 @@ const initialData: CasinoData = {
   streaks: {},
   missions: {},
   favorites: {},
+  retention: {},
 };
 
 export function readData(): CasinoData {

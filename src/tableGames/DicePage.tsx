@@ -3,6 +3,7 @@ import { ArrowUpDown } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
 import { formatCoins } from "../lib/format";
+import { recordRetentionRound } from "../retention/retentionService";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
 import { CoinBurst, GameResultBanner, ScreenShake, SoundToggle } from "../feedback/components";
@@ -30,7 +31,7 @@ export const overUnderUiMarkers = {
 };
 
 export function DicePage({ onExit }: { onExit?: () => void }) {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const notify = useToast();
   const [currency, setCurrency] = useState<Currency>("GOLD");
   const [betAmount, setBetAmount] = useState(diceConfig.minBet);
@@ -100,8 +101,15 @@ export function DicePage({ onExit }: { onExit?: () => void }) {
         setFlipKey((key) => key + 1);
         setRecentRolls((current) => [next, ...current].slice(0, 5));
         setRolling(false);
+        recordRetentionRound({
+          userId: currentUser.id,
+          gameId: "dice",
+          wager: betAmount,
+          won: next.totalPaid,
+          multiplier: next.totalReturnMultiplier,
+        });
+        refreshUser();
         if (next.won) {
-          notify(`Over/Under paid ${formatCoins(next.totalPaid)}.`, "success");
           playWin();
         } else {
           playLose();

@@ -6,8 +6,7 @@ import { formatCoins } from "../lib/format";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
 import { nextSessionStats, emptySessionStats } from "../economy/sessionStats";
-import { recordMissionEvent } from "../missions/missionService";
-import { recordSpinProgress } from "../progression/progressionService";
+import { recordRetentionRound } from "../retention/retentionService";
 import { playBigWin, playBonus, playClick, playError, playLose, playSpin, playWin } from "../feedback/feedbackService";
 import { GameResultBanner, ScreenShake, SoundToggle, WinOverlay } from "../feedback/components";
 import { BonusModal } from "./BonusModal";
@@ -191,23 +190,15 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
     );
     refreshUser();
     recordRecentGame(game.id);
-    const progress = recordSpinProgress({
-      userId: currentUser.id,
-      wager: result.wager,
-      won: result.payout,
-      bonusTriggered: result.triggeredBonus,
-    });
-    const completed = recordMissionEvent({
+    recordRetentionRound({
       userId: currentUser.id,
       gameId: game.id,
       wager: result.wager,
       won: result.payout,
       bonusTriggered: result.triggeredBonus,
-      leveledUp: progress.leveledUp,
+      multiplier: result.multiplier,
     });
     setSessionStats((stats) => nextSessionStats(stats, result.wager, result.payout));
-    if (progress.leveledUp) notify(`Level ${progress.level}! ${formatCoins(progress.reward)} Bonus Coins credited.`, "success");
-    if (completed.length > 0) notify(`Mission complete: ${completed[0]}`, "success");
     if (result.triggeredBonus) playBonus();
     else if (result.winTier === "BIG" || result.winTier === "MEGA") playBigWin();
     else if (result.payout > 0) playWin();
@@ -267,9 +258,6 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
       setAnticipating(false);
       window.setTimeout(() => {
         updateAfterSpin(result, usedFreeSpin);
-        if (result.winTier === "BIG" || result.winTier === "MEGA") {
-          notify(`${result.winTier} demo win credited.`, "success");
-        }
         setSpinning(false);
         setReelStates(Array.from({ length: game.reelCount }, () => "idle"));
         if (!result.triggeredHoldAndWin) {
@@ -296,7 +284,6 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
       refreshUser();
       recordRecentGame(game.id);
       setSessionStats((stats) => nextSessionStats(stats, buyBonusCost, 0));
-      notify("Demo bonus buy started. Virtual coins only.", "success");
       playBonus();
     } catch (caught) {
       setUiState("Error/Insufficient Balance");
@@ -320,7 +307,6 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
       setAnimationState("bonusReveal");
       if (next.lastNewCoins.length > 0) {
         setHoldFeedback(`+${next.lastNewCoins.length} COIN${next.lastNewCoins.length === 1 ? "" : "S"} - NEW COINS LOCKED - RESPINS RESET TO 3`);
-        notify(`${next.lastNewCoins.length} new coin${next.lastNewCoins.length === 1 ? "" : "s"} locked. Respins reset.`, "success");
       } else {
         setHoldFeedback("NO NEW COINS");
       }
@@ -353,7 +339,6 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
           setHoldFeedback("HOLD AND WIN COMPLETE");
           refreshUser();
           setSessionStats((stats) => nextSessionStats(stats, 0, next.total));
-          notify(`Hold and Win paid ${formatCoins(next.total)} virtual coins.`, "success");
           playBigWin();
           window.setTimeout(() => {
             setHoldState(null);
@@ -746,7 +731,6 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
               ),
             );
             refreshUser();
-            notify(`Pick bonus credited: ${formatCoins(award)} virtual coins.`, "success");
           }}
           onClose={() => setBonusResult(null)}
         />

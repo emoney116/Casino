@@ -10,6 +10,10 @@ export function levelReward(level: number) {
   return 300 + level * 75;
 }
 
+export function levelBoostReward(level: number) {
+  return level % 5 === 0 ? 2 : 1;
+}
+
 export function defaultProgression(userId: string): PlayerProgression {
   return {
     userId,
@@ -21,6 +25,7 @@ export function defaultProgression(userId: string): PlayerProgression {
     lifetimeWon: 0,
     biggestWin: 0,
     currentStreakDays: 0,
+    boosts: {},
   };
 }
 
@@ -46,12 +51,16 @@ export function recordSpinProgress(input: {
     progress.lastActiveAt = new Date().toISOString();
     if (input.won > 0) progress.lifetimeWins += 1;
 
-    progress.xp += 8 + Math.floor(input.wager / 250) + (input.won > 0 ? 12 : 0) + (input.bonusTriggered ? 25 : 0);
+    progress.xp += 8 + Math.floor(input.wager / 100) + Math.floor(input.won / 200) + (input.won > 0 ? 15 : 0) + (input.bonusTriggered ? 25 : 0);
     while (progress.xp >= xpForLevel(progress.level + 1)) {
       progress.level += 1;
       leveledUp = true;
     }
     newLevel = progress.level;
+    progress.boosts ??= {};
+    if (leveledUp) {
+      progress.boosts["bonus-coin-boost"] = (progress.boosts["bonus-coin-boost"] ?? 0) + levelBoostReward(newLevel);
+    }
     data.progression[input.userId] = progress;
   });
 
@@ -61,11 +70,11 @@ export function recordSpinProgress(input: {
       type: "LEVEL_REWARD",
       currency: "BONUS",
       amount: levelReward(newLevel),
-      metadata: { level: newLevel, note: "Virtual level-up reward only." },
+      metadata: { level: newLevel, boosts: { "bonus-coin-boost": levelBoostReward(newLevel) }, note: "Virtual level-up reward only." },
     });
   }
 
-  return { leveledUp, level: newLevel, reward: leveledUp ? levelReward(newLevel) : 0 };
+  return { leveledUp, level: newLevel, reward: leveledUp ? levelReward(newLevel) : 0, boosts: leveledUp ? levelBoostReward(newLevel) : 0 };
 }
 
 export function setProgressionStreak(userId: string, streakDays: number) {

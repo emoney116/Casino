@@ -15,6 +15,7 @@ import { claimStreak, getStreak, resetStreak } from "../streaks/streakService";
 import { claimMission, getMissions, recordMissionEvent } from "../missions/missionService";
 import { isFavorite, toggleFavorite } from "./favorites";
 import { updateData } from "../lib/storage";
+import { canClaimLowBalanceOffer, claimLowBalanceOffer, claimPromotion, getMostPlayedGames, getRetentionState, recordRetentionRound, resetRetention } from "../retention/retentionService";
 
 const memory: Record<string, string> = {};
 globalThis.localStorage = {
@@ -336,6 +337,58 @@ const missionTxBefore = getTransactions(user.id).filter((tx) => tx.type === "MIS
 claimMission(user.id, "daily-bonus");
 if (getTransactions(user.id).filter((tx) => tx.type === "MISSION_REWARD").length <= missionTxBefore) {
   throw new Error("Expected mission reward ledger entry.");
+}
+
+resetRetention(user.id);
+const retentionTxBefore = getTransactions(user.id).filter((tx) => tx.type === "RETENTION_REWARD").length;
+recordRetentionRound({ userId: user.id, gameId: "frontier-fortune", wager: 100, won: 0, multiplier: 0 });
+recordRetentionRound({ userId: user.id, gameId: "blackjack", wager: 100, won: 200, multiplier: 2 });
+recordRetentionRound({ userId: user.id, gameId: "crash", wager: 100, won: 250, multiplier: 2.5 });
+if (getRetentionState(user.id).dailyGameIds.length !== 3) {
+  throw new Error("Expected retention state to track distinct daily games.");
+}
+if (getTransactions(user.id).filter((tx) => tx.type === "RETENTION_REWARD").length !== retentionTxBefore + 1) {
+  throw new Error("Expected game switching retention reward to credit once.");
+}
+recordRetentionRound({ userId: user.id, gameId: "treasureDig", wager: 100, won: 0, multiplier: 0 });
+if (getTransactions(user.id).filter((tx) => tx.type === "RETENTION_REWARD").length !== retentionTxBefore + 1) {
+  throw new Error("Expected game switching reward to prevent duplicate daily claims.");
+}
+const mostPlayed = getMostPlayedGames(user.id, 1);
+if (mostPlayed.length !== 1 || mostPlayed[0].plays < 1) {
+  throw new Error("Expected most-played game tracking.");
+}
+const multiplierMission = getMissions(user.id)["daily-multiplier"];
+if (!multiplierMission || multiplierMission.status === "ACTIVE") {
+  throw new Error("Expected multiplier mission progress from retention rounds.");
+}
+
+const lowBalanceUser = { ...user, id: "low-balance-retention-user", email: "low-retention@test.local" };
+updateData((data) => {
+  data.users.push(lowBalanceUser);
+  data.walletBalances[lowBalanceUser.id] = { GOLD: 0, BONUS: 0 };
+});
+if (!canClaimLowBalanceOffer(lowBalanceUser.id)) throw new Error("Expected low balance offer to be available.");
+claimLowBalanceOffer(lowBalanceUser.id);
+if (!getTransactions(lowBalanceUser.id).some((tx) => tx.type === "RETENTION_REWARD" && tx.metadata.source === "low_balance_offer")) {
+  throw new Error("Expected low balance offer to credit via ledger.");
+}
+try {
+  claimLowBalanceOffer(lowBalanceUser.id);
+  throw new Error("Expected low balance offer to block duplicate daily claims.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("not available")) throw error;
+}
+const promoTxBefore = getTransactions(user.id).filter((tx) => tx.type === "PROMO_REWARD").length;
+claimPromotion(user.id, "bonus-2x");
+if (getTransactions(user.id).filter((tx) => tx.type === "PROMO_REWARD").length !== promoTxBefore + 1) {
+  throw new Error("Expected promotion reward to credit via ledger.");
+}
+try {
+  claimPromotion(user.id, "bonus-2x");
+  throw new Error("Expected promotion reward to block duplicate daily claims.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("not available")) throw error;
 }
 
 if (isFavorite(user.id, game.id)) throw new Error("Favorite should start off.");

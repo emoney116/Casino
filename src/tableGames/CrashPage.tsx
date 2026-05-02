@@ -5,6 +5,7 @@ import { useToast } from "../components/ToastContext";
 import { CoinBurst, GameResultBanner, ScreenShake, SoundToggle } from "../feedback/components";
 import { playBet, playCrashCashOut, playCrashSound, playCrashTick, playError } from "../feedback/feedbackService";
 import { formatCoins } from "../lib/format";
+import { recordRetentionRound } from "../retention/retentionService";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
 import { cashOutCrashRound, crashCrashRound, getCrashMultiplier, startCrashRound } from "./crashEngine";
@@ -28,7 +29,7 @@ export const crashUiMarkers = {
 };
 
 export function CrashPage({ onExit }: { onExit?: () => void }) {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const notify = useToast();
   const [currency, setCurrency] = useState<Currency>("GOLD");
   const [betAmount, setBetAmount] = useState(crashConfig.minBet);
@@ -61,6 +62,7 @@ export function CrashPage({ onExit }: { onExit?: () => void }) {
   const projectedWin = Math.min(crashConfig.maxPayout, Math.round(betAmount * multiplier));
   const multiplierTone = multiplier >= 5 ? "hot" : multiplier >= 2 ? "warm" : "cool";
   const mainButtonLabel = running ? "Cash Out" : status === "CRASHED" || status === "CASHED_OUT" ? "Play Again" : "Start";
+  const maxRoundWin = round ? Math.min(crashConfig.maxPayout, Math.round(round.betAmount * round.crashPoint)) : 0;
   const path = useMemo(() => {
     if (graphPoints.length === 0) return "M 0 92";
     return graphPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" ");
@@ -138,6 +140,7 @@ export function CrashPage({ onExit }: { onExit?: () => void }) {
         { multiplier: liveRound.crashPoint, won: false, paid: 0 },
         ...current,
       ].slice(0, 5));
+      recordCrashRetention(liveRound.betAmount, 0, liveRound.crashPoint);
       playCrashSound();
       window.setTimeout(() => setFlashing(false), 520);
       return;
@@ -161,6 +164,7 @@ export function CrashPage({ onExit }: { onExit?: () => void }) {
         { multiplier: next.cashOutMultiplier ?? liveMultiplier, won: true, paid: next.totalPaid ?? 0 },
         ...current,
       ].slice(0, 5));
+      recordCrashRetention(next.betAmount, next.totalPaid ?? 0, next.cashOutMultiplier ?? liveMultiplier);
     } else {
       setFlashing(true);
       playCrashSound();
@@ -168,8 +172,20 @@ export function CrashPage({ onExit }: { onExit?: () => void }) {
         { multiplier: next.cashOutMultiplier ?? liveMultiplier, won: false, paid: 0 },
         ...current,
       ].slice(0, 5));
+      recordCrashRetention(next.betAmount, 0, next.cashOutMultiplier ?? liveMultiplier);
       window.setTimeout(() => setFlashing(false), 520);
     }
+  }
+
+  function recordCrashRetention(wager: number, won: number, liveMultiplier: number) {
+    recordRetentionRound({
+      userId: currentUser.id,
+      gameId: "crash",
+      wager,
+      won,
+      multiplier: liveMultiplier,
+    });
+    refreshUser();
   }
 
   function mainAction() {
@@ -227,7 +243,7 @@ export function CrashPage({ onExit }: { onExit?: () => void }) {
               tone={status === "CASHED_OUT" ? "win" : "loss"}
               title={status === "CASHED_OUT" ? "Cashed Out" : "Crashed"}
               amount={status === "CASHED_OUT" ? round?.totalPaid : undefined}
-              message={status === "CASHED_OUT" ? `Bet paid at ${round?.cashOutMultiplier?.toFixed(2)}x` : "The multiplier dropped before cash out."}
+              message={status === "CASHED_OUT" ? `Max this round: ${formatCoins(maxRoundWin)} at ${round?.crashPoint.toFixed(2)}x` : "The multiplier dropped before cash out."}
               compact
             />
           )}

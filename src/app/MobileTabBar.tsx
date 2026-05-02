@@ -11,8 +11,9 @@ export function MobileTabBar({
   roles: Role[];
   onChange: (view: AppView) => void;
 }) {
+  const hasAdmin = roles.includes("ADMIN");
   return (
-    <nav className="mobile-tabbar" aria-label="Mobile navigation">
+    <nav className={hasAdmin ? "mobile-tabbar has-admin" : "mobile-tabbar"} aria-label="Mobile navigation">
       {visibleNavItems(roles).map((item) => {
         const Icon = item.icon;
         return (
@@ -22,7 +23,7 @@ export function MobileTabBar({
             onClick={() => onChange(item.id)}
             title={item.label}
           >
-            <Icon size={20} />
+            <Icon size={hasAdmin ? 17 : 20} />
             <span>{item.label}</span>
           </button>
         );

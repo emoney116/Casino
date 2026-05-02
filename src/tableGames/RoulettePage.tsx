@@ -3,6 +3,7 @@ import { Repeat2, RotateCcw, Trash2 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
 import { formatCoins } from "../lib/format";
+import { recordRetentionRound } from "../retention/retentionService";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
 import { GameResultBanner, ScreenShake, SoundToggle } from "../feedback/components";
@@ -49,7 +50,7 @@ export const rouletteUiMarkers = {
 };
 
 export function RoulettePage({ onExit }: { onExit?: () => void }) {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const notify = useToast();
   const [currency, setCurrency] = useState<Currency>("GOLD");
   const [selectedChip, setSelectedChip] = useState(25);
@@ -183,6 +184,14 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
         setRecentResults((current) => [outcome, ...current].slice(0, 5));
         setLastBets(bets);
         setBets([]);
+        recordRetentionRound({
+          userId: currentUser.id,
+          gameId: "roulette",
+          wager: next.totalWagered ?? totalBet,
+          won: next.totalPaid,
+          multiplier: (next.totalWagered ?? totalBet) > 0 ? next.totalPaid / (next.totalWagered ?? totalBet) : 0,
+        });
+        refreshUser();
         if (next.totalPaid > 0) playWin();
         else playLose();
       } catch (caught) {
