@@ -33,7 +33,7 @@ import { americanWheel, getRouletteInsideChipPosition, getRouletteWinningZones, 
 import { getDiceReturnMultiplier, resolveDiceBet } from "./diceEngine";
 import { cashOutCrashRound, crashCrashRound, generateCrashPoint, getCrashMultiplier, startCrashRound } from "./crashEngine";
 import { cashOutTreasureDigRound, createTreasureMultiplierTiles, createTreasureTrapIndexes, getTreasureDigMultiplier, getTreasurePotentialMaxMultiplier, pickTreasureTile, startTreasureDigRound } from "./treasureDigEngine";
-import { brickBreakBonusConfig, createBrickBreakHitList, generateBrickBreakResult, pickBrickBreakOutcome, simulateBrickBreakBonus } from "./brickBreakBonusEngine";
+import { applyBrickBreakStep, brickBreakBonusConfig, createBrickBreakHitList, createBrickBreakReplaySteps, createBrickBreakShowcases, generateBrickBreakResult, isBrickExposed, pickBrickBreakOutcome, simulateBrickBreakBonus } from "./brickBreakBonusEngine";
 import { assertTableBet } from "./ledger";
 import { simulateTableGame } from "./tableMath";
 import type { PlayingCard } from "./types";
@@ -843,8 +843,8 @@ const brickRandom = () => brickSequence[brickCursor++ % brickSequence.length];
 if (pickBrickBreakOutcome(() => 0, brickBreakBonusConfig) !== 0) {
   throw new Error("Expected Brick Break Bonus lowest RNG bucket to bust.");
 }
-if (pickBrickBreakOutcome(() => 0.999, brickBreakBonusConfig) !== 10) {
-  throw new Error("Expected Brick Break Bonus highest RNG bucket to reach very rare 10x outcome.");
+if (pickBrickBreakOutcome(() => 0.9999, brickBreakBonusConfig) !== 50) {
+  throw new Error("Expected Brick Break Bonus highest RNG bucket to reach very rare 50x outcome.");
 }
 const brickHits = createBrickBreakHitList({ betAmount: 100, desiredMultiplier: 2, random: brickRandom });
 const brickHitTotal = brickHits.reduce((sum, hit) => sum + hit.amount, 0);
@@ -854,11 +854,64 @@ if (brickHits.length === 0 || brickHitTotal !== 200) {
 if (new Set(brickHits.map((hit) => hit.brickIndex)).size !== brickHits.length) {
   throw new Error("Expected Brick Break Bonus hit list to use unique bricks.");
 }
-if (brickHits.some((hit, index, hits) => index > 0 && Math.floor(hit.brickIndex / 6) > Math.floor(hits[index - 1].brickIndex / 6))) {
-  throw new Error("Expected Brick Break Bonus bricks to break from bottom to top.");
+const brokenBrickIndexes: number[] = [];
+for (const hit of brickHits) {
+  if (!isBrickExposed(hit.brickIndex, brokenBrickIndexes)) {
+    throw new Error("Expected Brick Break Bonus hit sequence to target only exposed bricks.");
+  }
+  brokenBrickIndexes.push(hit.brickIndex);
+}
+if (isBrickExposed(0, []) || !isBrickExposed(24, [])) {
+  throw new Error("Expected top Brick Break Bonus bricks to stay blocked until lower column bricks are broken.");
+}
+if (!isBrickExposed(0, [6, 12, 18, 24])) {
+  throw new Error("Expected top Brick Break Bonus brick to become exposed after below bricks break.");
 }
 if (!brickHits.some((hit) => hit.breakType === "full") || !createBrickBreakHitList({ betAmount: 100, desiredMultiplier: 0.5 }).every((hit) => hit.breakType === "partial")) {
   throw new Error("Expected Brick Break Bonus hits to include understandable full and partial break types.");
+}
+const oneXBrickSpread = createBrickBreakHitList({ betAmount: 10, desiredMultiplier: 1, random: () => 0 });
+if (oneXBrickSpread.length < 4 || oneXBrickSpread.reduce((sum, hit) => sum + hit.amount, 0) !== 10) {
+  throw new Error("Expected Brick Break Bonus to split some payouts into multiple small prize bricks without changing payout.");
+}
+const multiHitBrick = { id: "test-brick", brickIndex: 24, multiplier: 5, amount: 500, bonusBall: false, breakType: "full" as const, hitsRequired: 3 };
+if (multiHitBrick.hitsRequired !== 3) {
+  throw new Error("Expected rare Brick Break Bonus bricks to require multiple cracks.");
+}
+const multiSteps = createBrickBreakReplaySteps([multiHitBrick]);
+if (multiSteps.length !== multiHitBrick.hitsRequired || multiSteps[0].hpAfter !== multiHitBrick.hitsRequired - 1 || multiSteps.at(-1)?.hpAfter !== 0) {
+  throw new Error("Expected Brick Break Bonus brick hp to decrease on each hit.");
+}
+if (multiSteps.slice(0, -1).some((step) => step.revealsPrize || step.prizeAmount > 0) || !multiSteps.at(-1)?.revealsPrize) {
+  throw new Error("Expected Brick Break Bonus prize to reveal only after the final crack.");
+}
+let runningBrickTotal = 0;
+for (const step of multiSteps) runningBrickTotal = applyBrickBreakStep(runningBrickTotal, step);
+if (runningBrickTotal !== multiHitBrick.amount) {
+  throw new Error("Expected Brick Break Bonus running total to update after the final break.");
+}
+const fourCrackBrick = { ...multiHitBrick, id: "test-brick-4", multiplier: 50, amount: 5000, hitsRequired: 4 };
+const fourCrackSteps = createBrickBreakReplaySteps([fourCrackBrick]);
+if (fourCrackSteps.length !== 4 || fourCrackSteps.at(-1)?.crackLevel !== 4) {
+  throw new Error("Expected Brick Break Bonus to support up to four obvious crack stages.");
+}
+const brickShowcases = createBrickBreakShowcases({
+  betAmount: 100,
+  hitList: brickHits,
+  totalPaid: brickHitTotal,
+  random: () => 0.99,
+});
+if (brickShowcases.length !== 30 - brickHits.length) {
+  throw new Error("Expected Brick Break Bonus post-round showcase to reveal a value on every unbroken brick.");
+}
+if (!brickShowcases.some((showcase) => showcase.multiplier === 50 && showcase.kind === "jackpotTease")) {
+  throw new Error("Expected Brick Break Bonus post-round showcase to include readable high multiplier teases.");
+}
+if (brickShowcases.some((showcase) => brickHits.some((hit) => hit.brickIndex === showcase.brickIndex))) {
+  throw new Error("Expected Brick Break Bonus showcase bricks to stay separate from paid hit bricks.");
+}
+if (brickShowcases.reduce((sum, showcase) => sum + showcase.amount, 0) + brickHitTotal === brickHitTotal) {
+  throw new Error("Expected Brick Break Bonus showcase values to be visible tease values.");
 }
 const brickSim = simulateBrickBreakBonus(100000);
 if (brickSim.observedRtp > 0.95 || brickBreakBonusConfig.targetRtp > 0.95) {
@@ -877,6 +930,13 @@ const brickRound = generateBrickBreakResult({
   betAmount: 100,
   random: () => 0.999,
 });
+const replayPayout = brickRound.replaySteps.reduce((sum, step) => applyBrickBreakStep(sum, step), 0);
+if (replayPayout !== brickRound.totalPaid) {
+  throw new Error("Expected Brick Break Bonus replay steps to match predetermined payout.");
+}
+if (brickRound.showcaseBricks.reduce((sum, showcase) => sum + showcase.amount, 0) + replayPayout === brickRound.totalPaid) {
+  throw new Error("Expected Brick Break Bonus post-round showcase to not alter predetermined payout.");
+}
 if (getBalance(user.id, "GOLD") !== brickGoldBefore - 100 + brickRound.totalPaid) {
   throw new Error("Expected Brick Break Bonus play to debit bet and credit payout through wallet ledger.");
 }
@@ -918,6 +978,18 @@ if (
   !brickBreakBonusUiMarkers.stagedBrickBreaks ||
   !brickBreakBonusUiMarkers.readableBrickInterior ||
   !brickBreakBonusUiMarkers.ballTargetsActiveBrick ||
+  !brickBreakBonusUiMarkers.configurableAnimationSpeeds ||
+  !brickBreakBonusUiMarkers.exposedBrickRule ||
+  !brickBreakBonusUiMarkers.prizeRevealAfterFinalCrack ||
+  !brickBreakBonusUiMarkers.actualMultiplierBricks ||
+  !brickBreakBonusUiMarkers.postRoundShowcase ||
+  !brickBreakBonusUiMarkers.postRoundAllBrickValues ||
+  !brickBreakBonusUiMarkers.noBadBeatCopy ||
+  !brickBreakBonusUiMarkers.highMultiplierTeases ||
+  !brickBreakBonusUiMarkers.fourCrackStages ||
+  !brickBreakBonusUiMarkers.crackStageImages ||
+  !brickBreakBonusUiMarkers.postRoundBrokenContrast ||
+  !brickBreakBonusUiMarkers.obviousCpuMiss ||
   !brickBreakBonusUiMarkers.compactBottomBetControls ||
   !brickBreakBonusUiMarkers.rtpUnder95Warning ||
   !brickBreakBonusUiMarkers.sharedSoundToggle
