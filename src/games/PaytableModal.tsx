@@ -1,13 +1,14 @@
 import { Modal } from "../components/Modal";
 import type { SlotConfig } from "./types";
 import { SymbolTile } from "./SymbolTile";
+import { COMPLIANCE_COPY } from "../lib/compliance";
 
 export function PaytableModal({ game, onClose }: { game: SlotConfig; onClose: () => void }) {
   return (
     <Modal title={`${game.name} Paytable`} onClose={onClose}>
       <div className="modal-stack">
         <p className="muted">
-          Demo math only. Real-money games would require certified RNG, certified math, and legal review.
+          {COMPLIANCE_COPY} Demo math only; release math is inspected in Admin.
         </p>
         <div className="rules-grid">
           <div><span>RTP target</span><strong>{(game.targetRtp * 100).toFixed(1)}%</strong></div>
@@ -45,8 +46,7 @@ export function PaytableModal({ game, onClose }: { game: SlotConfig; onClose: ()
         {game.buyBonus?.enabled && (
           <div className="notice-card">
             Bonus buy pricing is always current bet x {game.buyBonus.costMultiplier}. Buy bonus RTP
-            is demo-tuned to be lower than long-term profitable play. Virtual coins have no cash
-            value, and there are no prizes, withdrawals, cashout, or redemption.
+            is demo-tuned for the virtual economy. {COMPLIANCE_COPY}
           </div>
         )}
         {game.jackpotLabels && (

@@ -9,6 +9,7 @@ import { getBalance } from "../wallet/walletService";
 import { CoinBurst, GameResultBanner, ScreenShake, SoundToggle } from "../feedback/components";
 import { playBet, playError, playLose, playWin } from "../feedback/feedbackService";
 import { diceConfig } from "./configs";
+import { COMPLIANCE_COPY } from "../lib/compliance";
 import { getDiceChance, getDiceReturnMultiplier, resolveDiceBet } from "./diceEngine";
 import type { DiceDirection, DiceResult } from "./types";
 
@@ -225,6 +226,7 @@ export function DicePage({ onExit }: { onExit?: () => void }) {
         <button className="over-under-roll" disabled={!canRoll} onClick={roll}>
           {rolling ? "Rolling" : "Roll"}
         </button>
+        <div className="demo-copy game-compliance-copy">{COMPLIANCE_COPY}</div>
       </section>
     </section>
   );

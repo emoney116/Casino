@@ -7,6 +7,8 @@ import { AdminPage } from "../admin/AdminPage";
 import { GamesPage } from "../games/GamesPage";
 import { LobbyPage } from "../games/LobbyPage";
 import { WalletPage } from "../wallet/WalletPage";
+import type { WalletPanel } from "../wallet/WalletPage";
+import { PurchaseCoinsModal } from "../wallet/PurchaseCoinsModal";
 import { getBalance } from "../wallet/walletService";
 import type { Currency } from "../types";
 import type { AppView } from "./navigation";
@@ -17,6 +19,8 @@ import { dismissOnboarding, hasDismissedOnboarding } from "./onboarding";
 import { TableGamesPage } from "../tableGames/TableGamesPage";
 import type { TableGameId } from "../tableGames/types";
 import { RewardsPage } from "../retention/RewardsPage";
+import { COMPLIANCE_COPY } from "../lib/compliance";
+import { LegalPage } from "../legal/LegalPage";
 
 const tableRouteIds: Record<string, TableGameId> = {
   blackjack: "blackjack",
@@ -44,7 +48,13 @@ function getInitialRoute(): { view: AppView; slotGameId: string | null; tableGam
   if (section === "table-games") return { view: "tableGames", slotGameId: null, tableGameId };
   if (section === "rewards") return { view: "rewards", slotGameId: null, tableGameId: null };
   if (section === "wallet") return { view: "wallet", slotGameId: null, tableGameId: null };
+  if (section === "redemption") return { view: "redemption", slotGameId: null, tableGameId: null };
   if (section === "account") return { view: "account", slotGameId: null, tableGameId: null };
+  if (section === "terms") return { view: "terms", slotGameId: null, tableGameId: null };
+  if (section === "sweepstakes-rules") return { view: "sweepstakesRules", slotGameId: null, tableGameId: null };
+  if (section === "privacy") return { view: "privacy", slotGameId: null, tableGameId: null };
+  if (section === "responsible-play") return { view: "responsiblePlay", slotGameId: null, tableGameId: null };
+  if (section === "eligibility") return { view: "eligibility", slotGameId: null, tableGameId: null };
   if (section === "admin") return { view: "admin", slotGameId: null, tableGameId: null };
   return { view: "lobby", slotGameId: null, tableGameId: null };
 }
@@ -57,6 +67,9 @@ export function AppShell() {
   const [activeTableGameId, setActiveTableGameId] = useState<TableGameId | null>(initialRoute.tableGameId);
   const [selectedBalance, setSelectedBalance] = useState<Currency>("GOLD");
   const [balanceExpanded, setBalanceExpanded] = useState(false);
+  const [walletPanel, setWalletPanel] = useState<WalletPanel>(initialRoute.view === "redemption" ? "redeem" : null);
+  const [walletPanelKey, setWalletPanelKey] = useState(0);
+  const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => (user ? !hasDismissedOnboarding(user.id) : false));
 
   if (!user) return null;
@@ -70,6 +83,8 @@ export function AppShell() {
   }
 
   function setView(view: AppView) {
+    if (view === "wallet") setWalletPanel(null);
+    if (view === "redemption") setWalletPanel("redeem");
     setActiveView(view);
     if (view !== "tableGames") setActiveTableGameId(null);
     if (view === "games") setActiveGameId(null);
@@ -81,12 +96,28 @@ export function AppShell() {
           ? "/rewards"
           : view === "wallet"
             ? "/wallet"
-            : view === "account"
-              ? "/account"
-              : view === "admin"
-                ? "/admin"
-                : "/";
+            : view === "redemption"
+              ? "/redemption"
+              : view === "account"
+                ? "/account"
+                : view === "terms"
+                  ? "/terms"
+                  : view === "sweepstakesRules"
+                    ? "/sweepstakes-rules"
+                    : view === "privacy"
+                      ? "/privacy"
+                      : view === "responsiblePlay"
+                        ? "/responsible-play"
+                        : view === "eligibility"
+                          ? "/eligibility"
+                          : view === "admin"
+                            ? "/admin"
+                            : "/";
     window.history.pushState(null, "", route);
+  }
+
+  function openPurchasePacks() {
+    setPurchaseModalOpen(true);
   }
 
   function playTableGame(gameId: TableGameId) {
@@ -134,28 +165,34 @@ export function AppShell() {
               <span>Prototype</span>
             </div>
           </div>
-          <BalanceToggle
-            balances={balances}
-            selected={selectedBalance}
-            expanded={balanceExpanded}
-            onSelect={(currency) => {
-              setSelectedBalance(currency);
-              setBalanceExpanded(false);
-            }}
-            onToggleExpanded={() => setBalanceExpanded((value) => !value)}
-          />
+          <div className="header-wallet-tools">
+            <BalanceToggle
+              balances={balances}
+              selected={selectedBalance}
+              expanded={balanceExpanded}
+              onSelect={(currency) => {
+                setSelectedBalance(currency);
+                setBalanceExpanded(false);
+              }}
+              onToggleExpanded={() => setBalanceExpanded((value) => !value)}
+            />
+            <button className="wallet-plus-button" type="button" aria-label="Purchase coin packs" onClick={openPurchasePacks}>+</button>
+          </div>
         </header>
         <div className="balance-strip desktop-balance-strip">
-          <BalanceToggle
-            balances={balances}
-            selected={selectedBalance}
-            expanded={balanceExpanded}
-            onSelect={(currency) => {
-              setSelectedBalance(currency);
-              setBalanceExpanded(false);
-            }}
-            onToggleExpanded={() => setBalanceExpanded((value) => !value)}
-          />
+          <div className="header-wallet-tools">
+            <BalanceToggle
+              balances={balances}
+              selected={selectedBalance}
+              expanded={balanceExpanded}
+              onSelect={(currency) => {
+                setSelectedBalance(currency);
+                setBalanceExpanded(false);
+              }}
+              onToggleExpanded={() => setBalanceExpanded((value) => !value)}
+            />
+            <button className="wallet-plus-button" type="button" aria-label="Purchase coin packs" onClick={openPurchasePacks}>+</button>
+          </div>
         </div>
 
         {activeView === "lobby" && (
@@ -193,8 +230,14 @@ export function AppShell() {
           />
         )}
         {activeView === "rewards" && <RewardsPage onWallet={() => setView("wallet")} />}
-        {activeView === "wallet" && <WalletPage />}
+        {activeView === "wallet" && <WalletPage key={`wallet-${walletPanelKey}`} initialPanel={walletPanel} />}
+        {activeView === "redemption" && <WalletPage initialPanel="redeem" />}
         {activeView === "account" && <AccountPage />}
+        {activeView === "terms" && <LegalPage kind="terms" />}
+        {activeView === "sweepstakesRules" && <LegalPage kind="sweepstakesRules" />}
+        {activeView === "privacy" && <LegalPage kind="privacy" />}
+        {activeView === "responsiblePlay" && <LegalPage kind="responsiblePlay" />}
+        {activeView === "eligibility" && <LegalPage kind="eligibility" />}
         {activeView === "admin" && user.roles.includes("ADMIN") && <AdminPage />}
         <div className="mobile-compliance">
           <ComplianceNotice compact />
@@ -205,10 +248,7 @@ export function AppShell() {
       {showOnboarding && (
         <Modal title="Welcome to the Demo Casino" onClose={() => undefined}>
           <div className="modal-stack">
-            <p>
-              This prototype uses virtual Gold Coins and Bonus Coins only. They have no cash value,
-              and there are no deposits, withdrawals, prizes, or redemptions.
-            </p>
+            <p>{COMPLIANCE_COPY}</p>
             <div className="notice-card">
               Claim your daily bonus, pick a slot in the lobby, and test the ledger-backed demo economy.
             </div>
@@ -223,6 +263,12 @@ export function AppShell() {
             </button>
           </div>
         </Modal>
+      )}
+      {purchaseModalOpen && (
+        <PurchaseCoinsModal
+          onClose={() => setPurchaseModalOpen(false)}
+          onPurchased={() => setWalletPanelKey((value) => value + 1)}
+        />
       )}
     </div>
   );

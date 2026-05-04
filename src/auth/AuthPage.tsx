@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Coins } from "lucide-react";
 import { useAuth } from "./AuthContext";
+import { COMPLIANCE_COPY } from "../lib/compliance";
 
 export function AuthPage() {
   const { login, register } = useAuth();
@@ -32,10 +33,7 @@ export function AuthPage() {
           <Coins />
         </div>
         <h1>Casino Prototype</h1>
-        <p className="muted">
-          Demo social casino prototype. Virtual currency only, with no deposits, withdrawals,
-          prizes, or redemptions.
-        </p>
+        <p className="muted">{COMPLIANCE_COPY}</p>
 
         <div className="segmented">
           <button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>

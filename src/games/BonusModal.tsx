@@ -22,8 +22,11 @@ export function BonusModal({
 
   function choose(index: number, award: number) {
     if (resolved || picked.includes(index)) return;
-    setPicked((current) => [...current, index]);
-    onResolve?.(award);
+    setPicked((current) => {
+      if (current.length >= picks || current.includes(index)) return current;
+      onResolve?.(award);
+      return [...current, index];
+    });
   }
 
   return (

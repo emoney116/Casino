@@ -3,6 +3,8 @@ import { formatCoins } from "../lib/format";
 import { useAuth } from "../auth/AuthContext";
 import { coinPacks } from "./coinPacks";
 import { fakePurchasePack } from "./fakePurchaseService";
+import { COMPLIANCE_COPY } from "../lib/compliance";
+import { getCurrencyDisplayName } from "../config/currencyConfig";
 
 export function StorePage({ onBack }: { onBack: () => void }) {
   const { user, refreshUser } = useAuth();
@@ -19,7 +21,7 @@ export function StorePage({ onBack }: { onBack: () => void }) {
         <div>
           <p className="eyebrow">Fake checkout</p>
           <h2>Coin Store</h2>
-          <p className="muted">Demo purchase only - no real money charged, no card collection.</p>
+          <p className="muted">{COMPLIANCE_COPY} Demo purchase only; no real money charged or card collection.</p>
         </div>
         <button className="ghost-button" onClick={onBack}>
           Back
@@ -31,8 +33,11 @@ export function StorePage({ onBack }: { onBack: () => void }) {
           <article className="card coin-pack" key={pack.id}>
             <ShoppingCart />
             <h3>{pack.name}</h3>
-            <strong>{formatCoins(pack.goldCoins)} Gold Coins</strong>
-            <p className="muted">{pack.fakePrice} fake price</p>
+            <strong>{formatCoins(pack.goldCoins)} {getCurrencyDisplayName("GOLD")}</strong>
+            <p className="muted">
+              {pack.fakePrice} fake price. Includes {formatCoins(pack.promotionalSweepsCoins)} promotional {getCurrencyDisplayName("BONUS")} as a bonus placeholder.
+            </p>
+            <small>Direct purchase of {getCurrencyDisplayName("BONUS")} is not enabled.</small>
             <button className="primary-button" onClick={() => buy(pack.id)}>
               Confirm Demo Purchase
             </button>

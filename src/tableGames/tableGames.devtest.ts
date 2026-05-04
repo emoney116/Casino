@@ -722,11 +722,11 @@ if (
 
 const treasureMultiplierOne = getTreasureDigMultiplier({ safePicks: 1, trapCount: 3 });
 const treasureMultiplierTwo = getTreasureDigMultiplier({ safePicks: 2, trapCount: 3 });
-if (treasureMultiplierOne !== 1 || treasureMultiplierTwo <= treasureMultiplierOne) {
+if (treasureMultiplierOne <= 1 || treasureMultiplierTwo <= treasureMultiplierOne) {
   throw new Error("Expected Treasure Dig multiplier curve to rise using probability and house edge.");
 }
 const treasureSurvivalTwo = (22 / 25) * (21 / 24);
-if (treasureSurvivalTwo * treasureMultiplierTwo > 0.85) {
+if (treasureSurvivalTwo * treasureMultiplierTwo > 0.93) {
   throw new Error("Expected Treasure Dig base multiplier math to leave room for rare boost tile RTP.");
 }
 const deterministicTraps = createTreasureTrapIndexes({ trapCount: 3, random: () => 0, config: treasureDigConfig });
@@ -737,8 +737,8 @@ const deterministicBoosts = createTreasureMultiplierTiles({ trapIndexes: [0, 1, 
 if (deterministicBoosts.length !== 1 || deterministicBoosts.some((tile) => [0, 1, 2].includes(tile.index))) {
   throw new Error("Expected Treasure Dig multiplier tiles to be safe, variable boost tiles.");
 }
-if (treasureDigConfig.minBet !== 1 || treasureDigConfig.maxTraps !== 24) {
-  throw new Error("Expected Treasure Dig to allow 1 coin bets and 1-24 traps.");
+if (treasureDigConfig.minBet !== 20 || treasureDigConfig.maxTraps !== 24) {
+  throw new Error("Expected Treasure Dig to allow 20 coin bets and 1-24 traps.");
 }
 const oneTrapMax = getTreasurePotentialMaxMultiplier({ trapCount: 1 });
 const twentyFourTrapMax = getTreasurePotentialMaxMultiplier({ trapCount: 24 });

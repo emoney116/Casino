@@ -11,6 +11,7 @@ import { StreakCard } from "../streaks/StreakCard";
 import { canClaimDailyBonus, claimDailyBonus, DAILY_BONUS_AMOUNT } from "../wallet/dailyBonusService";
 import { getBalance } from "../wallet/walletService";
 import { RetentionPanel } from "./RetentionPanel";
+import { getCurrencyDisplayName } from "../config/currencyConfig";
 
 export function RewardsPage({ onWallet }: { onWallet: () => void }) {
   const { user, refreshUser } = useAuth();
@@ -55,8 +56,8 @@ export function RewardsPage({ onWallet }: { onWallet: () => void }) {
           </div>
         </div>
         <div className="hero-balances">
-          <BalanceCard label="Gold Coins" amount={balances.GOLD} tone="gold" />
-          <BalanceCard label="Bonus Coins" amount={balances.BONUS} tone="bonus" />
+          <BalanceCard label={getCurrencyDisplayName("GOLD")} amount={balances.GOLD} tone="gold" currency="GOLD" />
+          <BalanceCard label={getCurrencyDisplayName("BONUS")} amount={balances.BONUS} tone="bonus" currency="BONUS" />
         </div>
       </div>
 

@@ -14,9 +14,9 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+export function AuthProvider({ children, initialUser }: { children: React.ReactNode; initialUser?: User | null }) {
+  const [user, setUser] = useState<User | null>(initialUser ?? null);
+  const [loading, setLoading] = useState(!initialUser);
 
   const refreshUser = useCallback(async () => {
     setUser(await getCurrentUser());
@@ -24,6 +24,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let active = true;
+    if (initialUser) {
+      setLoading(false);
+      return () => {
+        active = false;
+      };
+    }
     getCurrentUser()
       .then((currentUser) => {
         if (active) setUser(currentUser);
@@ -45,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       active = false;
       data.subscription.unsubscribe();
     };
-  }, [refreshUser]);
+  }, [initialUser, refreshUser]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

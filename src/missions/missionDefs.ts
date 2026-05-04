@@ -15,7 +15,7 @@ export const missionDefs: MissionDefinition[] = [
   { id: "daily-rounds", title: "Play 10 rounds", description: "Play any 10 virtual game rounds today.", metric: "ROUNDS", target: 10, rewardCurrency: "BONUS", rewardAmount: 600, resetPeriod: "DAILY" },
   { id: "daily-wins", title: "Win 5 times", description: "Win 5 rounds in any game.", metric: "WINS", target: 5, rewardCurrency: "BONUS", rewardAmount: 650, resetPeriod: "DAILY" },
   { id: "daily-multiplier", title: "Hit 2x+", description: "Land any result above 2x.", metric: "MULTIPLIER", target: 1, rewardCurrency: "BONUS", rewardAmount: 700, resetPeriod: "DAILY" },
-  { id: "daily-wager", title: "Wager 1,000 coins", description: "Use Gold or Bonus Coins.", metric: "WAGER", target: 1000, rewardCurrency: "BONUS", rewardAmount: 700, resetPeriod: "DAILY" },
+  { id: "daily-wager", title: "Wager 1,000 coins", description: "Use Gold or Sweeps Coins.", metric: "WAGER", target: 1000, rewardCurrency: "BONUS", rewardAmount: 700, resetPeriod: "DAILY" },
   { id: "daily-bonus", title: "Trigger any bonus", description: "Find scatters or bonus symbols.", metric: "BONUS", target: 1, rewardCurrency: "BONUS", rewardAmount: 800, resetPeriod: "DAILY" },
   { id: "daily-games", title: "Play 3 games", description: "Try three different games.", metric: "GAMES", target: 3, rewardCurrency: "BONUS", rewardAmount: 750, resetPeriod: "DAILY" },
   { id: "weekly-rounds", title: "Play 150 rounds", description: "Weekly play goal across all games.", metric: "ROUNDS", target: 150, rewardCurrency: "BONUS", rewardAmount: 2500, resetPeriod: "WEEKLY" },

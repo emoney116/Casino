@@ -1,7 +1,20 @@
-import { CircleUserRound, Coins, Dices, Gamepad2, Gift, Home, ShieldCheck, WalletCards } from "lucide-react";
+import { CircleUserRound, Coins, Dices, FileText, Gamepad2, Gift, Home, ShieldCheck, WalletCards } from "lucide-react";
 import type { Role } from "../types";
 
-export type AppView = "lobby" | "games" | "tableGames" | "rewards" | "wallet" | "account" | "admin";
+export type AppView =
+  | "lobby"
+  | "games"
+  | "tableGames"
+  | "rewards"
+  | "wallet"
+  | "redemption"
+  | "account"
+  | "terms"
+  | "sweepstakesRules"
+  | "privacy"
+  | "responsiblePlay"
+  | "eligibility"
+  | "admin";
 
 export const navItems: Array<{
   id: AppView;
@@ -16,6 +29,14 @@ export const navItems: Array<{
   { id: "wallet", label: "Wallet", icon: WalletCards },
   { id: "account", label: "Account", icon: CircleUserRound },
   { id: "admin", label: "Admin", icon: ShieldCheck, adminOnly: true },
+];
+
+export const legalNavItems: Array<{ id: AppView; label: string; icon: typeof FileText }> = [
+  { id: "terms", label: "Terms", icon: FileText },
+  { id: "sweepstakesRules", label: "Sweepstakes Rules", icon: FileText },
+  { id: "privacy", label: "Privacy Policy", icon: FileText },
+  { id: "responsiblePlay", label: "Responsible Play", icon: FileText },
+  { id: "eligibility", label: "Eligibility", icon: FileText },
 ];
 
 export function visibleNavItems(roles: Role[]) {

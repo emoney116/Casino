@@ -45,7 +45,7 @@ export function simulateTableGame(gameId: TableGameId, rounds = 100000): TableSi
   return simulateCrash(rounds);
 }
 
-function baseResult(wagered: number, paid: number, biggestWin: number, caps: number): TableSimulationResult {
+function baseResult(wagered: number, paid: number, biggestWin: number, caps: number, rounds: number): TableSimulationResult {
   return {
     totalWagered: wagered,
     totalPaid: paid,
@@ -53,6 +53,7 @@ function baseResult(wagered: number, paid: number, biggestWin: number, caps: num
     houseEdge: 1 - paid / wagered,
     biggestWin,
     maxPayoutCapHits: caps,
+    maxCapHitRate: rounds > 0 ? caps / rounds : 0,
   };
 }
 
@@ -73,11 +74,11 @@ function simulateBlackjack(rounds: number) {
     if (playerTotal <= 21 && (dealerTotal > 21 || playerTotal > dealerTotal)) payout = bet * 2;
     if (playerTotal <= 21 && playerTotal === dealerTotal) payout = bet;
     const capped = Math.min(payout, blackjackConfig.maxPayout);
-    if (capped < payout) caps += 1;
+    if (payout > blackjackConfig.maxPayout) caps += 1;
     biggest = Math.max(biggest, capped);
     paid += capped;
   }
-  return baseResult(rounds * bet, paid, biggest, caps);
+  return baseResult(rounds * bet, paid, biggest, caps, rounds);
 }
 
 function simulateRoulette(rounds: number) {
@@ -90,11 +91,11 @@ function simulateRoulette(rounds: number) {
     const outcome = americanWheel[Math.floor(Math.random() * americanWheel.length)];
     const payout = rouletteBetWins(sampleBet, outcome) ? bet * 2 : 0;
     const capped = Math.min(payout, rouletteConfig.maxPayout);
-    if (capped < payout) caps += 1;
+    if (payout > rouletteConfig.maxPayout) caps += 1;
     biggest = Math.max(biggest, capped);
     paid += capped;
   }
-  return baseResult(rounds * bet, paid, biggest, caps);
+  return baseResult(rounds * bet, paid, biggest, caps, rounds);
 }
 
 function simulateDice(rounds: number) {
@@ -107,11 +108,11 @@ function simulateDice(rounds: number) {
     const roll = Math.floor(Math.random() * 100) + 1;
     const payout = roll > target ? bet * getDiceReturnMultiplier("over", target, diceConfig) : 0;
     const capped = Math.min(Math.round(payout), diceConfig.maxPayout);
-    if (capped < payout) caps += 1;
+    if (payout > diceConfig.maxPayout) caps += 1;
     biggest = Math.max(biggest, capped);
     paid += capped;
   }
-  return baseResult(rounds * bet, paid, biggest, caps);
+  return baseResult(rounds * bet, paid, biggest, caps, rounds);
 }
 
 function simulateCrash(rounds: number) {
@@ -124,11 +125,11 @@ function simulateCrash(rounds: number) {
     const crashPoint = generateCrashPoint(Math.random(), crashConfig);
     const payout = crashPoint > autoCashOut ? bet * autoCashOut : 0;
     const capped = Math.min(Math.round(payout), crashConfig.maxPayout);
-    if (capped < payout) caps += 1;
+    if (payout > crashConfig.maxPayout) caps += 1;
     biggest = Math.max(biggest, capped);
     paid += capped;
   }
-  return baseResult(rounds * bet, paid, biggest, caps);
+  return baseResult(rounds * bet, paid, biggest, caps, rounds);
 }
 
 function simulateTreasureDig(rounds: number) {
@@ -137,6 +138,7 @@ function simulateTreasureDig(rounds: number) {
   const autoCashOutPicks = 3;
   let totalPaid = 0;
   let biggestWin = 0;
+  let caps = 0;
   for (let index = 0; index < rounds; index += 1) {
     let survived = true;
     const trapIndexes = createTreasureTrapIndexes({ trapCount, config: treasureDigConfig });
@@ -155,6 +157,7 @@ function simulateTreasureDig(rounds: number) {
     const boostMultiplier = getTreasureBoostMultiplier(pickedIndexes, multiplierTiles);
     const payout = survived ? bet * getTreasureDigMultiplier({ safePicks: autoCashOutPicks, trapCount, multiplierTiles, boostMultiplier }) : 0;
     const capped = Math.min(Math.round(payout), treasureDigConfig.maxPayout);
+    if (payout > treasureDigConfig.maxPayout) caps += 1;
     totalPaid += capped;
     biggestWin = Math.max(biggestWin, capped);
   }
@@ -165,7 +168,8 @@ function simulateTreasureDig(rounds: number) {
     observedRtp: totalPaid / totalWagered,
     houseEdge: 1 - totalPaid / totalWagered,
     biggestWin,
-    maxPayoutCapHits: 0,
+    maxPayoutCapHits: caps,
+    maxCapHitRate: caps / rounds,
   };
 }
 
@@ -188,8 +192,9 @@ export function getTableMathWarnings(config: TableGameConfig, simulation?: Table
     return getBalloonPopMathWarnings(balloonSimulation);
   }
   const warnings: string[] = [];
-  if (simulation?.observedRtp && simulation.observedRtp > 0.99) warnings.push(`${config.name} observed RTP is above 99%.`);
-  if (config.maxPayout > config.maxBet * 50) warnings.push(`${config.name} max payout is high versus max bet.`);
-  if (config.maxBet > 1000) warnings.push(`${config.name} bet limit is high for the demo economy.`);
+  if (simulation?.observedRtp && simulation.observedRtp > 0.95) warnings.push(`${config.name} observed RTP is above 95%.`);
+  if (config.houseEdgeTarget < 0.05) warnings.push(`${config.name} target RTP is above 95%.`);
+  if (config.maxPayout > 50000) warnings.push(`${config.name} max payout exceeds the demo cap.`);
+  if (config.maxBet > 500) warnings.push(`${config.name} bet limit is high for the demo economy.`);
   return warnings;
 }

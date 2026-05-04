@@ -37,7 +37,7 @@ export function getTransactions(userId?: string) {
 }
 
 export function creditCurrency(input: LedgerInput): Transaction {
-  if (input.amount <= 0) throw new Error("Credit amount must be positive.");
+  if (!Number.isFinite(input.amount) || input.amount <= 0) throw new Error("Credit amount must be positive.");
 
   let created: Transaction | undefined;
   updateData((data) => {
@@ -103,7 +103,7 @@ export function recordWalletEvent(input: LedgerInput): Transaction {
 }
 
 export function debitCurrency(input: LedgerInput): Transaction {
-  if (input.amount <= 0) throw new Error("Debit amount must be positive.");
+  if (!Number.isFinite(input.amount) || input.amount <= 0) throw new Error("Debit amount must be positive.");
 
   let created: Transaction | undefined;
   updateData((data) => {
@@ -113,6 +113,7 @@ export function debitCurrency(input: LedgerInput): Transaction {
     }
 
     const balanceAfter = wallet[input.currency] - input.amount;
+    if (balanceAfter < 0) throw new Error("Insufficient balance.");
     wallet[input.currency] = balanceAfter;
     data.walletBalances[input.userId] = wallet;
 

@@ -22,6 +22,8 @@ import { SupabaseDebugPanel } from "../components/SupabaseDebugPanel";
 import { tableGameConfigs } from "../tableGames/configs";
 import { getTableMathWarnings, simulateTableGame } from "../tableGames/tableMath";
 import type { TableGameId, TableSimulationResult } from "../tableGames/types";
+import { getCurrencyDisplayName, getCurrencyShortName } from "../config/currencyConfig";
+import { getKycStatus, getRedemptionRequests } from "../redemption/redemptionService";
 
 export function AdminPage() {
   const { logout } = useAuth();
@@ -77,7 +79,22 @@ export function AdminPage() {
     setTableSimulations((current) => ({ ...current, [gameId]: result }));
   }
 
+  function runAllSimulations() {
+    const nextSlots: Record<string, SimulationResult> = {};
+    slotConfigs.forEach((game) => {
+      nextSlots[game.id] = simulateSlot(game, 100000, game.minBet);
+    });
+    const nextTables: Record<string, TableSimulationResult> = {};
+    tableGameConfigs.forEach((game) => {
+      nextTables[game.id] = simulateTableGame(game.id, 100000);
+    });
+    setSimulations(nextSlots);
+    setTableSimulations(nextTables);
+    notify("All RNG simulations completed.", "success");
+  }
+
   const allTransactions = getTransactions();
+  const redemptionRequests = getRedemptionRequests();
   const suspiciousGames = slotConfigs.flatMap((game) => getMathWarnings(game, simulations[game.id]));
   const suspiciousTableGames = tableGameConfigs.flatMap((game) => getTableMathWarnings(game, tableSimulations[game.id]));
   const economyWarnings = [
@@ -96,10 +113,11 @@ export function AdminPage() {
           <h1>Dev Tools</h1>
           <p className="muted">ADMIN role only. Local prototype data and demo-only math tools.</p>
         </div>
-        <button className="ghost-button icon-button" onClick={seedUsers}>
-          <Users size={17} />
-          Seed Demo Users
-        </button>
+            <button className="ghost-button icon-button" onClick={seedUsers}>
+              <Users size={17} />
+              Seed Demo Users
+            </button>
+            <button className="primary-button" onClick={runAllSimulations}>Run All Simulations</button>
       </div>
 
       {economyWarnings.length > 0 && (
@@ -131,7 +149,8 @@ export function AdminPage() {
                 >
                   <span>{user.username}</span>
                   <small>{user.email}</small>
-                  <small>GC {formatCoins(balances.GOLD)} | BC {formatCoins(balances.BONUS)}</small>
+                  <small>{getCurrencyShortName("GOLD")} {formatCoins(balances.GOLD)} | {getCurrencyShortName("BONUS")} {formatCoins(balances.BONUS)}</small>
+                  <small>KYC {getKycStatus(user.id)}</small>
                   <small>Level {getProgression(user.id).level} | XP {formatCoins(getProgression(user.id).xp)}</small>
                 </button>
               );
@@ -145,8 +164,8 @@ export function AdminPage() {
             <label>
               Currency
               <select value={currency} onChange={(event) => setCurrency(event.target.value as Currency)}>
-                <option value="GOLD">Gold Coins</option>
-                <option value="BONUS">Bonus Coins</option>
+                <option value="GOLD">{getCurrencyDisplayName("GOLD")}</option>
+                <option value="BONUS">{getCurrencyDisplayName("BONUS")}</option>
               </select>
             </label>
             <label>
@@ -163,6 +182,23 @@ export function AdminPage() {
           </div>
         </article>
       </div>
+
+      <article className="card">
+        <div className="section-title">
+          <h2>Future Sweepstakes Admin Prep</h2>
+          <span>Read-only / disabled</span>
+        </div>
+        <div className="grid four admin-prep-grid">
+          <StatCard label="Redemption Requests" value={String(redemptionRequests.length)} note="Request workflow disabled" />
+          <StatCard label="KYC Statuses" value={String(Object.keys(data.kycStatuses).length)} note="KYC not enabled" />
+          <StatCard label="Sweeps Grants" value={String(allTransactions.filter((tx) => tx.type === "SWEEPS_BONUS_GRANT").length)} note="Promotional placeholder" />
+          <StatCard label="Eligibility Flags" value={String(Object.keys(data.eligibilityFlags).length)} note="No geo enforcement" />
+        </div>
+        <p className="muted">
+          Future controls for redemption review, KYC review, promotional coin grants, and eligibility flags are intentionally read-only in this prototype.
+        </p>
+        <button className="ghost-button" disabled>Admin redemption tools not enabled</button>
+      </article>
 
       <article className="card">
         <div className="section-title">
@@ -184,6 +220,7 @@ export function AdminPage() {
                     <span>Observed RTP</span><strong>{(sim.observedRtp * 100).toFixed(2)}%</strong>
                     <span>Hit rate</span><strong>{(sim.hitRate * 100).toFixed(2)}%</strong>
                     <span>Biggest win</span><strong>{formatCoins(sim.biggestWin)}</strong>
+                    <span>Cap hit rate</span><strong>{((sim.capHitRate ?? 0) * 100).toFixed(2)}%</strong>
                     <span>Bonus trigger</span><strong>{(sim.bonusTriggerRate * 100).toFixed(2)}%</strong>
                     <span>Free spins</span><strong>{(sim.freeSpinTriggerRate * 100).toFixed(2)}%</strong>
                     <span>Pick bonus</span><strong>{(sim.pickBonusTriggerRate * 100).toFixed(2)}%</strong>
@@ -223,10 +260,10 @@ export function AdminPage() {
                     <span>House edge</span><strong>{(sim.houseEdge * 100).toFixed(2)}%</strong>
                     <span>Biggest win</span><strong>{formatCoins(sim.biggestWin)}</strong>
                     <span>Cap hits</span><strong>{formatCoins(sim.maxPayoutCapHits)}</strong>
+                    <span>Cap hit rate</span><strong>{((sim.maxCapHitRate ?? 0) * 100).toFixed(2)}%</strong>
                     {typeof sim.averagePayout === "number" && <><span>Average payout</span><strong>{formatCoins(sim.averagePayout)}</strong></>}
                     {typeof sim.bustRate === "number" && <><span>{game.id === "balloonPop" ? "Blank rate" : "Bust rate"}</span><strong>{(sim.bustRate * 100).toFixed(2)}%</strong></>}
                     {typeof sim.averageBricksHit === "number" && <><span>Avg bricks hit</span><strong>{sim.averageBricksHit.toFixed(2)}</strong></>}
-                    {typeof sim.maxCapHitRate === "number" && <><span>Cap hit rate</span><strong>{(sim.maxCapHitRate * 100).toFixed(2)}%</strong></>}
                   </div>
                 ) : (
                   <p className="muted">Run simulation to inspect table game math.</p>

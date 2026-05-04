@@ -1,4 +1,5 @@
 import type { Currency } from "../types";
+import { DEMO_MAX_TOTAL_BET } from "../economy/limits";
 import { rouletteConfig } from "./configs";
 import { placeTableBet, settleTableResult } from "./ledger";
 import type { RouletteBet, RouletteConfig, RouletteResult } from "./types";
@@ -116,6 +117,7 @@ export function numberStreetStart(number: number) {
 
 export function assertRouletteTotal(total: number, config = rouletteConfig) {
   if (total > config.maxTotalBetGold) throw new Error(`Maximum total roulette bet is ${config.maxTotalBetGold} coins.`);
+  if (total > DEMO_MAX_TOTAL_BET) throw new Error(`Demo maximum total roulette bet is ${DEMO_MAX_TOTAL_BET} coins.`);
 }
 
 export function resolveRouletteBets({

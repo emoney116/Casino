@@ -13,6 +13,9 @@ const initialData: CasinoData = {
   missions: {},
   favorites: {},
   retention: {},
+  redemptionRequests: [],
+  kycStatuses: {},
+  eligibilityFlags: {},
 };
 
 export function readData(): CasinoData {

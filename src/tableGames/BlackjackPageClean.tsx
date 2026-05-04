@@ -41,6 +41,7 @@ import { BlackjackControlsClean } from "./BlackjackControlsClean";
 import { DealerHandView, PlayerHandView, SplitHandSummary } from "./BlackjackHandView";
 import { blackjackConfig } from "./configs";
 import type { BlackjackHand, BlackjackRound } from "./types";
+import { COMPLIANCE_COPY } from "../lib/compliance";
 
 export const blackjackCleanUxMarkers = {
   cleanPage: true,
@@ -334,6 +335,7 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
         onDouble={() => apply("double")}
         onSplit={() => apply("split")}
       />
+      <div className="demo-copy game-compliance-copy">{COMPLIANCE_COPY}</div>
     </section>
   );
 }

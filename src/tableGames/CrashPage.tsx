@@ -11,6 +11,7 @@ import { getBalance } from "../wallet/walletService";
 import { cashOutCrashRound, crashCrashRound, getCrashMultiplier, startCrashRound } from "./crashEngine";
 import { crashConfig } from "./configs";
 import type { CrashRound } from "./types";
+import { COMPLIANCE_COPY } from "../lib/compliance";
 
 const quickBets = [10, 25, 50, 100, 500];
 
@@ -61,7 +62,7 @@ export function CrashPage({ onExit }: { onExit?: () => void }) {
   const canStart = Boolean(user && !running && betAmount >= crashConfig.minBet && betAmount <= crashConfig.maxBet && balance >= betAmount);
   const projectedWin = Math.min(crashConfig.maxPayout, Math.round(betAmount * multiplier));
   const multiplierTone = multiplier >= 5 ? "hot" : multiplier >= 2 ? "warm" : "cool";
-  const mainButtonLabel = running ? "Cash Out" : status === "CRASHED" || status === "CASHED_OUT" ? "Play Again" : "Start";
+  const mainButtonLabel = running ? "Collect" : status === "CRASHED" || status === "CASHED_OUT" ? "Play Again" : "Start";
   const maxRoundWin = round ? Math.min(crashConfig.maxPayout, Math.round(round.betAmount * round.crashPoint)) : 0;
   const path = useMemo(() => {
     if (graphPoints.length === 0) return "M 0 92";
@@ -217,7 +218,7 @@ export function CrashPage({ onExit }: { onExit?: () => void }) {
           <LastCrashResults values={recentRounds} />
           <section className="crash-multiplier-zone" aria-live="polite">
             <strong key={popKey} className="crash-multiplier">{multiplier.toFixed(2)}x</strong>
-            <span>{running ? `Cash out for ${formatCoins(projectedWin)}` : status === "CASHED_OUT" ? `Locked at ${round?.cashOutMultiplier?.toFixed(2)}x` : status === "CRASHED" ? `Crashed at ${round?.crashPoint.toFixed(2)}x` : "Ready for takeoff"}</span>
+            <span>{running ? `Collect ${formatCoins(projectedWin)}` : status === "CASHED_OUT" ? `Locked at ${round?.cashOutMultiplier?.toFixed(2)}x` : status === "CRASHED" ? `Crashed at ${round?.crashPoint.toFixed(2)}x` : "Ready for takeoff"}</span>
             {status === "CASHED_OUT" && <CoinBurst count={12} />}
           </section>
 
@@ -241,9 +242,9 @@ export function CrashPage({ onExit }: { onExit?: () => void }) {
           {(status === "CASHED_OUT" || status === "CRASHED") && (
             <GameResultBanner
               tone={status === "CASHED_OUT" ? "win" : "loss"}
-              title={status === "CASHED_OUT" ? "Cashed Out" : "Crashed"}
+              title={status === "CASHED_OUT" ? "Collected" : "Crashed"}
               amount={status === "CASHED_OUT" ? round?.totalPaid : undefined}
-              message={status === "CASHED_OUT" ? `Max this round: ${formatCoins(maxRoundWin)} at ${round?.crashPoint.toFixed(2)}x` : "The multiplier dropped before cash out."}
+              message={status === "CASHED_OUT" ? `Max this round: ${formatCoins(maxRoundWin)} at ${round?.crashPoint.toFixed(2)}x` : "The multiplier dropped before collection."}
               compact
             />
           )}
@@ -278,11 +279,12 @@ export function CrashPage({ onExit }: { onExit?: () => void }) {
         </div>
         <div className={balance < betAmount ? "crash-note warning" : "crash-note"}>
           <span>Min {formatCoins(crashConfig.minBet)} / Max {formatCoins(crashConfig.maxBet)}</span>
-          <strong>{running ? `Live ${multiplier.toFixed(2)}x` : "Cash out before the drop"}</strong>
+          <strong>{running ? `Live ${multiplier.toFixed(2)}x` : "Collect before the drop"}</strong>
         </div>
         <button className={running ? "crash-main-action cashout" : "crash-main-action"} disabled={!running && !canStart} onClick={mainAction}>
           {mainButtonLabel}
         </button>
+        <div className="demo-copy game-compliance-copy">{COMPLIANCE_COPY}</div>
       </section>
     </section>
   );

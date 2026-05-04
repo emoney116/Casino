@@ -4,6 +4,14 @@ export type AccountStatus = "ACTIVE" | "SUSPENDED" | "CLOSED";
 export type Currency = "GOLD" | "BONUS";
 export type TransactionType =
   | "PURCHASE_FAKE"
+  | "GOLD_PURCHASE_DEMO"
+  | "SWEEPS_BONUS_GRANT"
+  | "REDEMPTION_REQUEST_CREATED"
+  | "REDEMPTION_REQUEST_APPROVED"
+  | "REDEMPTION_REQUEST_REJECTED"
+  | "REDEMPTION_REQUEST_CANCELLED"
+  | "KYC_REQUIRED"
+  | "ADMIN_REDEMPTION_ADJUSTMENT"
   | "DAILY_BONUS"
   | "GAME_BET"
   | "GAME_WIN"
@@ -69,6 +77,32 @@ export interface CasinoData {
   missions: Record<string, MissionState>;
   favorites: Record<string, string[]>;
   retention: Record<string, RetentionState>;
+  redemptionRequests: RedemptionRequest[];
+  kycStatuses: Record<string, KycStatus>;
+  eligibilityFlags: Record<string, EligibilityFlags>;
+}
+
+export type KycStatus = "NOT_STARTED" | "REQUIRED" | "PENDING" | "APPROVED" | "REJECTED";
+export type RedemptionRequestStatus = "CREATED" | "APPROVED" | "REJECTED" | "CANCELLED";
+
+export interface RedemptionRequest {
+  id: string;
+  userId: string;
+  currency: Currency;
+  amount: number;
+  status: RedemptionRequestStatus;
+  createdAt: string;
+  updatedAt: string;
+  note?: string;
+}
+
+export interface EligibilityFlags {
+  state?: string;
+  country?: string;
+  minimumAgeConfirmed?: boolean;
+  eligibleForPromotions?: boolean;
+  eligibleForRedemption?: boolean;
+  reviewRequired?: boolean;
 }
 
 export interface PlayerProgression {

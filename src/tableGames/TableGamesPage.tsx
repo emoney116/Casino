@@ -1,14 +1,15 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import type { TableGameId } from "./types";
 import { tableGameConfigs } from "./configs";
 import { TableGameCard } from "./TableGameCard";
-import { BlackjackPage } from "./BlackjackPage";
-import { RoulettePage } from "./RoulettePage";
-import { DicePage } from "./DicePage";
-import { CrashPage } from "./CrashPage";
-import { TreasureDigPage } from "./TreasureDigPage";
-import { BrickBreakBonusPage } from "./BrickBreakBonusPage";
-import { BalloonPopPage } from "./BalloonPopPage";
+
+const BlackjackPage = lazy(() => import("./BlackjackPage").then((module) => ({ default: module.BlackjackPage })));
+const RoulettePage = lazy(() => import("./RoulettePage").then((module) => ({ default: module.RoulettePage })));
+const DicePage = lazy(() => import("./DicePage").then((module) => ({ default: module.DicePage })));
+const CrashPage = lazy(() => import("./CrashPage").then((module) => ({ default: module.CrashPage })));
+const TreasureDigPage = lazy(() => import("./TreasureDigPage").then((module) => ({ default: module.TreasureDigPage })));
+const BrickBreakBonusPage = lazy(() => import("./BrickBreakBonusPage").then((module) => ({ default: module.BrickBreakBonusPage })));
+const BalloonPopPage = lazy(() => import("./BalloonPopPage").then((module) => ({ default: module.BalloonPopPage })));
 
 export function TableGamesPage({
   activeGameId,
@@ -33,13 +34,15 @@ export function TableGamesPage({
   if (activeGameId) {
     return (
       <section className={activeGameId === "blackjack" ? "page-stack blackjack-game-host" : activeGameId === "dice" ? "page-stack over-under-game-host" : activeGameId === "crash" ? "page-stack crash-game-host" : activeGameId === "treasureDig" ? "page-stack treasure-dig-game-host" : activeGameId === "brickBreakBonus" ? "page-stack brick-break-game-host" : activeGameId === "balloonPop" ? "page-stack balloon-pop-game-host" : "page-stack"}>
-        {activeGameId === "blackjack" && <BlackjackPage onExit={onExit} />}
-        {activeGameId === "roulette" && <RoulettePage onExit={onExit} />}
-        {activeGameId === "dice" && <DicePage onExit={onExit} />}
-        {activeGameId === "crash" && <CrashPage onExit={onExit} />}
-        {activeGameId === "treasureDig" && <TreasureDigPage onExit={onExit} />}
-        {activeGameId === "brickBreakBonus" && <BrickBreakBonusPage onExit={onExit} />}
-        {activeGameId === "balloonPop" && <BalloonPopPage onExit={onExit} />}
+        <Suspense fallback={<div className="card loading-card">Loading game...</div>}>
+          {activeGameId === "blackjack" && <BlackjackPage onExit={onExit} />}
+          {activeGameId === "roulette" && <RoulettePage onExit={onExit} />}
+          {activeGameId === "dice" && <DicePage onExit={onExit} />}
+          {activeGameId === "crash" && <CrashPage onExit={onExit} />}
+          {activeGameId === "treasureDig" && <TreasureDigPage onExit={onExit} />}
+          {activeGameId === "brickBreakBonus" && <BrickBreakBonusPage onExit={onExit} />}
+          {activeGameId === "balloonPop" && <BalloonPopPage onExit={onExit} />}
+        </Suspense>
       </section>
     );
   }

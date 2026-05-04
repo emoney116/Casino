@@ -9,6 +9,7 @@ import { getBalance } from "../wallet/walletService";
 import { GameResultBanner, ScreenShake, SoundToggle } from "../feedback/components";
 import { playBet, playError, playLose, playSpin, playWin } from "../feedback/feedbackService";
 import { rouletteConfig } from "./configs";
+import { COMPLIANCE_COPY } from "../lib/compliance";
 import {
   americanWheel,
   getRouletteColor,
@@ -344,6 +345,7 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
               compact
             />
           )}
+          <div className="demo-copy game-compliance-copy">{COMPLIANCE_COPY}</div>
         </aside>
 
         <div className="roulette-street-panel">

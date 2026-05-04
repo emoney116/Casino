@@ -14,6 +14,7 @@ import { GameLogo } from "./GameLogo";
 import { Modal } from "../components/Modal";
 import { PaytableModal } from "./PaytableModal";
 import { frontierUiAssets } from "./frontierAssets";
+import { COMPLIANCE_COPY } from "../lib/compliance";
 import { recordRecentGame } from "./recentGames";
 import { getSpinDuration, slotAnimation } from "./slotAnimation";
 import { nextFreeSpinTotal } from "./slotSession";
@@ -642,7 +643,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
               <ShoppingBag size={16} /> Get More Demo Coins
             </button>
           )}
-          <div className="demo-copy">Virtual coins only. No cash value, prizes, withdrawals, or redemption.</div>
+          <div className="demo-copy game-compliance-copy">{COMPLIANCE_COPY}</div>
           <div className="toggle-row">
             <button className={turbo ? "ghost-button active" : "ghost-button"} onClick={() => setTurbo((value) => !value)}>
               <Zap size={15} /> Turbo
@@ -698,14 +699,14 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
             <div className="bonus-modal-token">
               <Coins size={36} />
             </div>
-            <p className="muted">Demo bonus buy only. Virtual coins have no cash value.</p>
+            <p className="muted">{COMPLIANCE_COPY}</p>
             <div className="notice-card bonus-cost-card">
               <span>Cost</span>
               <strong>{formatCoins(buyBonusCost)} {currency}</strong>
               <small>Feature: {game.buyBonus?.featureType.replaceAll("_", " ")}</small>
             </div>
             {!canBuyBonus && <div className="error-box">Insufficient balance for this demo bonus buy.</div>}
-            <p>No real money, withdrawals, prizes, redemptions, or cashout are available in this prototype.</p>
+            <p>{COMPLIANCE_COPY}</p>
             <div className="modal-actions">
               <button className="ghost-button" onClick={() => setBuyBonusOpen(false)}>Cancel</button>
               <button className="primary-button" disabled={!canBuyBonus} onClick={resolveBuyBonus}>Confirm</button>

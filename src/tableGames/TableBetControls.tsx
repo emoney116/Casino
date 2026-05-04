@@ -2,6 +2,7 @@ import type { Currency } from "../types";
 import { formatCoins } from "../lib/format";
 import { getBalance } from "../wallet/walletService";
 import type { TableGameConfig } from "./types";
+import { getCurrencyDisplayName } from "../config/currencyConfig";
 
 export function TableBetControls({
   userId,
@@ -37,8 +38,8 @@ export function TableBetControls({
         <label>
           Currency
           <select value={currency} disabled={disabled} onChange={(event) => onCurrencyChange(event.target.value as Currency)}>
-            <option value="GOLD">Gold Coins</option>
-            <option value="BONUS">Bonus Coins</option>
+            <option value="GOLD">{getCurrencyDisplayName("GOLD")}</option>
+            <option value="BONUS">{getCurrencyDisplayName("BONUS")}</option>
           </select>
         </label>
         <div className="table-balance-chip">

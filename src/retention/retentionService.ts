@@ -9,7 +9,7 @@ const LOW_BALANCE_REWARD = 1200;
 const SWITCH_REWARD = 900;
 
 export const promotionDefs = [
-  { id: "bonus-2x", title: "2x Bonus Coins", reward: 2000, durationMinutes: 1440 },
+  { id: "bonus-2x", title: "2x Sweeps Coins", reward: 2000, durationMinutes: 1440 },
   { id: "limited-reward", title: "Limited Time Reward", reward: 1500, durationMinutes: 90 },
 ];
 

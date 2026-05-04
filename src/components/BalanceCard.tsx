@@ -1,20 +1,24 @@
 import { formatCoins } from "../lib/format";
 import type { Currency } from "../types";
+import { getCurrencyDisplayName, getCurrencyMeta, getCurrencyShortName } from "../config/currencyConfig";
 
 export function BalanceCard({
   label,
   amount,
   tone,
+  currency,
 }: {
   label: string;
   amount: number;
   tone: "gold" | "bonus";
+  currency?: Currency;
 }) {
+  const meta = currency ? getCurrencyMeta(currency) : null;
   return (
     <article className={`balance-card ${tone}`}>
       <span>{label}</span>
       <strong>{formatCoins(amount)}</strong>
-      <small>No cash value</small>
+      <small>{meta?.displayDisclaimer ?? "Gold Coins have no cash value."}</small>
     </article>
   );
 }
@@ -67,7 +71,7 @@ export function BalanceToggle({
   }
 
   function optionText(currency: Currency) {
-    const label = currency === "GOLD" ? "GC" : "BC";
+    const label = getCurrencyShortName(currency);
     if (currency !== selected) return label;
     return `${label} ${expanded ? formatCoins(balances[currency]) : formatCompactCoins(balances[currency])}`;
   }
@@ -78,7 +82,7 @@ export function BalanceToggle({
         <button
           type="button"
           className={selected === "GOLD" ? "active gold" : "gold"}
-          title={`Gold Coins: ${formatCoins(balances.GOLD)}`}
+          title={`${getCurrencyDisplayName("GOLD")}: ${formatCoins(balances.GOLD)}`}
           aria-pressed={selected === "GOLD"}
           onClick={() => clickCurrency("GOLD")}
         >
@@ -87,7 +91,7 @@ export function BalanceToggle({
         <button
           type="button"
           className={selected === "BONUS" ? "active bonus" : "bonus"}
-          title={`Bonus Coins: ${formatCoins(balances.BONUS)}`}
+          title={`${getCurrencyDisplayName("BONUS")}: ${formatCoins(balances.BONUS)}`}
           aria-pressed={selected === "BONUS"}
           onClick={() => clickCurrency("BONUS")}
         >

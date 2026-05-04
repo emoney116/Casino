@@ -1,7 +1,6 @@
 import type { SimulationResult, SlotConfig } from "./types";
-import { buyBonusFeature, calculateHoldAndWinBonus, calculateNeonCascadeResult, calculateSlotResult } from "./slotEngine";
-import { creditCurrency } from "../wallet/walletService";
-import type { User } from "../types";
+import { calculateDirectFeature, calculateHoldAndWinBonus, calculateNeonCascadeResult, calculateSlotResult } from "./slotEngine";
+import { capDemoPayout } from "../economy/limits";
 
 // Demo-only math tooling. Any real regulated gambling product would need certified
 // RNG, certified math, jurisdiction-specific legal review, and independent testing.
@@ -49,23 +48,14 @@ export function simulateSlot(game: SlotConfig, spins = 100000, betAmount = game.
     let buyPaid = 0;
     let buyCost = 0;
     let buyCapHits = 0;
-    const simUser: User = {
-      id: `sim-${game.id}-${Date.now()}`,
-      email: "sim@demo.local",
-      username: "Simulator",
-      createdAt: new Date().toISOString(),
-      lastLoginAt: new Date().toISOString(),
-      roles: ["ADMIN"],
-      accountStatus: "ACTIVE",
-    };
     const cost = Math.round(betAmount * game.buyBonus.costMultiplier);
     const buySpins = Math.min(250, spins);
-    creditCurrency({ userId: simUser.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: cost * buySpins, metadata: { simulation: true } });
     for (let index = 0; index < buySpins; index += 1) {
-      const buy = buyBonusFeature({ user: simUser, game, currency: "GOLD", betAmount });
+      const feature = calculateDirectFeature(game, betAmount, game.buyBonus.featureType);
+      const payout = Math.min(feature.bonusPayout, capDemoPayout(Math.round(betAmount * game.maxPayoutMultiplier)));
       buyCost += cost;
-      buyPaid += buy.payout;
-      if (buy.capped) buyCapHits += 1;
+      buyPaid += payout;
+      if (feature.bonusPayout > payout) buyCapHits += 1;
     }
     buyBonusRtp = buyPaid / buyCost;
     buyBonusAveragePayout = buyPaid / buySpins;
@@ -93,15 +83,15 @@ export function simulateSlot(game: SlotConfig, spins = 100000, betAmount = game.
 
 export function getMathWarnings(game: SlotConfig, simulation?: SimulationResult) {
   const warnings: string[] = [];
-  if (game.targetRtp > 0.96) warnings.push("Target RTP is above 96%.");
+  if (game.targetRtp > 0.95) warnings.push("Target RTP is above 95%.");
   if (game.demoProgressive && game.demoProgressive.maxPayoutMultiplier > 100) {
     warnings.push("Max payout multiplier is unusually high for this demo.");
   }
   if (game.maxPayoutMultiplier > 75) {
     warnings.push("Configured max payout cap is high for this demo economy.");
   }
-  if (simulation && simulation.observedRtp > 0.96) {
-    warnings.push("Observed RTP is above 96%; tune symbol weights or payouts before release.");
+  if (simulation && simulation.observedRtp > 0.95) {
+    warnings.push("Observed RTP is above 95%; tune symbol weights or payouts before release.");
   }
   if (simulation && simulation.bonusTriggerRate > 0.16) {
     warnings.push("Bonus trigger rate is frequent; check demo economy balance.");
@@ -109,8 +99,8 @@ export function getMathWarnings(game: SlotConfig, simulation?: SimulationResult)
   if (simulation?.buyBonusRtp && simulation.buyBonusRtp > simulation.observedRtp + 0.12) {
     warnings.push("Buy bonus RTP is materially higher than base game RTP.");
   }
-  if (simulation?.buyBonusRtp && simulation.buyBonusRtp > 0.96) {
-    warnings.push("Buy bonus RTP is above 96%; increase cost or reduce bonus awards.");
+  if (simulation?.buyBonusRtp && simulation.buyBonusRtp > 0.95) {
+    warnings.push("Buy bonus RTP is above 95%; increase cost or reduce bonus awards.");
   }
   if (simulation?.capHitRate && simulation.capHitRate > 0.08) {
     warnings.push("Max win cap is triggering frequently; review bet range or max payout.");

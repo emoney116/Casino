@@ -18,6 +18,7 @@ import {
   type BalloonPopState,
   type BalloonTile,
 } from "./balloonPopEngine";
+import { COMPLIANCE_COPY } from "../lib/compliance";
 
 const quickBets = [10, 25, 50, 100, 500];
 
@@ -307,6 +308,7 @@ export function BalloonPopPage({ onExit }: { onExit?: () => void }) {
         <button className="balloon-pop-play" disabled={!canPlay} onClick={play}>
           {active ? "Round Active" : round?.state === "complete" ? "Play Again" : "Play"}
         </button>
+        <div className="demo-copy game-compliance-copy">{COMPLIANCE_COPY}</div>
         {recentRounds.length > 0 && (
           <div className="balloon-pop-recent" aria-label="Recent Balloon Pop rounds">
             {recentRounds.map((item, index) => <strong key={`${item.paid}-${item.net}-${index}`} className={item.net >= 0 ? "win" : "loss"}>{item.net >= 0 ? "+" : ""}{formatCoins(item.net)}</strong>)}

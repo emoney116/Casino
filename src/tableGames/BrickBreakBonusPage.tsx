@@ -9,6 +9,7 @@ import { recordRetentionRound } from "../retention/retentionService";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
 import { brickBreakBonusConfig, generateBrickBreakResult, type BrickBreakHit, type BrickBreakResult, type BrickBreakState, type BrickBreakStep } from "./brickBreakBonusEngine";
+import { COMPLIANCE_COPY } from "../lib/compliance";
 
 const quickBets = [10, 25, 50, 100, 500];
 const brickCount = 30;
@@ -336,6 +337,7 @@ export function BrickBreakBonusPage({ onExit }: { onExit?: () => void }) {
         <button className="brick-break-play" disabled={!canPlay} onClick={play}>
           {running ? "Playing" : "Play"}
         </button>
+        <div className="demo-copy game-compliance-copy">{COMPLIANCE_COPY}</div>
         {recentRounds.length > 0 && (
           <div className="brick-break-recent" aria-label="Recent Brick Break Bonus rounds">
             {recentRounds.map((round, index) => <strong key={`${round.paid}-${round.net}-${index}`} className={round.net >= 0 ? "win" : "loss"}>{round.net >= 0 ? "+" : ""}{formatCoins(round.net)}</strong>)}

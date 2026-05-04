@@ -1,4 +1,5 @@
 import { creditCurrency, debitCurrency } from "../wallet/walletService";
+import { DEMO_MAX_SINGLE_BET, capDemoPayout } from "../economy/limits";
 import type { Currency, User } from "../types";
 import type { BonusFeatureType, HoldAndWinResult, HoldAndWinState, SlotConfig, SlotSpinInput, SlotSpinResult, WheelBonusResult } from "./types";
 
@@ -23,7 +24,7 @@ function countInGrid(grid: string[][], symbol: string) {
 }
 
 function maxWinFor(game: SlotConfig, betAmount: number) {
-  return Math.round(betAmount * game.maxPayoutMultiplier);
+  return capDemoPayout(Math.round(betAmount * game.maxPayoutMultiplier));
 }
 
 function payoutMultiplier(game: SlotConfig, symbol: string, count: number) {
@@ -179,7 +180,7 @@ export function calculateWheelBonus(game: SlotConfig, betAmount: number): WheelB
   return { ...result, payout };
 }
 
-function calculateDirectFeature(game: SlotConfig, betAmount: number, featureType: BonusFeatureType) {
+export function calculateDirectFeature(game: SlotConfig, betAmount: number, featureType: BonusFeatureType) {
   if (featureType === "HOLD_AND_WIN") {
     const holdAndWin = calculateHoldAndWinBonus(game, betAmount);
     return {
@@ -404,6 +405,7 @@ export function buyBonusDebit({
 }) {
   if (!game.buyBonus?.enabled) throw new Error("Buy bonus is not available for this game.");
   if (betAmount < game.minBet || betAmount > game.maxBet) throw new Error("Bet amount is outside this game's limits.");
+  if (betAmount > DEMO_MAX_SINGLE_BET) throw new Error(`Demo maximum single bet is ${DEMO_MAX_SINGLE_BET}.`);
   const cost = Math.round(betAmount * game.buyBonus.costMultiplier);
   return debitCurrency({
     userId: user.id,
@@ -466,6 +468,7 @@ export function buyBonusFeature({
 }) {
   if (!game.buyBonus?.enabled) throw new Error("Buy bonus is not available for this game.");
   if (betAmount < game.minBet || betAmount > game.maxBet) throw new Error("Bet amount is outside this game's limits.");
+  if (betAmount > DEMO_MAX_SINGLE_BET) throw new Error(`Demo maximum single bet is ${DEMO_MAX_SINGLE_BET}.`);
   const cost = Math.round(betAmount * game.buyBonus.costMultiplier);
   buyBonusDebit({ user, game, currency, betAmount });
 
@@ -521,6 +524,9 @@ export function spinSlot(input: SlotSpinInput) {
   }
   if (input.betAmount > input.game.maxBet) {
     throw new Error(`Maximum bet is ${input.game.maxBet}.`);
+  }
+  if (input.betAmount > DEMO_MAX_SINGLE_BET) {
+    throw new Error(`Demo maximum single bet is ${DEMO_MAX_SINGLE_BET}.`);
   }
 
   if (!input.freeSpin) {

@@ -11,6 +11,7 @@ import { getBalance } from "../wallet/walletService";
 import { treasureDigConfig } from "./configs";
 import { cashOutTreasureDigRound, clampTreasureTrapCount, getTreasureBoostMultiplier, getTreasureDigMultiplier, getTreasurePotentialMaxMultiplier, pickTreasureTile, startTreasureDigRound } from "./treasureDigEngine";
 import type { TreasureDigRound } from "./types";
+import { COMPLIANCE_COPY } from "../lib/compliance";
 
 const quickBets = [10, 25, 50, 100, 500];
 
@@ -259,11 +260,12 @@ export function TreasureDigPage({ onExit }: { onExit?: () => void }) {
         </div>
         <div className={balance < betAmount ? "treasure-note warning" : "treasure-note"}>
           <span>Min {formatCoins(treasureDigConfig.minBet)} / Max {formatCoins(treasureDigConfig.maxBet)}</span>
-          <strong>{running ? `Cashout ${formatCoins(possiblePayout)}` : "Start, dig, cash out anytime"}</strong>
+          <strong>{running ? `Collect ${formatCoins(possiblePayout)}` : "Start, dig, collect anytime"}</strong>
         </div>
         <button className={running ? "treasure-main-action cashout" : "treasure-main-action"} disabled={!running && !canStart} onClick={mainAction}>
-          {running ? `Cash Out ${formatCoins(possiblePayout)}` : round ? "Start Again" : "Start"}
+          {running ? `Collect ${formatCoins(possiblePayout)}` : round ? "Start Again" : "Start"}
         </button>
+        <div className="demo-copy game-compliance-copy">{COMPLIANCE_COPY}</div>
       </section>
     </section>
   );

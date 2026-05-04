@@ -2,6 +2,7 @@ import { useAuth } from "../auth/AuthContext";
 import { canClaimStreak, claimStreak, getStreak, streakRewards } from "./streakService";
 import { useToast } from "../components/ToastContext";
 import { formatCoins } from "../lib/format";
+import { getCurrencyShortName } from "../config/currencyConfig";
 
 export function StreakCard({ onClaimed }: { onClaimed?: () => void }) {
   const { user, refreshUser } = useAuth();
@@ -36,8 +37,8 @@ export function StreakCard({ onClaimed }: { onClaimed?: () => void }) {
           return (
             <div className={`streak-day ${state}`} key={reward.day}>
               <strong>D{reward.day}</strong>
-              <span>{formatCoins(reward.bonus)} BC</span>
-              {reward.gold > 0 && <small>+{reward.gold} GC</small>}
+              <span>{formatCoins(reward.bonus)} {getCurrencyShortName("BONUS")}</span>
+              {reward.gold > 0 && <small>+{reward.gold} {getCurrencyShortName("GOLD")}</small>}
             </div>
           );
         })}
