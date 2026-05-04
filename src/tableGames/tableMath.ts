@@ -5,6 +5,7 @@ import { getDiceReturnMultiplier } from "./diceEngine";
 import { generateCrashPoint } from "./crashEngine";
 import { createTreasureMultiplierTiles, createTreasureTrapIndexes, getTreasureBoostMultiplier, getTreasureDigMultiplier } from "./treasureDigEngine";
 import { getBrickBreakMathWarnings, simulateBrickBreakBonus } from "./brickBreakBonusEngine";
+import { getBalloonPopMathWarnings, simulateBalloonPop } from "./balloonPopEngine";
 import type { TableGameConfig, TableGameId, TableSimulationResult } from "./types";
 
 export function simulateTableGame(gameId: TableGameId, rounds = 100000): TableSimulationResult {
@@ -20,6 +21,20 @@ export function simulateTableGame(gameId: TableGameId, rounds = 100000): TableSi
       bustRate: result.bustRate,
       averagePayout: result.averagePayout,
       averageBricksHit: result.averageBricksHit,
+      maxCapHitRate: result.maxCapHitRate,
+    };
+  }
+  if (gameId === "balloonPop") {
+    const result = simulateBalloonPop(rounds);
+    return {
+      totalWagered: result.totalWagered,
+      totalPaid: result.totalPaid,
+      observedRtp: result.observedRtp,
+      houseEdge: 1 - result.observedRtp,
+      biggestWin: result.biggestWin,
+      maxPayoutCapHits: result.maxPayoutCapHits,
+      bustRate: result.blankRate,
+      averagePayout: result.averagePayout,
       maxCapHitRate: result.maxCapHitRate,
     };
   }
@@ -160,6 +175,17 @@ export function getTableMathWarnings(config: TableGameConfig, simulation?: Table
       ? { ...simulation, averagePayout: simulation.averagePayout, bustRate: simulation.bustRate, averageBricksHit: simulation.averageBricksHit, maxCapHitRate: simulation.maxCapHitRate }
       : undefined;
     return getBrickBreakMathWarnings(brickSimulation);
+  }
+  if (config.id === "balloonPop") {
+    const balloonSimulation = simulation && typeof simulation.averagePayout === "number" && typeof simulation.bustRate === "number" && typeof simulation.maxCapHitRate === "number"
+      ? {
+        ...simulation,
+        averagePayout: simulation.averagePayout,
+        blankRate: simulation.bustRate,
+        maxCapHitRate: simulation.maxCapHitRate,
+      }
+      : undefined;
+    return getBalloonPopMathWarnings(balloonSimulation);
   }
   const warnings: string[] = [];
   if (simulation?.observedRtp && simulation.observedRtp > 0.99) warnings.push(`${config.name} observed RTP is above 99%.`);

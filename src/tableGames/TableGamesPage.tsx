@@ -8,6 +8,7 @@ import { DicePage } from "./DicePage";
 import { CrashPage } from "./CrashPage";
 import { TreasureDigPage } from "./TreasureDigPage";
 import { BrickBreakBonusPage } from "./BrickBreakBonusPage";
+import { BalloonPopPage } from "./BalloonPopPage";
 
 export function TableGamesPage({
   activeGameId,
@@ -31,13 +32,14 @@ export function TableGamesPage({
 
   if (activeGameId) {
     return (
-      <section className={activeGameId === "blackjack" ? "page-stack blackjack-game-host" : activeGameId === "dice" ? "page-stack over-under-game-host" : activeGameId === "crash" ? "page-stack crash-game-host" : activeGameId === "treasureDig" ? "page-stack treasure-dig-game-host" : activeGameId === "brickBreakBonus" ? "page-stack brick-break-game-host" : "page-stack"}>
+      <section className={activeGameId === "blackjack" ? "page-stack blackjack-game-host" : activeGameId === "dice" ? "page-stack over-under-game-host" : activeGameId === "crash" ? "page-stack crash-game-host" : activeGameId === "treasureDig" ? "page-stack treasure-dig-game-host" : activeGameId === "brickBreakBonus" ? "page-stack brick-break-game-host" : activeGameId === "balloonPop" ? "page-stack balloon-pop-game-host" : "page-stack"}>
         {activeGameId === "blackjack" && <BlackjackPage onExit={onExit} />}
         {activeGameId === "roulette" && <RoulettePage onExit={onExit} />}
         {activeGameId === "dice" && <DicePage onExit={onExit} />}
         {activeGameId === "crash" && <CrashPage onExit={onExit} />}
         {activeGameId === "treasureDig" && <TreasureDigPage onExit={onExit} />}
         {activeGameId === "brickBreakBonus" && <BrickBreakBonusPage onExit={onExit} />}
+        {activeGameId === "balloonPop" && <BalloonPopPage onExit={onExit} />}
       </section>
     );
   }

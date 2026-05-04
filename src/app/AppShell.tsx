@@ -29,6 +29,8 @@ const tableRouteIds: Record<string, TableGameId> = {
   "brick-break-bonus": "brickBreakBonus",
   "coin-breaker": "brickBreakBonus",
   brickBreakBonus: "brickBreakBonus",
+  "balloon-pop": "balloonPop",
+  balloonPop: "balloonPop",
 };
 
 function getInitialRoute(): { view: AppView; slotGameId: string | null; tableGameId: TableGameId | null } {
@@ -90,7 +92,7 @@ export function AppShell() {
   function playTableGame(gameId: TableGameId) {
     setActiveTableGameId(gameId);
     setActiveView("tableGames");
-    window.history.pushState(null, "", `/games/${gameId === "treasureDig" ? "treasure-dig" : gameId === "brickBreakBonus" ? "brick-break-bonus" : gameId}`);
+    window.history.pushState(null, "", `/games/${gameId === "treasureDig" ? "treasure-dig" : gameId === "brickBreakBonus" ? "brick-break-bonus" : gameId === "balloonPop" ? "balloon-pop" : gameId}`);
   }
 
   const hideMobileNav = (activeView === "games" && Boolean(activeGameId)) || (activeView === "tableGames" && Boolean(activeTableGameId));

@@ -9,7 +9,8 @@
     "test:wallet": "tsx src/wallet/wallet.devtest.ts",
     "test:slots": "tsx src/games/slot.devtest.ts",
     "test:tables": "tsx src/tableGames/tableGames.devtest.ts",
-    "test:dev": "npm run test:wallet && npm run test:slots && npm run test:tables"
+    "test:balloon": "tsx src/tableGames/balloonPop.devtest.ts",
+    "test:dev": "npm run test:wallet && npm run test:slots && npm run test:tables && npm run test:balloon"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.0",

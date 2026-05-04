@@ -1,6 +1,6 @@
 import type { Currency, Transaction } from "../types";
 
-export type TableGameId = "blackjack" | "roulette" | "dice" | "crash" | "treasureDig" | "brickBreakBonus";
+export type TableGameId = "blackjack" | "roulette" | "dice" | "crash" | "treasureDig" | "brickBreakBonus" | "balloonPop";
 export type TableGameStatus = "IDLE" | "BETTING" | "PLAYER_TURN" | "DEALER_TURN" | "RESOLVED" | "ERROR";
 
 export interface TableGameConfig {

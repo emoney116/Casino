@@ -1,5 +1,6 @@
 import type { BlackjackConfig, CrashConfig, DiceConfig, RouletteConfig, TableGameConfig, TreasureDigConfig } from "./types";
 import { brickBreakBonusConfig } from "./brickBreakBonusEngine";
+import { balloonPopConfig } from "./balloonPopEngine";
 
 const demoOnlyCopy =
   "Demo table game using virtual coins only. No cash value, deposits, withdrawals, prizes, or redemptions.";
@@ -150,4 +151,21 @@ export const brickBreakBonusTableConfig: TableGameConfig = {
   rules: ["Place a wager and press Play", "CPU autoplay controls the paddle and ball", "RNG result is generated before animation starts"],
 };
 
-export const tableGameConfigs: TableGameConfig[] = [brickBreakBonusTableConfig, blackjackConfig, rouletteConfig, diceConfig, crashConfig, treasureDigConfig];
+export const balloonPopTableConfig: TableGameConfig = {
+  id: "balloonPop",
+  name: balloonPopConfig.name,
+  theme: balloonPopConfig.theme,
+  minBet: balloonPopConfig.minBet,
+  maxBet: balloonPopConfig.maxBet,
+  minBetGold: balloonPopConfig.minBet,
+  maxBetGold: balloonPopConfig.maxBet,
+  minBetRealCentsPlaceholder: 1,
+  maxBetRealCentsPlaceholder: 500,
+  maxPayout: balloonPopConfig.maxBet * balloonPopConfig.maxWinMultiplier,
+  houseEdgeTarget: 1 - balloonPopConfig.targetRtp,
+  currency: "GOLD",
+  demoOnlyCopy,
+  rules: ["Choose 3 balloons", "Prize map is generated before darts are thrown", "Multipliers apply to current round winnings"],
+};
+
+export const tableGameConfigs: TableGameConfig[] = [balloonPopTableConfig, brickBreakBonusTableConfig, blackjackConfig, rouletteConfig, diceConfig, crashConfig, treasureDigConfig];
