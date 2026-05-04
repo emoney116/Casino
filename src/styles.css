@@ -378,25 +378,191 @@ h3 { font-size: 1.02rem; margin-bottom: 8px; }
 
 .wallet-pack-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .wallet-pack-card {
   min-width: 0;
+  position: relative;
   display: grid;
-  gap: 16px;
-  padding: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  align-content: space-between;
+  gap: 10px;
+  padding: 14px 12px;
+  border: 1px solid rgba(248, 200, 90, 0.16);
   border-radius: 18px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.04)),
-    radial-gradient(circle at top left, rgba(248, 200, 90, 0.13), transparent 44%);
+    radial-gradient(circle at 18% 0%, rgba(248, 200, 90, 0.2), transparent 36%),
+    linear-gradient(160deg, rgba(28, 35, 55, 0.94), rgba(9, 14, 28, 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 44px rgba(2, 8, 23, 0.24);
+  overflow: hidden;
+}
+
+.wallet-pack-card.highlight {
+  border-color: rgba(248, 200, 90, 0.5);
+  box-shadow: 0 0 0 1px rgba(248, 200, 90, 0.14), 0 0 34px rgba(248, 200, 90, 0.18), 0 22px 54px rgba(2, 8, 23, 0.32);
 }
 
 .wallet-pack-card h3 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: clamp(0.9rem, 4.2vw, 1.1rem);
+  line-height: 1.05;
+}
+
+.purchase-store-copy {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid rgba(57, 230, 194, 0.2);
+  border-radius: 18px;
+  color: #dff9ff;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(57, 230, 194, 0.16), transparent 36%),
+    rgba(15, 23, 42, 0.72);
+}
+
+.purchase-store-copy span {
+  color: #aebbd2;
+  font-size: 0.92rem;
+}
+
+.purchase-pack-badge {
+  position: absolute;
+  top: 9px;
+  right: -37px;
+  width: 124px;
+  padding: 5px 0;
+  transform: rotate(35deg);
+  color: #111827;
+  background: linear-gradient(180deg, #fde68a, #f59e0b);
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.purchase-pack-topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-right: 44px;
+}
+
+.purchase-pack-price,
+.purchase-confirm-price {
+  margin: 0;
+  color: #fde68a;
+  font-size: clamp(1.55rem, 8vw, 2.55rem);
+  font-weight: 950;
+  letter-spacing: -0.07em;
+  line-height: 0.95;
+}
+
+.purchase-pack-value-tag {
+  width: fit-content;
+  padding: 5px 7px;
+  border-radius: 999px;
+  color: #99f6e4;
+  background: rgba(20, 184, 166, 0.14);
+  border: 1px solid rgba(45, 212, 191, 0.2);
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.purchase-pack-amounts {
+  display: grid;
+  gap: 3px;
+}
+
+.purchase-pack-amounts strong {
+  color: #f8fafc;
+  font-size: clamp(1.15rem, 5.4vw, 1.55rem);
+  font-weight: 950;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.purchase-pack-amounts span {
+  color: #93c5fd;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.purchase-pack-copy {
+  display: grid;
+  gap: 5px;
+  color: #aebbd2;
+  font-size: 0.8rem;
+}
+
+.purchase-buy-button {
+  min-height: 44px;
+  padding-inline: 8px;
+  font-size: 0.82rem;
+}
+
+.purchase-success-banner {
+  padding: 12px 14px;
+  border: 1px solid rgba(57, 230, 194, 0.3);
+  border-radius: 16px;
+  color: #d1fae5;
+  background: linear-gradient(135deg, rgba(20, 184, 166, 0.18), rgba(37, 99, 235, 0.14));
+  font-weight: 800;
+}
+
+.purchase-confirm-panel {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(248, 200, 90, 0.24);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top left, rgba(248, 200, 90, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(24, 31, 52, 0.92), rgba(9, 14, 28, 0.96));
+}
+
+.purchase-confirm-panel h3 {
+  margin: 0;
+}
+
+.purchase-confirm-values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.purchase-confirm-values div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.purchase-confirm-values span {
+  color: #93c5fd;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.purchase-confirm-values strong {
+  color: #f8fafc;
+  font-size: clamp(1.15rem, 5vw, 1.7rem);
+  line-height: 1;
+}
+
+.purchase-confirm-panel small {
+  color: #aebbd2;
+}
+
+.purchase-confirm-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .wallet-redeem-hero {
@@ -449,7 +615,6 @@ h3 { font-size: 1.02rem; margin-bottom: 8px; }
     border-radius: 20px;
   }
 
-  .wallet-pack-grid,
   .wallet-modal-grid {
     grid-template-columns: 1fr;
   }
@@ -5698,6 +5863,36 @@ body {
   font-weight: 1000;
   font-size: 1.8rem;
   transform: rotate(6deg);
+}
+
+.logo-orbit.has-logo-image {
+  width: min(210px, 92%);
+  height: 104px;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(248, 200, 90, 0.24), transparent 62%),
+    linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(249, 115, 22, 0.16));
+  transform: none;
+}
+
+.logo-orbit.has-logo-image img {
+  position: relative;
+  z-index: 1;
+  width: 94%;
+  height: auto;
+  max-height: 88px;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.42));
+}
+
+.game-logo.small .logo-orbit.has-logo-image {
+  width: 92px;
+  height: 46px;
+  border-radius: 14px;
+}
+
+.game-logo.small .logo-orbit.has-logo-image img {
+  max-height: 38px;
 }
 .game-logo strong {
   color: #f8fafc;

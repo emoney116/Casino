@@ -12,8 +12,12 @@ export function GameLogo({ game, small = false, showName = true }: { game: SlotC
         } as React.CSSProperties
       }
     >
-      <div className="logo-orbit">
-        <span>{game.visual.logo}</span>
+      <div className={`logo-orbit${game.visual.logoImage ? " has-logo-image" : ""}`}>
+        {game.visual.logoImage ? (
+          <img src={game.visual.logoImage} alt={`${game.name} logo`} />
+        ) : (
+          <span>{game.visual.logo}</span>
+        )}
       </div>
       {showName && <strong>{game.name}</strong>}
     </div>

@@ -211,6 +211,7 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
         <button className="roulette-rotate-back" onClick={onExit} aria-label="Back to table games">&lt; Home</button>
         <strong>Rotate for Roulette</strong>
         <span>The full American roulette table is designed for landscape play.</span>
+        <span>{COMPLIANCE_COPY}</span>
       </div>
 
       <header className="roulette-clean-header">

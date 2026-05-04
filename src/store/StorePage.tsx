@@ -1,19 +1,13 @@
 import { ShoppingCart } from "lucide-react";
+import { useState } from "react";
 import { formatCoins } from "../lib/format";
-import { useAuth } from "../auth/AuthContext";
-import { coinPacks } from "./coinPacks";
-import { fakePurchasePack } from "./fakePurchaseService";
+import { coinPacks, formatPackPrice, getPackValueTag } from "./coinPacks";
 import { COMPLIANCE_COPY } from "../lib/compliance";
-import { getCurrencyDisplayName } from "../config/currencyConfig";
+import { getCurrencyDisplayName, getCurrencyShortName } from "../config/currencyConfig";
+import { PurchaseCoinsModal } from "../wallet/PurchaseCoinsModal";
 
 export function StorePage({ onBack }: { onBack: () => void }) {
-  const { user, refreshUser } = useAuth();
-
-  function buy(packId: string) {
-    if (!user) return;
-    fakePurchasePack(user, packId);
-    refreshUser();
-  }
+  const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
 
   return (
     <section className="page-stack">
@@ -21,7 +15,9 @@ export function StorePage({ onBack }: { onBack: () => void }) {
         <div>
           <p className="eyebrow">Fake checkout</p>
           <h2>Coin Store</h2>
-          <p className="muted">{COMPLIANCE_COPY} Demo purchase only; no real money charged or card collection.</p>
+          <p className="muted">
+            Purchase {getCurrencyDisplayName("GOLD")} for gameplay. Receive {getCurrencyShortName("BONUS")} as a promotional bonus. No purchase necessary placeholder. {COMPLIANCE_COPY}
+          </p>
         </div>
         <button className="ghost-button" onClick={onBack}>
           Back
@@ -32,18 +28,22 @@ export function StorePage({ onBack }: { onBack: () => void }) {
         {coinPacks.map((pack) => (
           <article className="card coin-pack" key={pack.id}>
             <ShoppingCart />
-            <h3>{pack.name}</h3>
-            <strong>{formatCoins(pack.goldCoins)} {getCurrencyDisplayName("GOLD")}</strong>
-            <p className="muted">
-              {pack.fakePrice} fake price. Includes {formatCoins(pack.promotionalSweepsCoins)} promotional {getCurrencyDisplayName("BONUS")} as a bonus placeholder.
-            </p>
-            <small>Direct purchase of {getCurrencyDisplayName("BONUS")} is not enabled.</small>
-            <button className="primary-button" onClick={() => buy(pack.id)}>
-              Confirm Demo Purchase
+            <h3>{pack.name} Pack</h3>
+            <p className="purchase-pack-price">{formatPackPrice(pack)}</p>
+            <strong>{formatCoins(pack.gcAmount)} {getCurrencyDisplayName("GOLD")}</strong>
+            <strong>+{formatCoins(pack.scBonus)} {getCurrencyShortName("BONUS")}</strong>
+            <span className="purchase-pack-value-tag">{getPackValueTag(pack)}</span>
+            <small>Prototype mode. Redemptions not enabled.</small>
+            <button className="primary-button" onClick={() => setSelectedPackId(pack.id)}>
+              Buy {getCurrencyDisplayName("GOLD")}
             </button>
           </article>
         ))}
       </div>
+
+      {selectedPackId && (
+        <PurchaseCoinsModal initialPackId={selectedPackId} onClose={() => setSelectedPackId(null)} />
+      )}
     </section>
   );
 }

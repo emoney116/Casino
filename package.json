@@ -11,8 +11,9 @@
     "test:tables": "tsx src/tableGames/tableGames.devtest.ts",
     "test:balloon": "tsx src/tableGames/balloonPop.devtest.ts",
     "test:routes": "tsx src/app/routes.devtest.tsx",
+    "test:packs": "tsx src/store/coinPacks.devtest.tsx",
     "test:sweepstakes": "tsx src/redemption/sweepstakesPrep.devtest.tsx",
-    "test:dev": "npm run test:wallet && npm run test:slots && npm run test:tables && npm run test:balloon && npm run test:routes && npm run test:sweepstakes"
+    "test:dev": "npm run test:wallet && npm run test:slots && npm run test:tables && npm run test:balloon && npm run test:routes && npm run test:packs && npm run test:sweepstakes"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.0",

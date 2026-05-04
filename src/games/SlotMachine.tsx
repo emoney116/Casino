@@ -384,6 +384,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
             <p className="muted">
               {game.waysToWin} | {game.volatility} volatility | Target RTP {(game.targetRtp * 100).toFixed(1)}% | Demo only
             </p>
+            <p className="game-compliance-copy">{COMPLIANCE_COPY}</p>
           </div>
         </div>
         <div className="slot-header-actions">

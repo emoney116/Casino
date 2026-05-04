@@ -2,58 +2,94 @@ import { Modal } from "../components/Modal";
 import { useToast } from "../components/ToastContext";
 import { getCurrencyDisplayName, getCurrencyShortName } from "../config/currencyConfig";
 import { formatCoins } from "../lib/format";
-import { coinPacks } from "../store/coinPacks";
+import { coinPacks, formatPackPrice, getPackValueTag, type CoinPack } from "../store/coinPacks";
 import { fakePurchasePack } from "../store/fakePurchaseService";
 import { useAuth } from "../auth/AuthContext";
+import { useState } from "react";
 
 export function PurchaseCoinsModal({
   onClose,
   onPurchased,
+  initialPackId,
 }: {
   onClose: () => void;
   onPurchased?: () => void;
+  initialPackId?: string;
 }) {
   const { user, refreshUser } = useAuth();
   const notify = useToast();
+  const [confirmPack, setConfirmPack] = useState<CoinPack | null>(
+    () => coinPacks.find((pack) => pack.id === initialPackId) ?? null,
+  );
+  const [successMessage, setSuccessMessage] = useState("");
 
-  function buy(packId: string) {
+  function buy(pack: CoinPack) {
     if (!user) return;
-    const pack = coinPacks.find((candidate) => candidate.id === packId);
-    fakePurchasePack(user, packId);
+    fakePurchasePack(user, pack.id);
     refreshUser();
     onPurchased?.();
-    if (pack) {
-      notify(
-        `${formatCoins(pack.goldCoins)} ${getCurrencyShortName("GOLD")} and ${formatCoins(pack.promotionalSweepsCoins)} ${getCurrencyShortName("BONUS")} credited in demo mode.`,
-        "success",
-      );
-    }
+    const message = `${formatCoins(pack.gcAmount)} ${getCurrencyShortName("GOLD")} and ${formatCoins(pack.scBonus)} ${getCurrencyShortName("BONUS")} credited in demo mode.`;
+    setSuccessMessage(message);
+    setConfirmPack(null);
+    notify(message, "success");
   }
 
   return (
-    <Modal title="Purchase Coins" onClose={onClose}>
+    <Modal title={confirmPack ? "Confirm Demo Purchase" : "Purchase Gold Coins"} onClose={onClose}>
       <div className="modal-stack wallet-modal-stack">
-        <div className="notice-card">
-          Demo purchase only. Packs add {getCurrencyDisplayName("GOLD")} and grant promotional {getCurrencyDisplayName("BONUS")} as a bonus.
-          Direct purchase of {getCurrencyDisplayName("BONUS")} is not enabled.
-        </div>
-        <div className="wallet-pack-grid">
-          {coinPacks.map((pack) => (
-            <article className="wallet-pack-card" key={pack.id}>
+        {successMessage && <div className="purchase-success-banner">{successMessage}</div>}
+
+        {confirmPack ? (
+          <div className="purchase-confirm-panel">
+            <h3>{confirmPack.name} Pack</h3>
+            <strong className="purchase-confirm-price">{formatPackPrice(confirmPack)}</strong>
+            <div className="purchase-confirm-values">
               <div>
-                <p className="eyebrow">{pack.fakePrice} fake price</p>
-                <h3>{pack.name}</h3>
+                <span>{getCurrencyShortName("GOLD")}</span>
+                <strong>{formatCoins(confirmPack.gcAmount)}</strong>
               </div>
-              <div className="pack-value-list">
-                <span>{getCurrencyShortName("GOLD")}</span><strong>{formatCoins(pack.goldCoins)} {getCurrencyDisplayName("GOLD")}</strong>
-                <span>{getCurrencyShortName("BONUS")}</span><strong>{formatCoins(pack.promotionalSweepsCoins)} promotional {getCurrencyDisplayName("BONUS")}</strong>
+              <div>
+                <span>{getCurrencyShortName("BONUS")}</span>
+                <strong>{formatCoins(confirmPack.scBonus)}</strong>
               </div>
-              <button className="primary-button" type="button" onClick={() => buy(pack.id)}>
+            </div>
+            <small>Prototype mode. Redemptions not enabled.</small>
+            <div className="purchase-confirm-actions">
+              <button className="ghost-button" type="button" onClick={() => setConfirmPack(null)}>
+                Cancel
+              </button>
+              <button className="primary-button" type="button" onClick={() => buy(confirmPack)}>
                 Confirm Demo Purchase
               </button>
-            </article>
-          ))}
-        </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="purchase-store-copy">
+              <strong>Purchase {getCurrencyDisplayName("GOLD")} for gameplay. Receive {getCurrencyShortName("BONUS")} as a promotional bonus.</strong>
+              <span>No purchase necessary placeholder. {getCurrencyDisplayName("BONUS")} are not directly purchasable.</span>
+            </div>
+            <div className="wallet-pack-grid">
+              {coinPacks.map((pack) => (
+                <article className={`wallet-pack-card${pack.highlight ? " highlight" : ""}`} key={pack.id}>
+                  {pack.badge && <span className="purchase-pack-badge">{pack.badge}</span>}
+                  <p className="purchase-pack-price">{formatPackPrice(pack)}</p>
+                  <div>
+                    <h3>{pack.name} Pack</h3>
+                    <div className="purchase-pack-amounts">
+                      <strong>{formatCoins(pack.gcAmount)} {getCurrencyShortName("GOLD")}</strong>
+                      <span>+{formatCoins(pack.scBonus)} {getCurrencyShortName("BONUS")}</span>
+                    </div>
+                  </div>
+                  <span className="purchase-pack-value-tag">{getPackValueTag(pack)}</span>
+                  <button className="primary-button purchase-buy-button" type="button" onClick={() => setConfirmPack(pack)}>
+                    Buy {getCurrencyDisplayName("GOLD")}
+                  </button>
+                </article>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </Modal>
   );

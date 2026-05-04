@@ -87,7 +87,7 @@ export function WalletPage({ initialPanel = null }: { initialPanel?: WalletPanel
           <article className="wallet-balance-tile sweeps">
             <span>{getCurrencyDisplayName("BONUS")}</span>
             <strong>{formatCoins(balances.BONUS)}</strong>
-            <small>Promotional balance. Prototype mode. Redemptions are not currently enabled.</small>
+            <small>{getCurrencyDisplayName("BONUS")} promotional balance. Prototype mode. Redemptions are not currently enabled.</small>
           </article>
         </div>
 

@@ -1,6 +1,6 @@
 import { creditCurrency } from "../wallet/walletService";
 import type { Currency, User } from "../types";
-import { coinPacks } from "./coinPacks";
+import { coinPacks, formatPackPrice } from "./coinPacks";
 import { getCurrencyMeta } from "../config/currencyConfig";
 
 export function fakePurchasePack(user: User, packId: string) {
@@ -12,21 +12,23 @@ export function fakePurchasePack(user: User, packId: string) {
     userId: user.id,
     type: "GOLD_PURCHASE_DEMO",
     currency: "GOLD",
-    amount: pack.goldCoins,
+    amount: pack.gcAmount,
     metadata: {
       packId: pack.id,
-      fakePrice: pack.fakePrice,
+      usdPrice: pack.usdPrice,
+      displayPrice: formatPackPrice(pack),
       note: "Demo purchase only. No real money charged.",
     },
   });
-  if (pack.promotionalSweepsCoins > 0) {
+  if (pack.scBonus > 0) {
     creditCurrency({
       userId: user.id,
       type: "SWEEPS_BONUS_GRANT",
       currency: "BONUS",
-      amount: pack.promotionalSweepsCoins,
+      amount: pack.scBonus,
       metadata: {
         packId: pack.id,
+        usdPrice: pack.usdPrice,
         source: "promotional_bonus_placeholder",
         note: "Promotional Sweeps Coins grant placeholder. Redemptions are not currently enabled.",
       },

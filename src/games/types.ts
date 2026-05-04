@@ -89,6 +89,7 @@ export interface SlotConfig {
     secondary: string;
     panel: string;
     logo: string;
+    logoImage?: string;
     background?: string;
     cabinet?: string;
   };

@@ -101,12 +101,14 @@ const purchaseMarkup = renderToStaticMarkup(
 );
 
 for (const expected of [
-  "5,000 Gold Coins",
-  "25 promotional Sweeps Coins",
-  "25,000 Gold Coins",
-  "125 promotional Sweeps Coins",
-  "75,000 Gold Coins",
-  "375 promotional Sweeps Coins",
+  "5,000 GC",
+  "+5 SC",
+  "25,000 GC",
+  "+20 SC",
+  "75,000 GC",
+  "+50 SC",
+  "190,000 GC",
+  "+100 SC",
 ]) {
   if (!purchaseMarkup.includes(expected)) {
     throw new Error(`Expected purchase modal to render pack value: ${expected}.`);
