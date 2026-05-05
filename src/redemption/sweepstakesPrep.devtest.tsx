@@ -101,14 +101,14 @@ const purchaseMarkup = renderToStaticMarkup(
 );
 
 for (const expected of [
-  "5,000 GC",
-  "+5 SC",
-  "25,000 GC",
-  "+20 SC",
-  "75,000 GC",
-  "+50 SC",
-  "190,000 GC",
-  "+100 SC",
+  "5,000",
+  "+ 5 SC",
+  "25,000",
+  "+ 20 SC",
+  "75,000",
+  "+ 50 SC",
+  "190,000",
+  "+ 100 SC",
 ]) {
   if (!purchaseMarkup.includes(expected)) {
     throw new Error(`Expected purchase modal to render pack value: ${expected}.`);

@@ -3,7 +3,7 @@ import { CircleDot, Sparkles } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
 import { CoinBurst, GameResultBanner, ScreenShake, SoundToggle } from "../feedback/components";
-import { playBet, playBigWin, playError, playLose, playWin } from "../feedback/feedbackService";
+import { playBet, playBigWin, playCardFlip, playError, playLose, playWin } from "../feedback/feedbackService";
 import { formatCoins } from "../lib/format";
 import { recordRetentionRound } from "../retention/retentionService";
 import type { Currency } from "../types";
@@ -159,6 +159,7 @@ export function BalloonPopPage({ onExit }: { onExit?: () => void }) {
         const popped = nextRound.balloons.find((balloon) => balloon.index === balloonIndex) ?? null;
         setRound(nextRound);
         setLastPopped(popped);
+        playCardFlip();
         if ((popped?.paidAmount ?? 0) > 0) {
           setTotalPulse(true);
           window.setTimeout(() => setTotalPulse(false), 420);

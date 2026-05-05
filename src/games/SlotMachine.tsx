@@ -241,7 +241,10 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
       const sample = generateGrid(game);
       setGrid((current) => current.map((reel, index) => (stoppedReels.has(index) ? reel : sample[index] ?? reel)));
     }, timing.cycleMs);
-    window.setTimeout(() => setAnticipating(true), timing.anticipationMs);
+    window.setTimeout(() => {
+      const nearBonusCount = result.grid.flat().filter((symbol) => symbol === game.scatterSymbol || symbol === game.bonusSymbol).length;
+      setAnticipating(nearBonusCount >= 2 && !result.triggeredBonus);
+    }, timing.anticipationMs);
     timing.reelStopMs.forEach((stopMs, reelIndex) => {
       window.setTimeout(() => {
         stoppedReels.add(reelIndex);
@@ -437,7 +440,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
             <p>{holdFeedback || "Press RESPIN. New coins reset respins to 3."}</p>
           </div>
         )}
-        <div className={`reel-stage frontier-reel-stage ${lastResult?.payout ? "winning" : ""} ${holdState ? "hold-mode" : ""}`}>
+        <div className={`reel-stage frontier-reel-stage ${lastResult?.payout ? "winning" : ""} ${anticipating ? "anticipating" : ""} ${holdState ? "hold-mode" : ""}`}>
           {holdState ? (
             <div className={`hold-and-win-board ${bonusBusy ? "respinning" : ""} ${holdState.finished ? "finished" : ""}`}>
               <div className="hold-grid">

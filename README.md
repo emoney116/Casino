@@ -34,6 +34,64 @@ start-casino.bat
 npm run build
 ```
 
+## Mobile App Packaging With Capacitor
+
+Capacitor is configured for iOS and Android packaging while keeping the Vite web
+build and Vercel deployment unchanged.
+
+Current placeholders:
+
+- App name: `Casino Prototype`
+- Bundle/package id: `com.example.casino`
+- Web directory: `dist`
+- Icon/splash source placeholders: `resources/icon.svg` and `resources/splash.svg`
+
+Before a real store build, replace `com.example.casino` with the final iOS
+bundle id and Android package name. Because the native projects are already
+generated, update both `capacitor.config.ts` and the native project settings
+(`ios/App/App.xcodeproj` product bundle identifier, plus Android
+`namespace`/`applicationId`). Replace the placeholder mobile artwork in
+`resources/`.
+
+Build and sync native projects:
+
+```bash
+npm run mobile:sync
+```
+
+Open native projects:
+
+```bash
+npm run mobile:open:ios
+npm run mobile:open:android
+```
+
+iOS requires macOS with Xcode installed. Android requires Android Studio and a
+configured Android SDK.
+
+After changing web code, run:
+
+```bash
+npm run build
+npm run mobile:sync
+```
+
+This mobile setup does not enable real payments, cashout, prizes, withdrawals,
+or redemption behavior.
+
+### Manual Phone QA
+
+- Launch on iPhone and Android from a clean install.
+- Confirm the app opens to the auth/demo flow without a browser address bar.
+- Check portrait and landscape on notched devices.
+- Verify top headers and bottom tabs respect safe areas.
+- Confirm pages do not pinch zoom or horizontally scroll.
+- Play each game briefly using Gold Coins and Bonus Coins.
+- Open store flows and confirm they remain demo-only.
+- Open redemption/prep pages and confirm redemption stays disabled.
+- Kill and relaunch the app, then confirm local session/wallet display restores.
+- Run one slow-network pass and confirm loading/error states remain usable.
+
 ## Tests
 
 ```bash

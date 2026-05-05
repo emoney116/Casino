@@ -6,6 +6,10 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
+    "mobile:copy": "npm run build && cap copy",
+    "mobile:sync": "npm run build && cap sync",
+    "mobile:open:ios": "cap open ios",
+    "mobile:open:android": "cap open android",
     "test:wallet": "tsx src/wallet/wallet.devtest.ts",
     "test:slots": "tsx src/games/slot.devtest.ts",
     "test:tables": "tsx src/tableGames/tableGames.devtest.ts",
@@ -16,6 +20,9 @@
     "test:dev": "npm run test:wallet && npm run test:slots && npm run test:tables && npm run test:balloon && npm run test:routes && npm run test:packs && npm run test:sweepstakes"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.1",
+    "@capacitor/core": "^8.3.1",
+    "@capacitor/ios": "^8.3.1",
     "@supabase/supabase-js": "^2.105.0",
     "@vitejs/plugin-react": "latest",
     "lucide-react": "latest",
@@ -24,6 +31,7 @@
     "vite": "latest"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.3.1",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

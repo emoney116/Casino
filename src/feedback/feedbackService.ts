@@ -108,3 +108,4 @@ export function playError() { mark("playError"); tone(120, 0.075, 0.018); tone(9
 export function playCrashTick(multiplier = 1) { mark("playCrashTick"); tone(Math.min(980, 250 + multiplier * 90), 0.025, 0.01); }
 export function playCrashCashOut() { mark("playCrashCashOut"); tone(620, 0.07, 0.024); tone(920, 0.08, 0.022, 0.06); }
 export function playCrashSound() { mark("playCrashSound"); tone(170, 0.08, 0.024); tone(85, 0.16, 0.022, 0.07); }
+export function playRouletteTick(step = 1) { mark("playRouletteTick"); tone(Math.min(900, 360 + step * 26), 0.018, 0.008); }

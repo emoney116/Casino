@@ -5,8 +5,9 @@ import { ToastProvider } from "../components/ToastContext";
 import type { CasinoData, User } from "../types";
 import { getBalance, getTransactions } from "../wallet/walletService";
 import { PurchaseCoinsModal } from "../wallet/PurchaseCoinsModal";
-import { coinPacks, formatPackPrice } from "./coinPacks";
+import { coinPacks, formatPackPrice, formatScBonusValue } from "./coinPacks";
 import { fakeDirectCurrencyPurchase, fakePurchasePack } from "./fakePurchaseService";
+import { StorePage } from "./StorePage";
 
 const memory: Record<string, string> = {};
 globalThis.localStorage = {
@@ -56,7 +57,7 @@ localStorage.setItem("casino-prototype-data-v1", JSON.stringify(seed));
 
 for (const pack of coinPacks) {
   if (pack.scBonus !== Math.round(pack.usdPrice)) {
-    throw new Error(`${pack.id} SC bonus must equal rounded USD price.`);
+    throw new Error(`${pack.id} SC bonus must equal the rounded USD pack value.`);
   }
 
   if (!Number.isInteger(pack.gcAmount) || !Number.isInteger(pack.scBonus)) {
@@ -89,8 +90,8 @@ for (const pack of coinPacks) {
   for (const expected of [
     formatPackPrice(pack),
     `${pack.name} Pack`,
-    `${pack.gcAmount.toLocaleString()} GC`,
-    `+${pack.scBonus.toLocaleString()} SC`,
+    pack.gcAmount.toLocaleString(),
+    `+ ${formatScBonusValue(pack)}`,
   ]) {
     if (!markup.includes(expected)) {
       throw new Error(`Purchase modal should render ${pack.id} value: ${expected}.`);
@@ -99,12 +100,53 @@ for (const pack of coinPacks) {
 }
 
 for (const requiredCopy of [
-  "Purchase Gold Coins for gameplay. Receive SC as a promotional bonus.",
+  "Play more. Get bonus SC.",
+  "Gold Coins have no cash value",
+  "SC are promotional bonus coins",
   "No purchase necessary placeholder.",
-  "Sweeps Coins are not directly purchasable.",
+  "Prototype mode. Redemptions not enabled.",
 ]) {
   if (!markup.includes(requiredCopy)) {
     throw new Error(`Purchase modal missing compliance copy: ${requiredCopy}`);
+  }
+}
+
+if (!markup.includes("BEST VALUE") || !markup.includes("MOST POPULAR")) {
+  throw new Error("Expected highlighted pack badges to render.");
+}
+
+const storeMarkup = renderToStaticMarkup(
+  createElement(ToastProvider, null,
+    createElement(AuthProvider, { initialUser: user, children: <StorePage onBack={() => undefined} /> }),
+  ),
+);
+
+if (!storeMarkup.includes("Coin Store") || !storeMarkup.includes("Play more. Get bonus SC.")) {
+  throw new Error("Store page should render the premium shop heading.");
+}
+
+if (!storeMarkup.includes("Running low on coins?") || !storeMarkup.includes("Get Coins")) {
+  throw new Error("Low balance store banner should render when GOLD balance is below the UI threshold.");
+}
+
+const confirmMarkup = renderToStaticMarkup(
+  createElement(ToastProvider, null,
+    createElement(AuthProvider, { initialUser: user, children: <PurchaseCoinsModal initialPackId="starter" onClose={() => undefined} /> }),
+  ),
+);
+
+for (const expected of [
+  "Starter Pack",
+  "$4.99",
+  "5,000",
+  "5 SC",
+  "Gold Coins have no cash value",
+  "SC are promotional bonus coins",
+  "Prototype mode. Redemptions not enabled",
+  "Confirm",
+]) {
+  if (!confirmMarkup.includes(expected)) {
+    throw new Error(`Purchase confirmation modal should render: ${expected}`);
   }
 }
 

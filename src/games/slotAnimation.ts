@@ -13,18 +13,18 @@ export type ReelVisualState = "idle" | "spinning" | "settling" | "stopped";
 
 export const slotAnimation = {
   normal: {
-    cycleMs: 82,
-    anticipationMs: 430,
-    reelStopMs: [560, 720, 880, 1040, 1220],
-    settleMs: 260,
-    evaluateMs: 180,
+    cycleMs: 64,
+    anticipationMs: 620,
+    reelStopMs: [640, 850, 1060, 1270, 1500],
+    settleMs: 320,
+    evaluateMs: 220,
   },
   fast: {
-    cycleMs: 42,
-    anticipationMs: 95,
-    reelStopMs: [90, 125, 160, 195, 235],
-    settleMs: 105,
-    evaluateMs: 70,
+    cycleMs: 38,
+    anticipationMs: 120,
+    reelStopMs: [110, 150, 190, 235, 285],
+    settleMs: 120,
+    evaluateMs: 80,
   },
   bonus: {
     respinMs: 540,

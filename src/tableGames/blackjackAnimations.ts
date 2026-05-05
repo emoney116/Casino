@@ -2,11 +2,11 @@ import { handValue, visibleDealerValue } from "./blackjackEngine";
 import type { BlackjackRound } from "./types";
 
 export const blackjackAnimationConfig = {
-  initialDealDelayMs: 380,
-  cardSlideMs: 520,
-  dealerDrawDelayMs: 420,
-  flipMs: 820,
-  splitSlideMs: 620,
+  initialDealDelayMs: 320,
+  cardSlideMs: 560,
+  dealerDrawDelayMs: 380,
+  flipMs: 740,
+  splitSlideMs: 560,
 };
 
 export const initialDealSequence = [

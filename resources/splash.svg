@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2732 2732" role="img" aria-label="Casino Prototype splash placeholder">
+  <rect width="2732" height="2732" fill="#0e1118"/>
+  <circle cx="1366" cy="1366" r="520" fill="#122033" stroke="#22d3ee" stroke-width="36"/>
+  <circle cx="1366" cy="1366" r="350" fill="#1f2937" stroke="#f59e0b" stroke-width="30"/>
+  <path fill="#f8fafc" d="M1366 980 1456 1223l259 12-201 163 70 249-218-136-218 136 70-249-201-163 259-12z"/>
+  <text x="1366" y="1870" fill="#fef3c7" font-family="Arial, sans-serif" font-size="128" font-weight="800" text-anchor="middle">Casino Prototype</text>
+  <text x="1366" y="2024" fill="#a9b4c7" font-family="Arial, sans-serif" font-size="72" font-weight="700" text-anchor="middle">Demo build placeholder</text>
+</svg>

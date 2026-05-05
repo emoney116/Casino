@@ -181,6 +181,7 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
     try {
       const next = startBlackjackRound({ userId: currentUser.id, currency, betAmount, deck: shoe });
       scheduleInitialDealSounds();
+      playChip();
       setDealerTotalRevealed(false);
       setResultVisible(false);
       setRound(next);

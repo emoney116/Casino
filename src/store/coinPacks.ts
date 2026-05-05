@@ -49,7 +49,6 @@ export const coinPacks = [
     name: "Mega",
     usdPrice: 49.99,
     gcAmount: 75000,
-    badge: "Big Boost",
   }),
   createCoinPack({
     id: "whale",
@@ -72,8 +71,12 @@ export function formatPackPrice(pack: CoinPack) {
   }).format(pack.usdPrice);
 }
 
+export function formatScBonusValue(pack: CoinPack) {
+  return `${pack.scBonus.toLocaleString()} SC`;
+}
+
 export function getPackValueTag(pack: CoinPack) {
-  if (pack.id === "starter") return "Base GC value";
+  if (pack.id === "starter") return "Starter value";
   const lift = Math.round(((pack.gcPerDollar - starterGcPerDollar) / starterGcPerDollar) * 100);
-  return `+${lift}% more GC`;
+  return `+${lift}% more Gold Coins`;
 }

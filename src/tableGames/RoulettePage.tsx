@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Repeat2, RotateCcw, Trash2 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
@@ -7,7 +7,7 @@ import { recordRetentionRound } from "../retention/retentionService";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
 import { GameResultBanner, ScreenShake, SoundToggle } from "../feedback/components";
-import { playBet, playError, playLose, playSpin, playWin } from "../feedback/feedbackService";
+import { playBet, playError, playLose, playRouletteTick, playSpin, playWin } from "../feedback/feedbackService";
 import { rouletteConfig } from "./configs";
 import { COMPLIANCE_COPY } from "../lib/compliance";
 import {
@@ -64,6 +64,8 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
   const [recentResults, setRecentResults] = useState<Array<"0" | "00" | number>>([]);
   const [spinning, setSpinning] = useState(false);
   const [wheelFocus, setWheelFocus] = useState(false);
+  const tickTimers = useRef<number[]>([]);
+  useEffect(() => () => clearRouletteTickTimers(), []);
   if (!user) return null;
   const currentUser = user;
 
@@ -129,6 +131,19 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
     setResult(null);
   }
 
+  function clearRouletteTickTimers() {
+    tickTimers.current.forEach((timer) => window.clearTimeout(timer));
+    tickTimers.current = [];
+  }
+
+  function scheduleRouletteTicks() {
+    clearRouletteTickTimers();
+    const tickPattern = [90, 180, 270, 360, 465, 570, 690, 825, 975, 1140, 1320, 1515, 1725, 1950, 2190, 2445, 2715, 3000, 3300];
+    tickPattern.forEach((delay, index) => {
+      tickTimers.current.push(window.setTimeout(() => playRouletteTick(index + 1), delay));
+    });
+  }
+
   function stepChip(direction: -1 | 1) {
     const currentIndex = chips.findIndex((chip) => chip === selectedChip);
     const nextIndex = Math.min(Math.max(currentIndex + direction, 0), chips.length - 1);
@@ -174,6 +189,7 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
   function spin() {
     if (!canSpin) return;
     playSpin();
+    scheduleRouletteTicks();
     setSpinning(true);
     setWheelFocus(true);
     setChipMenuOpen(false);
@@ -200,6 +216,7 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
         playError();
       } finally {
         setSpinning(false);
+        clearRouletteTickTimers();
         window.setTimeout(() => setWheelFocus(false), 2200);
       }
     }, ROULETTE_SPIN_MS);
