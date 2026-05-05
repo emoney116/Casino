@@ -2,6 +2,7 @@ import type { Currency, User } from "../types";
 
 export type Volatility = "Low" | "Medium" | "High";
 export type BonusFeatureType = "FREE_SPINS" | "HOLD_AND_WIN" | "WHEEL_BONUS" | "PICK_BONUS";
+export type SpinMode = "NORMAL" | "GOLD_BOOST" | "SCATTER_BOOST";
 
 export interface SlotSymbol {
   id: string;
@@ -33,6 +34,7 @@ export interface SlotConfig {
   volatility: Volatility;
   targetRtp: number;
   maxPayoutMultiplier: number;
+  currencyBetOptions?: Partial<Record<Currency, number[]>>;
   jackpotLabels?: {
     Grand: string;
     Major: string;
@@ -44,13 +46,56 @@ export interface SlotConfig {
     costMultiplier: number;
     featureType: BonusFeatureType;
   };
+  bonusBuys?: Array<{
+    id: "hold-and-win" | "wheel-bonus";
+    label: string;
+    featureType: BonusFeatureType;
+    costMultiplier: number;
+    currencyCostMultipliers?: Partial<Record<Currency, number>>;
+    payoutBetMultipliers?: Partial<Record<Currency, number>>;
+    startingCoins?: number;
+  }>;
+  boostSpins?: Partial<Record<Exclude<SpinMode, "NORMAL">, {
+    label: string;
+    costMultiplier: number;
+    coinWeightMultiplier?: number;
+    scatterWeightMultiplier?: number;
+    holdAndWinTriggerBoost?: number;
+    wheelTriggerBoost?: number;
+    collectorTriggerBoost?: number;
+  }>>;
   holdAndWin?: {
     coinValueMultipliers: number[];
+    coinAwards?: Array<{
+      label: string;
+      multiplier: number;
+      weight: number;
+      jackpotLabel?: "Grand" | "Major" | "Minor" | "Mini";
+    }>;
     grandMultiplier: number;
     majorMultiplier: number;
     minorMultiplier: number;
     miniMultiplier: number;
     coinLandingChance: number;
+    triggerCount?: number;
+  };
+  wheelBonus?: {
+    triggerCount: number;
+    segments: Array<{
+      label: string;
+      multiplier: number;
+      weight: number;
+      jackpotLabel?: "Grand" | "Major" | "Minor" | "Mini";
+      featureTrigger?: "HOLD_AND_WIN" | "SUPER_HOLD_AND_WIN";
+    }>;
+  };
+  coinCollector?: {
+    enabled: boolean;
+    maxCoins: number;
+    minCollect: number;
+    maxCollect: number;
+    triggerChancePerCoin: number;
+    resetOnTrigger: boolean;
   };
   featureTypes?: BonusFeatureType[];
   specialSymbols?: {
@@ -107,6 +152,7 @@ export interface SlotSpinInput {
   currency: Currency;
   betAmount: number;
   freeSpin?: boolean;
+  spinMode?: SpinMode;
 }
 
 export interface SlotSpinResult {
@@ -137,6 +183,7 @@ export interface SlotSpinResult {
   triggeredPickBonus: boolean;
   triggeredHoldAndWin?: boolean;
   triggeredWheelBonus?: boolean;
+  triggeredCoinCollector?: boolean;
   bonusPayout?: number;
   jackpotLabel?: "Grand" | "Major" | "Minor" | "Mini";
   holdAndWin?: HoldAndWinResult;
@@ -154,6 +201,14 @@ export interface SimulationResult {
   totalWagered: number;
   totalPaid: number;
   observedRtp: number;
+  modeResults?: Partial<Record<SpinMode | "BUY_HOLD_AND_WIN" | "BUY_WHEEL_BONUS", {
+    totalWagered: number;
+    totalPaid: number;
+    observedRtp: number;
+    biggestWin: number;
+    capHitRate: number;
+    warning: boolean;
+  }>>;
   hitRate: number;
   biggestWin: number;
   bonusTriggerRate: number;
@@ -161,6 +216,7 @@ export interface SimulationResult {
   pickBonusTriggerRate: number;
   holdAndWinTriggerRate?: number;
   wheelBonusTriggerRate?: number;
+  coinCollectorTriggerRate?: number;
   buyBonusRtp?: number;
   buyBonusAveragePayout?: number;
   holdAndWinAveragePayout?: number;
@@ -179,6 +235,7 @@ export interface HoldAndWinResult {
 }
 
 export interface HoldAndWinState {
+  betAmount?: number;
   values: Array<number | null>;
   respinsRemaining: number;
   total: number;
@@ -192,4 +249,5 @@ export interface WheelBonusResult {
   multiplier: number;
   payout: number;
   jackpotLabel?: "Grand" | "Major" | "Minor" | "Mini";
+  featureTrigger?: "HOLD_AND_WIN" | "SUPER_HOLD_AND_WIN";
 }

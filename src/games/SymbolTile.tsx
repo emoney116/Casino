@@ -28,7 +28,8 @@ export function SymbolTile({
       style={{ "--symbol": color, "--reel-index": reelIndex } as React.CSSProperties}
       title={label}
     >
-      {symbol?.image ? <img src={symbol.image} alt={label} /> : <span>{symbol?.icon ?? "?"}</span>}
+      {symbol?.image ? <img src={symbol.image} alt={label} loading="eager" decoding="async" /> : <span>{symbol?.icon ?? "?"}</span>}
+      {symbol?.kind === "coin" && <b className="coin-symbol-badge">{symbol.icon}</b>}
       {!compact && <small>{label}</small>}
     </div>
   );

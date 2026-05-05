@@ -36,17 +36,36 @@ export function PaytableModal({ game, onClose }: { game: SlotConfig; onClose: ()
         </div>
         {game.featureTypes?.includes("HOLD_AND_WIN") && (
           <div className="notice-card">
-            Hold and Win: landing 3 or more coin symbols starts the bonus. Bet amount affects
-            coin values, so higher bets can create larger bonus wins. Coin values use configurable
-            multipliers: {(game.holdAndWin?.coinValueMultipliers ?? []).join(", ") || "game defaults"}x.
+            Hold and Win: landing {game.holdAndWin?.triggerCount ?? 3} or more Gold Coin symbols, a collector trigger, or a wheel trigger starts the bonus.
+            Coin awards are bet multipliers: {(game.holdAndWin?.coinValueMultipliers ?? []).join("x, ") || "game defaults"}x,
+            with rare Mini, Minor, and Major coins also available.
             You begin with 3 respins, and any new coin resets respins back to 3. Filling every
             position awards the Grand demo jackpot, capped at {game.maxPayoutMultiplier}x the bet.
           </div>
         )}
+        {game.wheelBonus && (
+          <div className="notice-card">
+            Oasis Scatters: {game.wheelBonus.triggerCount}+ trigger the Wheel Bonus. Segments include{" "}
+            {game.wheelBonus.segments.map((segment) => segment.label).join(", ")}. Cash segments pay the current bet multiplier;
+            Hold & Win segments move into the respin bonus with 6 starting coins.
+          </div>
+        )}
+        {game.coinCollector?.enabled && (
+          <div className="notice-card">
+            Collector: base-game Gold Coin symbols collect {game.coinCollector.minCollect}-{game.coinCollector.maxCollect} coins into the top meter.
+            Each collection can randomly trigger Hold & Win and the meter {game.coinCollector.resetOnTrigger ? "resets" : "stays"} after a trigger.
+          </div>
+        )}
+        {game.boostSpins && (
+          <div className="notice-card">
+            Boost spins debit the displayed cost exactly. Gold Boost increases Gold Coin and collector feature chances;
+            Scatter Boost increases Oasis Scatter and Wheel Bonus chances. Boost and bonus-buy RTP are tuned to stay below 95%.
+          </div>
+        )}
         {game.buyBonus?.enabled && (
           <div className="notice-card">
-            Bonus buy pricing is always current bet x {game.buyBonus.costMultiplier}. Buy bonus RTP
-            is demo-tuned for the virtual economy. {COMPLIANCE_COPY}
+            Buy bonus pricing: {(game.bonusBuys ?? []).map((buy) => `${buy.label} ${buy.costMultiplier}x`).join(", ") || `${game.buyBonus.costMultiplier}x`}.
+            Bonus buys are not profitable long-term in the demo math. Max payout cap: {game.maxPayoutMultiplier}x. {COMPLIANCE_COPY}
           </div>
         )}
         {game.jackpotLabels && (

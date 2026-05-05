@@ -1,12 +1,12 @@
 import { exposedSlotConfigs, slotConfigs } from "./slotConfigs";
-import { simulateSlot } from "./slotMath";
-import { buyBonusDebit, buyBonusFeature, calculateHoldAndWinBonus, calculateNeonCascadeResult, calculateSlotResult, calculateWheelBonus, createHoldAndWinState, creditHoldAndWinBonus, creditPickBonus, spinSlot, stepHoldAndWinBonus } from "./slotEngine";
+import { getMathWarnings, simulateSlot } from "./slotMath";
+import { buyBonusDebit, buyBonusFeature, calculateHoldAndWinBonus, calculateNeonCascadeResult, calculateSlotResult, calculateWheelBonus, createHoldAndWinState, creditHoldAndWinBonus, creditPickBonus, getBonusBuyCost, getBonusBuyPayoutBetAmount, getSpinCost, spinSlot, stepHoldAndWinBonus } from "./slotEngine";
 import { creditCurrency, getBalance, getTransactions } from "../wallet/walletService";
 import type { User } from "../types";
 import { clearRecentGames, getRecentGames, recordRecentGame } from "./recentGames";
 import { dismissOnboarding, hasDismissedOnboarding } from "../app/onboarding";
 import { frontierUiAssets, requiredFrontierUiAssetKeys } from "./frontierAssets";
-import { getBetOptions, getBonusChanceTier, getBuyBonusCost } from "./SlotMachine";
+import { frontierTurboBypassesAnimation, getBetOptions, getBonusBoostMenuOptions, getBonusChanceTier, getBuyBonusCost, getCoinDisplayLabels, getDefaultBetAmount, getFrontierAnticipationState, getFrontierBetModalLayout, getFrontierCollectorPlacement, getFrontierEBoostIconAsset, getFrontierMainControlActions, getFrontierReelAction, getFrontierSpinAnimationMode, getJackpotBadgeLabels, getNextFrontierSpinSpeed, getTreasurePotChargeLevel, getTreasurePotVisualState, getWheelSectionLabels } from "./SlotMachine";
 import { getSpinDuration, slotAnimation } from "./slotAnimation";
 import { nextFreeSpinTotal } from "./slotSession";
 import { feedbackUiMarkers } from "../feedback/components";
@@ -192,24 +192,153 @@ if (getBonusChanceTier(frontier.maxBet, frontier) !== "Best") {
 if (getBonusChanceTier(Math.round((frontier.minBet + frontier.maxBet) / 2), frontier) !== "Better") {
   throw new Error("Expected middle bet to show better bonus boost tier.");
 }
-if (getBetOptions(frontier).some((value) => value < frontier.minBet || value > frontier.maxBet)) {
+if (getBetOptions(frontier, "GOLD").some((value) => value < frontier.minBet || value > frontier.maxBet)) {
   throw new Error("Expected bet menu options to stay inside game limits.");
 }
-if (!getBetOptions(frontier).includes(250)) {
-  throw new Error("Expected bet menu to include 250 bet size.");
+if (!getBetOptions(frontier, "GOLD").includes(100000) || !getBetOptions(frontier, "BONUS").includes(10)) {
+  throw new Error("Expected Frontier currency-specific bet ladders to include requested max sizes.");
 }
-if (getBuyBonusCost(250, frontier) !== 250 * (frontier.buyBonus?.costMultiplier ?? 0)) {
+if (getDefaultBetAmount(frontier, "GOLD") !== 10 || getDefaultBetAmount(frontier, "BONUS") !== 0.1) {
+  throw new Error("Expected Frontier currency switches to land on each currency's first configured bet.");
+}
+if (getBuyBonusCost(250, frontier) !== getBonusBuyCost(frontier, 250, "HOLD_AND_WIN")) {
   throw new Error("Expected displayed buy bonus cost helper to match configured multiplier.");
 }
-if (frontier.maxPayoutMultiplier < 100 || frontier.maxBet > 500) {
-  throw new Error("Expected Frontier max win cap to scale higher while keeping max bet controlled.");
+if (frontier.maxPayoutMultiplier !== 1000 || frontier.maxBet !== 100000) {
+  throw new Error("Expected Frontier max win cap and bet range to match remap.");
 }
-if (!frontier.holdAndWin?.coinValueMultipliers.includes(14)) {
-  throw new Error("Expected Frontier Hold and Win coin multipliers to be configurable.");
+if (!frontier.holdAndWin?.coinValueMultipliers.includes(0.1) || !frontier.holdAndWin.coinValueMultipliers.includes(3)) {
+  throw new Error("Expected Frontier Hold and Win coin multipliers to use bet multipliers.");
+}
+if (frontier.holdAndWin.majorMultiplier !== 50 || frontier.holdAndWin.minorMultiplier !== 10 || frontier.holdAndWin.miniMultiplier !== 5 || frontier.holdAndWin.grandMultiplier !== 1000) {
+  throw new Error("Expected Frontier jackpot multipliers to use the remapped values.");
+}
+const jackpotBadges = getJackpotBadgeLabels(frontier);
+if (!jackpotBadges.some((badge) => badge.label === "Grand" && badge.value === frontier.jackpotLabels?.Grand) || !jackpotBadges.some((badge) => badge.label === "Major" && badge.value === "50x")) {
+  throw new Error("Expected jackpot UI labels to read from Frontier config.");
+}
+const coinDisplay = getCoinDisplayLabels(frontier);
+if (coinDisplay.reel.some((label) => /^\d{2,}$/.test(label)) || !coinDisplay.holdAndWin.includes("0.1x") || !coinDisplay.holdAndWin.includes("Major")) {
+  throw new Error("Expected coin display labels to use multipliers and jackpot names, not stale coin amounts.");
+}
+const bonusMenu = getBonusBoostMenuOptions(frontier, 0.1, "BONUS");
+if (bonusMenu.length !== 4 || !bonusMenu.some((option) => option.label === "Buy Hold & Win" && option.cost === 10) || !bonusMenu.some((option) => option.label === "Buy Wheel Bonus" && option.cost === 8)) {
+  throw new Error("Expected Bonus/Boost menu to include all four options with Sweeps buy costs.");
+}
+if (getBonusBuyCost(frontier, 0.1, "HOLD_AND_WIN", "BONUS") !== 10 || getBonusBuyCost(frontier, 0.1, "WHEEL_BONUS", "BONUS") !== 8) {
+  throw new Error("Expected Sweeps bonus buy costs to be 10 SC for Hold & Win and 8 SC for Wheel at 0.10 bet.");
+}
+if (bonusMenu.filter((option) => option.label.includes("Boost")).length !== 2) {
+  throw new Error("Expected boost actions to live in the Bonus/Boost menu.");
+}
+const mainActions = getFrontierMainControlActions();
+if (mainActions.includes("Gold Boost") || mainActions.includes("Scatter Boost") || mainActions.includes("Bonus") || mainActions.includes("E-Boost") || !mainActions.includes("Speed") || getFrontierReelAction() !== "E-Boost") {
+  throw new Error("Expected boost actions to stay inside the reel E-Boost icon and speed to live in the main controls.");
+}
+if (!getFrontierEBoostIconAsset().endsWith("/assets/ui/money-lightning/primary_256.svg") || !getFrontierEBoostIconAsset("active").endsWith("/assets/ui/money-lightning/neon_256.svg")) {
+  throw new Error("Expected Frontier E-Boost to render the money-lightning primary icon with a neon active asset.");
+}
+if (frontier.coinCollector?.maxCoins !== 5) {
+  throw new Error("Expected collector display to use a compact 1-5 charge model.");
+}
+const betModalLayout = getFrontierBetModalLayout(getBetOptions(frontier, "GOLD"));
+if (betModalLayout.role !== "dialog" || betModalLayout.maxWidth !== "90vw" || betModalLayout.columns !== 3 || !betModalLayout.values.includes(1000)) {
+  throw new Error("Expected Frontier bet selector to render as a centered 3-column modal within the viewport.");
+}
+if (getNextFrontierSpinSpeed("NORMAL") !== "FAST" || getNextFrontierSpinSpeed("FAST") !== "TURBO" || getNextFrontierSpinSpeed("TURBO") !== "NORMAL") {
+  throw new Error("Expected Frontier speed toggle to cycle Normal -> Fast -> Turbo -> Normal.");
+}
+if (getFrontierSpinAnimationMode("NORMAL") !== "normal" || getFrontierSpinAnimationMode("FAST") !== "fast" || getFrontierSpinAnimationMode("TURBO") !== "fast") {
+  throw new Error("Expected Frontier speed modes to map to existing animation timings.");
+}
+if (!frontierTurboBypassesAnimation("TURBO") || frontierTurboBypassesAnimation("FAST")) {
+  throw new Error("Expected Turbo mode, and only Turbo mode, to bypass reel animation.");
+}
+const potVisual = getTreasurePotVisualState(3, 5, false, 2);
+if (getFrontierCollectorPlacement() !== "above-reels") {
+  throw new Error("Expected Treasure Pot collector to render above the reels.");
+}
+if (getTreasurePotChargeLevel(0, 5) !== "empty" || getTreasurePotChargeLevel(1, 5) !== "low" || getTreasurePotChargeLevel(3, 5) !== "medium" || getTreasurePotChargeLevel(4, 5) !== "high" || getTreasurePotChargeLevel(5, 5) !== "full") {
+  throw new Error("Expected Treasure Pot charge levels to map empty, low, medium, high, and full.");
+}
+if (potVisual.level !== 3 || potVisual.chargeLevel !== "medium" || potVisual.coins.filter(Boolean).length !== 3 || potVisual.flyingCoins.length !== 2 || !potVisual.collecting || potVisual.scale <= 1 || potVisual.glow <= 0) {
+  throw new Error("Expected Treasure Pot visual state to grow and fill as coins collect.");
+}
+const triggeredPotVisual = getTreasurePotVisualState(5, 5, true, 1);
+if (!triggeredPotVisual.reset || triggeredPotVisual.burstCoins.length === 0 || triggeredPotVisual.chargeLevel !== "full") {
+  throw new Error("Expected Treasure Pot trigger state to run the burst animation at full charge.");
+}
+const wheelSections = getWheelSectionLabels(frontier);
+for (const section of ["2x", "3x", "5x", "8x", "10x", "15x", "Mini", "Major", "Trigger Hold & Win", "SUPER Hold & Win"]) {
+  if (!wheelSections.includes(section)) throw new Error(`Expected Wheel Bonus section ${section}.`);
+}
+if (getBonusBuyPayoutBetAmount(frontier, 0.1, "WHEEL_BONUS", "BONUS") <= 0.1 || getBonusBuyPayoutBetAmount(frontier, 0.1, "HOLD_AND_WIN", "BONUS") <= 0.1) {
+  throw new Error("Expected Sweeps bonus buys to use a payout basis aligned with their fixed buy costs.");
+}
+const sweepsHoldPayoutBasis = getBonusBuyPayoutBetAmount(frontier, 0.1, "HOLD_AND_WIN", "BONUS");
+const sweepsHoldState = createHoldAndWinState(frontier, sweepsHoldPayoutBasis, 6);
+if (sweepsHoldState.betAmount !== sweepsHoldPayoutBasis || sweepsHoldState.values.filter((value) => value !== null).length !== 6) {
+  throw new Error("Expected bought Sweeps Hold & Win to start from the configured payout basis and six coins.");
+}
+const simulationRandom = Math.random;
+let simulationSeed = 42;
+Math.random = () => {
+  simulationSeed = (simulationSeed * 1664525 + 1013904223) % 4294967296;
+  return simulationSeed / 4294967296;
+};
+let frontierSim: ReturnType<typeof simulateSlot>;
+try {
+  frontierSim = simulateSlot(frontier, 30000, 100);
+} finally {
+  Math.random = simulationRandom;
+}
+for (const mode of ["NORMAL", "GOLD_BOOST", "SCATTER_BOOST", "BUY_HOLD_AND_WIN", "BUY_WHEEL_BONUS"] as const) {
+  if (!frontierSim.modeResults?.[mode] || !Number.isFinite(frontierSim.modeResults[mode]?.observedRtp)) {
+    throw new Error(`Expected admin simulation to report ${mode}.`);
+  }
+}
+if (getMathWarnings(frontier, frontierSim).some((warning) => warning.includes("above 95"))) {
+  throw new Error("Expected Frontier test simulation modes to stay under configured RTP warnings.");
 }
 const holdBonus = calculateHoldAndWinBonus(frontier, frontier.minBet);
 if (!Number.isFinite(holdBonus.total) || holdBonus.respinRounds.length === 0) {
   throw new Error("Expected hold-and-win respins to calculate.");
+}
+const originalCoinRandom = Math.random;
+const coinRolls = [0 / 15, 1 / 15, 2 / 15, 3 / 15, 4 / 15, 5 / 15, 0, 0, 0, 0, 0, 0];
+Math.random = () => coinRolls.shift() ?? 0;
+try {
+  const sixTenthCoins = createHoldAndWinState(frontier, 100, 6);
+  if (Math.round(sixTenthCoins.total) !== 60) {
+    throw new Error("Expected six 0.1x Hold and Win coins on a 100 bet to total 60.");
+  }
+} finally {
+  Math.random = originalCoinRandom;
+}
+const frontierScatterGrid = [
+  ["oasis_scatter", "10", "J"],
+  ["A", "oasis_scatter", "Q"],
+  ["K", "10", "oasis_scatter"],
+  ["Q", "J", "A"],
+  ["10", "K", "Q"],
+];
+const forcedWheel = calculateSlotResult(frontier, 100, false, frontierScatterGrid);
+if (!forcedWheel.triggeredWheelBonus || !forcedWheel.wheelBonus) {
+  throw new Error("Expected 3 Frontier Oasis Scatters to trigger Wheel Bonus.");
+}
+const wheelMultiplier = calculateWheelBonus(frontier, 100);
+if (wheelMultiplier.payout !== Math.round(wheelMultiplier.multiplier * 100)) {
+  throw new Error("Expected Wheel Bonus payout to match the landed bet multiplier.");
+}
+const anticipationState = getFrontierAnticipationState([
+  ["coin_100", "coin_100", "10"],
+  ["coin_100", "coin_100", "A"],
+  ["coin_100", "J", "Q"],
+  ["10", "K", "Q"],
+  ["A", "J", "10"],
+], frontier);
+if (!anticipationState.active) {
+  throw new Error("Expected anticipation state to trigger with many early coins.");
 }
 
 const electric = slotConfigs.find((candidate) => candidate.id === "electric-millions");
@@ -233,6 +362,13 @@ if (buyResult.payout > 0 && !buyTransactions.some((tx) => tx.type === "BONUS_WIN
   throw new Error("Expected bonus win ledger entry.");
 }
 if (buyTransactions.length <= buyTxBefore) throw new Error("Expected buy bonus to add transactions.");
+const wheelBuyUser: User = { ...user, id: "wheel-buy-test-user", email: "wheel-buy@test.local" };
+creditCurrency({ userId: wheelBuyUser.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 500000 });
+const wheelBuyResult = buyBonusFeature({ user: wheelBuyUser, game: frontier, currency: "GOLD", betAmount: frontier.minBet, featureType: "WHEEL_BONUS" });
+const wheelBuyDebit = getTransactions(wheelBuyUser.id).find((tx) => tx.type === "BUY_BONUS");
+if (!wheelBuyResult.triggeredWheelBonus || !wheelBuyDebit || Math.abs(wheelBuyDebit.amount) !== getBonusBuyCost(frontier, frontier.minBet, "WHEEL_BONUS")) {
+  throw new Error("Expected Buy Wheel Bonus to debit the configured cost and return a wheel result.");
+}
 const debitOnlyUser: User = {
   ...user,
   id: "buy-bonus-debit-only-user",
@@ -245,8 +381,35 @@ buyBonusDebit({ user: debitOnlyUser, game: frontier, currency: "GOLD", betAmount
 if (getTransactions(debitOnlyUser.id).filter((tx) => tx.type === "BUY_BONUS").length !== debitOnlyBefore + 1) {
   throw new Error("Expected buy bonus debit-only ledger entry.");
 }
-if (debitBalanceBefore - getBalance(debitOnlyUser.id, "GOLD") !== getBuyBonusCost(frontier.minBet, frontier)) {
+if (Math.abs((debitBalanceBefore - getBalance(debitOnlyUser.id, "GOLD")) - getBuyBonusCost(frontier.minBet, frontier)) > 0.001) {
   throw new Error("Expected BUY_BONUS ledger debit to match displayed buy bonus cost.");
+}
+const boostUser: User = { ...user, id: "boost-test-user", email: "boost@test.local" };
+creditCurrency({ userId: boostUser.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 500000 });
+const boostBefore = getBalance(boostUser.id, "GOLD");
+const boostResult = spinSlot({ user: boostUser, game: frontier, currency: "GOLD", betAmount: 100, spinMode: "GOLD_BOOST" });
+if (boostResult.wager !== getSpinCost(frontier, 100, "GOLD_BOOST") || boostBefore - getBalance(boostUser.id, "GOLD") < boostResult.wager - boostResult.payout) {
+  throw new Error("Expected Gold Boost to debit the boosted displayed cost.");
+}
+const scatterBoostResult = calculateSlotResult(frontier, 100, false, undefined, "SCATTER_BOOST");
+if (scatterBoostResult.wager !== 100) {
+  throw new Error("Expected Scatter Boost math to preserve payout bet basis before ledger cost.");
+}
+const collectorRolls = [0];
+Math.random = () => collectorRolls.shift() ?? 0;
+try {
+  const collectorResult = calculateSlotResult(frontier, 100, false, [
+    ["coin_100", "10", "J"],
+    ["A", "coin_100", "Q"],
+    ["K", "10", "J"],
+    ["Q", "J", "A"],
+    ["10", "K", "Q"],
+  ]);
+  if (!collectorResult.triggeredCoinCollector || !collectorResult.triggeredHoldAndWin) {
+    throw new Error("Expected coin collector to be able to trigger Hold and Win.");
+  }
+} finally {
+  Math.random = originalCoinRandom;
 }
 
 let holdState = createHoldAndWinState(frontier, frontier.minBet, 3);

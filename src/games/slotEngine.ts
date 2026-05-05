@@ -1,21 +1,37 @@
 import { creditCurrency, debitCurrency } from "../wallet/walletService";
 import { DEMO_MAX_SINGLE_BET, capDemoPayout } from "../economy/limits";
 import type { Currency, User } from "../types";
-import type { BonusFeatureType, HoldAndWinResult, HoldAndWinState, SlotConfig, SlotSpinInput, SlotSpinResult, WheelBonusResult } from "./types";
+import type { BonusFeatureType, HoldAndWinResult, HoldAndWinState, SlotConfig, SlotSpinInput, SlotSpinResult, SpinMode, WheelBonusResult } from "./types";
 
-function pickWeightedSymbol(game: SlotConfig) {
-  const total = game.symbols.reduce((sum, symbol) => sum + symbol.weight, 0);
+function weightedSymbols(game: SlotConfig, spinMode: SpinMode = "NORMAL") {
+  const boost = spinMode === "NORMAL" ? undefined : game.boostSpins?.[spinMode];
+  return game.symbols.map((symbol) => {
+    const coinSymbol = game.specialSymbols?.coin;
+    const scatterSymbol = game.scatterSymbol;
+    const weight =
+      symbol.id === coinSymbol
+        ? symbol.weight * (boost?.coinWeightMultiplier ?? 1)
+        : symbol.id === scatterSymbol
+          ? symbol.weight * (boost?.scatterWeightMultiplier ?? 1)
+          : symbol.weight;
+    return { ...symbol, weight };
+  });
+}
+
+function pickWeightedSymbol(game: SlotConfig, spinMode: SpinMode = "NORMAL") {
+  const symbols = weightedSymbols(game, spinMode);
+  const total = symbols.reduce((sum, symbol) => sum + symbol.weight, 0);
   let roll = Math.random() * total;
-  for (const symbol of game.symbols) {
+  for (const symbol of symbols) {
     roll -= symbol.weight;
     if (roll <= 0) return symbol.id;
   }
-  return game.symbols[game.symbols.length - 1].id;
+  return symbols[symbols.length - 1].id;
 }
 
-export function generateGrid(game: SlotConfig) {
+export function generateGrid(game: SlotConfig, spinMode: SpinMode = "NORMAL") {
   return Array.from({ length: game.reelCount }, () =>
-    Array.from({ length: game.rowCount }, () => pickWeightedSymbol(game)),
+    Array.from({ length: game.rowCount }, () => pickWeightedSymbol(game, spinMode)),
   );
 }
 
@@ -25,6 +41,33 @@ function countInGrid(grid: string[][], symbol: string) {
 
 function maxWinFor(game: SlotConfig, betAmount: number) {
   return capDemoPayout(Math.round(betAmount * game.maxPayoutMultiplier));
+}
+
+export function getBonusBuyCost(
+  game: SlotConfig,
+  betAmount: number,
+  featureType: BonusFeatureType = game.buyBonus?.featureType ?? "HOLD_AND_WIN",
+  currency?: Currency,
+) {
+  const option = game.bonusBuys?.find((buy) => buy.featureType === featureType);
+  const costMultiplier = (currency && option?.currencyCostMultipliers?.[currency]) ?? option?.costMultiplier ?? game.buyBonus?.costMultiplier ?? 0;
+  return Math.round(betAmount * costMultiplier * 100) / 100;
+}
+
+export function getSpinCost(game: SlotConfig, betAmount: number, spinMode: SpinMode = "NORMAL") {
+  const boost = spinMode === "NORMAL" ? undefined : game.boostSpins?.[spinMode];
+  return Math.round(betAmount * (boost?.costMultiplier ?? 1) * 100) / 100;
+}
+
+export function getBonusBuyPayoutBetAmount(
+  game: SlotConfig,
+  betAmount: number,
+  featureType: BonusFeatureType,
+  currency?: Currency,
+) {
+  const option = game.bonusBuys?.find((buy) => buy.featureType === featureType);
+  const multiplier = (currency && option?.payoutBetMultipliers?.[currency]) ?? 1;
+  return Math.round(betAmount * multiplier * 100) / 100;
 }
 
 function payoutMultiplier(game: SlotConfig, symbol: string, count: number) {
@@ -40,16 +83,15 @@ function evaluatePaylines(game: SlotConfig, grid: string[][], betAmount: number,
 
   for (const payline of game.paylines) {
     const symbols = payline.rows.map((row, reel) => grid[reel][row]);
-    const firstRegular = symbols.find(
-      (symbol) => symbol !== "wild" && symbol !== game.scatterSymbol && symbol !== game.bonusSymbol,
-    );
+    const wildSymbol = game.specialSymbols?.wild ?? "wild";
+    const firstRegular = symbols.find((symbol) => symbol !== wildSymbol && symbol !== game.scatterSymbol && symbol !== game.bonusSymbol);
     if (!firstRegular) continue;
 
     let count = 0;
     const positions: Array<{ reel: number; row: number }> = [];
     for (let reel = 0; reel < symbols.length; reel += 1) {
       const symbol = symbols[reel];
-      if (symbol === firstRegular || symbol === "wild") {
+      if (symbol === firstRegular || symbol === wildSymbol) {
         count += 1;
         positions.push({ reel, row: payline.rows[reel] });
       } else {
@@ -93,14 +135,31 @@ function randomFrom<T>(items: T[]) {
   return items[Math.floor(Math.random() * items.length)];
 }
 
-function coinAward(game: SlotConfig, betAmount: number) {
-  const multipliers =
-    game.holdAndWin?.coinValueMultipliers ??
-    (game.volatility === "High" ? [1, 1, 2, 2, 3, 5, 8, 10, 15] : [1, 1, 1, 2, 2, 3, 5, 8]);
-  return Math.round(betAmount * randomFrom(multipliers));
+function weightedRandom<T extends { weight: number }>(items: T[]) {
+  const total = items.reduce((sum, item) => sum + item.weight, 0);
+  let roll = Math.random() * total;
+  for (const item of items) {
+    roll -= item.weight;
+    if (roll <= 0) return item;
+  }
+  return items[items.length - 1];
 }
 
-export function createHoldAndWinState(game: SlotConfig, betAmount: number, startingCoins = 3): HoldAndWinState {
+function coinAward(game: SlotConfig, betAmount: number, superHold = false) {
+  const awards = game.holdAndWin?.coinAwards;
+  if (awards?.length) {
+    const eligible = superHold ? awards.filter((award) => award.multiplier > 2) : awards;
+    const award = weightedRandom(eligible.length ? eligible : awards);
+    return Math.round(betAmount * award.multiplier * 100) / 100;
+  }
+  const multipliers =
+    game.holdAndWin?.coinValueMultipliers ??
+    (game.volatility === "High" ? [0.25, 0.5, 1, 1.5, 2, 3, 5] : [0.1, 0.25, 0.5, 1, 1.5, 2]);
+  const eligible = superHold ? multipliers.filter((multiplier) => multiplier > 2) : multipliers;
+  return Math.round(betAmount * randomFrom(eligible.length ? eligible : multipliers) * 100) / 100;
+}
+
+export function createHoldAndWinState(game: SlotConfig, betAmount: number, startingCoins = 3, superHold = false): HoldAndWinState {
   const positions = game.reelCount * game.rowCount;
   const values: Array<number | null> = Array.from({ length: positions }, () => null);
   const used = new Set<number>();
@@ -108,10 +167,11 @@ export function createHoldAndWinState(game: SlotConfig, betAmount: number, start
     used.add(Math.floor(Math.random() * positions));
   }
   used.forEach((position) => {
-    values[position] = coinAward(game, betAmount);
+    values[position] = coinAward(game, betAmount, superHold);
   });
   const total = values.reduce<number>((sum, value) => sum + (value ?? 0), 0);
   return {
+    betAmount,
     values,
     respinsRemaining: 3,
     total,
@@ -121,23 +181,27 @@ export function createHoldAndWinState(game: SlotConfig, betAmount: number, start
   };
 }
 
-export function stepHoldAndWinBonus(game: SlotConfig, betAmount: number, state: HoldAndWinState): HoldAndWinState {
+export function stepHoldAndWinBonus(game: SlotConfig, betAmount: number, state: HoldAndWinState, spinMode: SpinMode = "NORMAL"): HoldAndWinState {
   if (state.finished) return state;
+  const awardBetAmount = state.betAmount ?? betAmount;
   const values = [...state.values];
   const lastNewCoins: number[] = [];
+  const boost = spinMode === "NORMAL" ? undefined : game.boostSpins?.[spinMode];
+  const landingChance = (game.holdAndWin?.coinLandingChance ?? 0.18) * (boost?.holdAndWinTriggerBoost ?? 1);
   values.forEach((value, index) => {
-    if (value === null && Math.random() < (game.holdAndWin?.coinLandingChance ?? 0.18)) {
-      values[index] = coinAward(game, betAmount);
+    if (value === null && Math.random() < landingChance) {
+      values[index] = coinAward(game, awardBetAmount);
       lastNewCoins.push(index);
     }
   });
   const filledAll = values.every((value) => value !== null);
   const respinsRemaining = filledAll ? 0 : lastNewCoins.length > 0 ? 3 : state.respinsRemaining - 1;
   const total = Math.min(
-    values.reduce<number>((sum, value) => sum + (value ?? 0) , 0) + (filledAll ? Math.round(betAmount * (game.holdAndWin?.grandMultiplier ?? 60)) : 0),
-    maxWinFor(game, betAmount),
+    values.reduce<number>((sum, value) => sum + (value ?? 0) , 0) + (filledAll ? Math.round(awardBetAmount * (game.holdAndWin?.grandMultiplier ?? 60)) : 0),
+    maxWinFor(game, awardBetAmount),
   );
   return {
+    betAmount: state.betAmount,
     values,
     respinsRemaining,
     total,
@@ -165,19 +229,24 @@ export function calculateHoldAndWinBonus(game: SlotConfig, betAmount: number): H
 }
 
 export function calculateWheelBonus(game: SlotConfig, betAmount: number): WheelBonusResult {
-  const segments: WheelBonusResult[] = [
-    { segment: "5x", multiplier: 5, payout: betAmount * 5 },
-    { segment: "10x", multiplier: 10, payout: betAmount * 10 },
-    { segment: "25x", multiplier: 25, payout: betAmount * 25 },
-    { segment: "50x", multiplier: 50, payout: betAmount * 50 },
-    { segment: "Mini", multiplier: 10, payout: betAmount * 10, jackpotLabel: "Mini" },
-    { segment: "Major", multiplier: 50, payout: betAmount * 50, jackpotLabel: "Major" },
-    { segment: "Grand", multiplier: 80, payout: betAmount * 80, jackpotLabel: "Grand" },
+  const configured = game.wheelBonus?.segments.map((segment) => ({
+    segment: segment.label,
+    multiplier: segment.multiplier,
+    payout: betAmount * segment.multiplier,
+    jackpotLabel: segment.jackpotLabel,
+    featureTrigger: segment.featureTrigger,
+    weight: segment.weight,
+  }));
+  const fallback: Array<WheelBonusResult & { weight: number }> = [
+    { segment: "2x", multiplier: 2, payout: betAmount * 2, weight: 28 },
+    { segment: "3x", multiplier: 3, payout: betAmount * 3, weight: 24 },
+    { segment: "5x", multiplier: 5, payout: betAmount * 5, weight: 17 },
+    { segment: "8x", multiplier: 8, payout: betAmount * 8, weight: 10 },
+    { segment: "10x", multiplier: 10, payout: betAmount * 10, weight: 6 },
   ];
-  const weighted = [segments[0], segments[0], segments[1], segments[1], segments[2], segments[3], segments[4], segments[5], segments[6]];
-  const result = randomFrom(weighted);
+  const result = weightedRandom(configured?.length ? configured : fallback);
   const payout = Math.min(Math.round(result.payout), maxWinFor(game, betAmount));
-  return { ...result, payout };
+  return { segment: result.segment, multiplier: result.multiplier, payout, jackpotLabel: result.jackpotLabel, featureTrigger: result.featureTrigger };
 }
 
 export function calculateDirectFeature(game: SlotConfig, betAmount: number, featureType: BonusFeatureType) {
@@ -192,11 +261,16 @@ export function calculateDirectFeature(game: SlotConfig, betAmount: number, feat
   }
   if (featureType === "WHEEL_BONUS") {
     const wheelBonus = calculateWheelBonus(game, betAmount);
+    const holdAndWin = wheelBonus.featureTrigger
+      ? calculateHoldAndWinBonus(game, betAmount)
+      : undefined;
+    const bonusPayout = Math.min(wheelBonus.payout + (holdAndWin?.total ?? 0), maxWinFor(game, betAmount));
     return {
-      bonusPayout: wheelBonus.payout,
+      bonusPayout,
       winType: "WHEEL_BONUS" as const,
-      jackpotLabel: wheelBonus.jackpotLabel,
+      jackpotLabel: wheelBonus.jackpotLabel ?? (holdAndWin?.filledAll ? ("Grand" as const) : undefined),
       wheelBonus,
+      holdAndWin,
     };
   }
   if (featureType === "FREE_SPINS") {
@@ -228,16 +302,29 @@ export function calculateSlotResult(
   betAmount: number,
   freeSpin = false,
   forcedGrid?: string[][],
+  spinMode: SpinMode = "NORMAL",
 ): SlotSpinResult {
-  const grid = forcedGrid ?? generateGrid(game);
+  const grid = forcedGrid ?? generateGrid(game, spinMode);
   const scatterCount = countInGrid(grid, game.scatterSymbol);
   const bonusCount = countInGrid(grid, game.bonusSymbol);
   const triggeredFreeSpins = scatterCount >= game.freeSpins.triggerCount;
   const triggeredPickBonus = bonusCount >= game.pickBonus.triggerCount;
   const coinSymbol = game.specialSymbols?.coin;
+  const coinCount = coinSymbol ? countInGrid(grid, coinSymbol) : 0;
+  const boost = spinMode === "NORMAL" ? undefined : game.boostSpins?.[spinMode];
+  const holdTriggerCount = game.holdAndWin?.triggerCount ?? 3;
+  let triggeredHoldAndWin = game.featureTypes?.includes("HOLD_AND_WIN") && coinSymbol ? coinCount >= holdTriggerCount : false;
   const wheelSymbol = game.buyBonus?.featureType === "WHEEL_BONUS" ? game.bonusSymbol : game.specialSymbols?.multiplier;
-  const triggeredHoldAndWin = game.featureTypes?.includes("HOLD_AND_WIN") && coinSymbol ? countInGrid(grid, coinSymbol) >= 3 : false;
-  const triggeredWheelBonus = game.featureTypes?.includes("WHEEL_BONUS") && wheelSymbol ? countInGrid(grid, wheelSymbol) >= 3 : false;
+  const symbolWheelTrigger = game.featureTypes?.includes("WHEEL_BONUS") && wheelSymbol ? countInGrid(grid, wheelSymbol) >= 3 : false;
+  const scatterWheelTrigger = game.featureTypes?.includes("WHEEL_BONUS") && game.wheelBonus ? scatterCount >= game.wheelBonus.triggerCount : false;
+  const triggeredWheelBonus = symbolWheelTrigger || scatterWheelTrigger;
+  const collector = game.coinCollector;
+  const collectorAdds = coinCount > 0 && collector?.enabled
+    ? Math.min(collector.maxCoins, Math.max(collector.minCollect, Math.min(collector.maxCollect, coinCount)))
+    : 0;
+  const collectorTriggerChance = (collector?.triggerChancePerCoin ?? 0) * collectorAdds * (boost?.collectorTriggerBoost ?? 1);
+  const triggeredCoinCollector = Boolean(collector?.enabled && collectorAdds > 0 && Math.random() < collectorTriggerChance);
+  triggeredHoldAndWin = triggeredHoldAndWin || triggeredCoinCollector;
   const lineWins = evaluatePaylines(game, grid, betAmount, freeSpin);
 
   let payout = lineWins.reduce((sum, line) => sum + line.payout, 0);
@@ -267,6 +354,10 @@ export function calculateSlotResult(
     wheelBonus = calculateWheelBonus(game, betAmount);
     bonusPayout += wheelBonus.payout;
     jackpotLabel = wheelBonus.jackpotLabel;
+    if (wheelBonus.featureTrigger) {
+      triggeredHoldAndWin = true;
+      jackpotLabel = undefined;
+    }
     winType = "WHEEL_BONUS";
   }
 
@@ -301,6 +392,7 @@ export function calculateSlotResult(
     triggeredPickBonus,
     triggeredHoldAndWin,
     triggeredWheelBonus,
+    triggeredCoinCollector,
     bonusPayout,
     jackpotLabel,
     holdAndWin,
@@ -397,16 +489,18 @@ export function buyBonusDebit({
   game,
   currency,
   betAmount,
+  featureType = game.buyBonus?.featureType ?? "HOLD_AND_WIN",
 }: {
   user: User;
   game: SlotConfig;
   currency: Currency;
   betAmount: number;
+  featureType?: BonusFeatureType;
 }) {
   if (!game.buyBonus?.enabled) throw new Error("Buy bonus is not available for this game.");
   if (betAmount < game.minBet || betAmount > game.maxBet) throw new Error("Bet amount is outside this game's limits.");
   if (betAmount > DEMO_MAX_SINGLE_BET) throw new Error(`Demo maximum single bet is ${DEMO_MAX_SINGLE_BET}.`);
-  const cost = Math.round(betAmount * game.buyBonus.costMultiplier);
+  const cost = getBonusBuyCost(game, betAmount, featureType, currency);
   return debitCurrency({
     userId: user.id,
     type: "BUY_BONUS",
@@ -415,7 +509,7 @@ export function buyBonusDebit({
     metadata: {
       gameId: game.id,
       gameName: game.name,
-      featureType: game.buyBonus.featureType,
+      featureType,
       demoOnly: true,
     },
   });
@@ -460,19 +554,22 @@ export function buyBonusFeature({
   game,
   currency,
   betAmount,
+  featureType = game.buyBonus?.featureType ?? "HOLD_AND_WIN",
 }: {
   user: User;
   game: SlotConfig;
   currency: Currency;
   betAmount: number;
+  featureType?: BonusFeatureType;
 }) {
   if (!game.buyBonus?.enabled) throw new Error("Buy bonus is not available for this game.");
   if (betAmount < game.minBet || betAmount > game.maxBet) throw new Error("Bet amount is outside this game's limits.");
   if (betAmount > DEMO_MAX_SINGLE_BET) throw new Error(`Demo maximum single bet is ${DEMO_MAX_SINGLE_BET}.`);
-  const cost = Math.round(betAmount * game.buyBonus.costMultiplier);
-  buyBonusDebit({ user, game, currency, betAmount });
+  const cost = getBonusBuyCost(game, betAmount, featureType, currency);
+  buyBonusDebit({ user, game, currency, betAmount, featureType });
 
-  const feature = calculateDirectFeature(game, betAmount, game.buyBonus.featureType);
+  const payoutBetAmount = getBonusBuyPayoutBetAmount(game, betAmount, featureType, currency);
+  const feature = calculateDirectFeature(game, payoutBetAmount, featureType);
   const payout = Math.min(feature.bonusPayout, maxWinFor(game, betAmount));
   const result: SlotSpinResult = {
     gameId: game.id,
@@ -487,10 +584,10 @@ export function buyBonusFeature({
     winningPositions: [],
     freeSpinsAwarded: feature.freeSpinsAwarded ?? 0,
     triggeredBonus: true,
-    triggeredFreeSpins: game.buyBonus.featureType === "FREE_SPINS",
-    triggeredPickBonus: game.buyBonus.featureType === "PICK_BONUS",
-    triggeredHoldAndWin: game.buyBonus.featureType === "HOLD_AND_WIN",
-    triggeredWheelBonus: game.buyBonus.featureType === "WHEEL_BONUS",
+    triggeredFreeSpins: featureType === "FREE_SPINS",
+    triggeredPickBonus: featureType === "PICK_BONUS",
+    triggeredHoldAndWin: featureType === "HOLD_AND_WIN" || Boolean(feature.wheelBonus?.featureTrigger),
+    triggeredWheelBonus: featureType === "WHEEL_BONUS",
     bonusPayout: payout,
     jackpotLabel: feature.jackpotLabel,
     holdAndWin: feature.holdAndWin,
@@ -506,8 +603,10 @@ export function buyBonusFeature({
       metadata: {
         gameId: game.id,
         gameName: game.name,
-        winType: game.buyBonus.featureType,
+        winType: featureType,
         buyBonus: true,
+        betAmount,
+        payoutBetAmount,
         demoOnly: true,
         holdAndWin: result.holdAndWin,
         wheelBonus: result.wheelBonus,
@@ -519,6 +618,8 @@ export function buyBonusFeature({
 }
 
 export function spinSlot(input: SlotSpinInput) {
+  const spinMode = input.spinMode ?? "NORMAL";
+  const spinCost = input.freeSpin ? 0 : getSpinCost(input.game, input.betAmount, spinMode);
   if (!Number.isFinite(input.betAmount) || input.betAmount < input.game.minBet) {
     throw new Error(`Minimum bet is ${input.game.minBet}.`);
   }
@@ -534,15 +635,16 @@ export function spinSlot(input: SlotSpinInput) {
       userId: input.user.id,
       type: "GAME_BET",
       currency: input.currency,
-      amount: input.betAmount,
-      metadata: { gameId: input.game.id, gameName: input.game.name },
+      amount: spinCost,
+      metadata: { gameId: input.game.id, gameName: input.game.name, spinMode, displayedCost: spinCost, betAmount: input.betAmount },
     });
   }
 
   const result =
     input.game.id === "neon-fortune"
       ? calculateNeonCascadeResult(input.game, input.betAmount, input.freeSpin)
-      : calculateSlotResult(input.game, input.betAmount, input.freeSpin);
+      : calculateSlotResult(input.game, input.betAmount, input.freeSpin, undefined, spinMode);
+  result.wager = spinCost;
   if (result.payout > 0) {
     creditCurrency({
       userId: input.user.id,
@@ -556,6 +658,9 @@ export function spinSlot(input: SlotSpinInput) {
         lineWins: result.lineWins,
         winType: result.winType,
         freeSpin: Boolean(input.freeSpin),
+        spinMode,
+        wheelBonus: result.wheelBonus,
+        triggeredCoinCollector: result.triggeredCoinCollector,
       },
     });
   }

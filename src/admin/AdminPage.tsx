@@ -1,5 +1,5 @@
 import { RotateCcw, Users } from "lucide-react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { StatCard } from "../components/StatCard";
 import { TransactionTable } from "../components/TransactionTable";
@@ -226,7 +226,14 @@ export function AdminPage() {
                     <span>Pick bonus</span><strong>{(sim.pickBonusTriggerRate * 100).toFixed(2)}%</strong>
                     <span>Hold and win</span><strong>{((sim.holdAndWinTriggerRate ?? 0) * 100).toFixed(2)}%</strong>
                     <span>Wheel bonus</span><strong>{((sim.wheelBonusTriggerRate ?? 0) * 100).toFixed(2)}%</strong>
+                    <span>Coin collector</span><strong>{((sim.coinCollectorTriggerRate ?? 0) * 100).toFixed(2)}%</strong>
                     <span>Buy bonus RTP</span><strong>{sim.buyBonusRtp ? `${(sim.buyBonusRtp * 100).toFixed(2)}%` : "N/A"}</strong>
+                    {Object.entries(sim.modeResults ?? {}).map(([mode, modeSim]) => (
+                      <Fragment key={mode}>
+                        <span>{mode.replaceAll("_", " ")}</span>
+                        <strong className={modeSim.warning ? "warning" : ""}>{(modeSim.observedRtp * 100).toFixed(2)}%</strong>
+                      </Fragment>
+                    ))}
                   </div>
                 ) : (
                   <p className="muted">Run simulation to inspect rough observed RTP.</p>

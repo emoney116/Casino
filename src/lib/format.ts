@@ -1,6 +1,7 @@
 export function formatCoins(amount: number) {
   return new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 0,
+    minimumFractionDigits: amount > 0 && amount < 1 ? 2 : 0,
+    maximumFractionDigits: 2,
   }).format(amount);
 }
 
