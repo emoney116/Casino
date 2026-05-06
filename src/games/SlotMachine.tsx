@@ -5,7 +5,7 @@ import { useToast } from "../components/ToastContext";
 import { formatCoins } from "../lib/format";
 import { getCurrencyShortName } from "../config/currencyConfig";
 import type { Currency } from "../types";
-import { getBalance } from "../wallet/walletService";
+import { creditCurrency, getBalance } from "../wallet/walletService";
 import { nextSessionStats, emptySessionStats } from "../economy/sessionStats";
 import { recordRetentionRound } from "../retention/retentionService";
 import { playBigWin, playBonus, playClick, playError, playLose, playSpin, playWin } from "../feedback/feedbackService";
@@ -19,7 +19,7 @@ import { COMPLIANCE_COPY } from "../lib/compliance";
 import { recordRecentGame } from "./recentGames";
 import { getSpinDuration, slotAnimation } from "./slotAnimation";
 import { nextFreeSpinTotal } from "./slotSession";
-import { buyBonusDebit, buyBonusFeature, createHoldAndWinState, creditHoldAndWinBonus, creditPickBonus, generateGrid, getBonusBuyCost, getBonusBuyPayoutBetAmount, getSpinCost, spinSlot, stepHoldAndWinBonus } from "./slotEngine";
+import { buyBonusDebit, buyBonusFeature, calculateWheelBonus, createHoldAndWinState, creditHoldAndWinBonus, creditPickBonus, generateGrid, getBonusBuyCost, getBonusBuyPayoutBetAmount, getSpinCost, getStickyWildPositions, spinSlot, stepHoldAndWinBonus } from "./slotEngine";
 import { SymbolTile } from "./SymbolTile";
 import type { ReelVisualState, SlotAnimationState } from "./slotAnimation";
 import type { BonusFeatureType, HoldAndWinState, SlotConfig, SlotSpinResult, SpinMode } from "./types";
@@ -36,6 +36,85 @@ type SlotUiState =
   | "Error/Insufficient Balance";
 
 export type FrontierSpinSpeed = "NORMAL" | "FAST" | "TURBO";
+export type FrontierEntryPhase = "loading" | "intro" | "game";
+type FrontierWheelPhase = "ready" | "spinning" | "revealed";
+type FrontierWheelReveal = {
+  result: SlotSpinResult;
+  phase: FrontierWheelPhase;
+  bonusBetAmount: number;
+  fromBuy: boolean;
+};
+
+const FRONTIER_INTRO_SKIP_KEY = "frontier-fortune.skip-feature-intro";
+export const frontierWheelSpinMs = 5800;
+
+export const frontierEntryLoadingMessages = ["Loading symbols...", "Loading bonuses...", "Preparing reels..."] as const;
+
+export const frontierIntroAssets = {
+  bg: "/assets/ui/frontier-intro/ff_intro_bg_blurred_canyon_1080x1920.png",
+  vignette: "/assets/ui/frontier-intro/ff_intro_overlay_vignette_1080x1920.png",
+  rays: "/assets/ui/frontier-intro/ff_intro_overlay_soft_light_rays.png",
+  embers: "/assets/ui/frontier-intro/ff_intro_overlay_embers.png",
+  logo: frontierUiAssets.titleLogo,
+  holdFrame: "/assets/ui/frontier-intro/ff_intro_card_frame_hold_win_red_gold.png",
+  wheelFrame: "/assets/ui/frontier-intro/ff_intro_card_frame_wheel_bonus_green_gold.png",
+  holdIcon: "/assets/ui/money-lightning/primary_256.svg",
+  wheelIcon: "/assets/ui/frontier-intro/ff_intro_icon_wheel_bonus.png",
+  relicAura: "/assets/ui/frontier-intro/ff_intro_center_relic_aura.png",
+  relicSpirit: "/assets/ui/frontier-intro/ff_intro_center_relic_spirit.png",
+  relicShadow: "/assets/ui/frontier-intro/ff_intro_center_shadow.png",
+  ctaButton: "/assets/ui/frontier-intro/ff_intro_cta_button_gold_blank.png",
+} as const;
+
+export const frontierFeatureIntroCards = [
+  {
+    label: "Feature",
+    title: "Hold & Win",
+    detail: "Gold coins lock in place.\nNew coins reset respins.\nBuild the bonus total.",
+  },
+  {
+    label: "Bonus",
+    title: "Wheel Bonus",
+    detail: "Land oasis scatters.\nSpin for boosts, jackpots,\nor Hold & Win.",
+  },
+] as const;
+
+type FrontierStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
+function safeFrontierStorage(storage?: FrontierStorage) {
+  if (storage) return storage;
+  try {
+    return typeof globalThis.localStorage === "undefined" ? null : globalThis.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+export function getFrontierFeatureIntroPreference(storage?: FrontierStorage) {
+  return safeFrontierStorage(storage)?.getItem(FRONTIER_INTRO_SKIP_KEY) === "1";
+}
+
+export function setFrontierFeatureIntroPreference(skip: boolean, storage?: FrontierStorage) {
+  const target = safeFrontierStorage(storage);
+  if (!target) return skip;
+  if (skip) target.setItem(FRONTIER_INTRO_SKIP_KEY, "1");
+  else target.removeItem(FRONTIER_INTRO_SKIP_KEY);
+  return skip;
+}
+
+export function getFrontierEntryPhase(gameId: string, assetsReady: boolean, enteredGame: boolean, skipIntro: boolean, introReopened = false): FrontierEntryPhase {
+  if (gameId !== "frontier-fortune") return "game";
+  if (!assetsReady) return "loading";
+  if (introReopened) return "intro";
+  if (enteredGame || skipIntro) return "game";
+  return "intro";
+}
+
+export function getFrontierLoadingMessage(progress: number) {
+  const clamped = Math.max(0, Math.min(100, progress));
+  const index = Math.min(frontierEntryLoadingMessages.length - 1, Math.floor((clamped / 100) * frontierEntryLoadingMessages.length));
+  return frontierEntryLoadingMessages[index];
+}
 
 export const moneyLightningIconAssets = {
   primary: "/assets/ui/money-lightning/primary_256.svg",
@@ -94,6 +173,10 @@ export function getTreasurePotVisualState(coins: number, maxCoins = 5, triggered
   };
 }
 
+export function chargedRelicCrackEvent(coinHits: number, randomValue = Math.random()) {
+  return coinHits > 0 && randomValue < 0.18;
+}
+
 function coinImageFor(value: number, betAmount: number) {
   const multiplier = betAmount > 0 ? value / betAmount : 0;
   if (multiplier >= 5) return "/assets/symbols/frontier/coin_1000.png";
@@ -108,6 +191,77 @@ function coinLabelFor(value: number, betAmount: number) {
   if (multiplier >= 10) return "Minor";
   if (multiplier >= 5) return "Mini";
   return `${Number(multiplier.toFixed(2))}x`;
+}
+
+function FrontierLoadingScreen({ progress }: { progress: number }) {
+  return (
+    <div className="frontier-entry-screen frontier-loading-screen" role="status" aria-label="Frontier Fortune loading">
+      <div className="frontier-entry-canyon" aria-hidden="true" />
+      <div className="frontier-loading-panel">
+        <img className="frontier-entry-logo" src={frontierUiAssets.titleLogo} alt="Frontier Fortune" />
+        <div className="frontier-loading-coin" aria-hidden="true">
+          <span />
+        </div>
+        <strong>{getFrontierLoadingMessage(progress)}</strong>
+        <div className="frontier-loading-track" aria-hidden="true">
+          <i style={{ width: `${Math.max(8, Math.min(100, progress))}%` }} />
+        </div>
+        <small>{Math.round(progress)}%</small>
+      </div>
+    </div>
+  );
+}
+
+function FrontierFeatureIntroScreen({
+  onContinue,
+}: {
+  onContinue: () => void;
+}) {
+  return (
+    <div className="frontier-entry-screen frontier-feature-intro" role="dialog" aria-modal="true" aria-label="Frontier Fortune features">
+      <div className="frontier-intro-art-layers" aria-hidden="true">
+        <img className="frontier-intro-bg" src={frontierIntroAssets.bg} alt="" />
+        <img className="frontier-intro-rays" src={frontierIntroAssets.rays} alt="" />
+        <img className="frontier-intro-embers" src={frontierIntroAssets.embers} alt="" />
+        <img className="frontier-intro-vignette" src={frontierIntroAssets.vignette} alt="" />
+      </div>
+      <div className="frontier-intro-top">
+        <img className="frontier-entry-logo frontier-intro-logo-pro" src={frontierIntroAssets.logo} alt="Frontier Fortune" />
+      </div>
+      <div className="frontier-intro-stage">
+        <div className="frontier-relic-hero" aria-hidden="true">
+          <img className="frontier-relic-aura" src={frontierIntroAssets.relicAura} alt="" />
+          <img className="frontier-relic-spirit" src={frontierIntroAssets.relicSpirit} alt="" />
+          <img className="frontier-relic-shadow" src={frontierIntroAssets.relicShadow} alt="" />
+        </div>
+        <div className="frontier-feature-card-row">
+          <article className="frontier-feature-card hold">
+            <img className="frontier-card-frame" src={frontierIntroAssets.holdFrame} alt="" aria-hidden="true" />
+            <div className="frontier-card-copy">
+              <span className="frontier-card-label">{frontierFeatureIntroCards[0].label}</span>
+              <img className="frontier-card-icon" src={frontierIntroAssets.holdIcon} alt="" aria-hidden="true" />
+              <h2>{frontierFeatureIntroCards[0].title}</h2>
+              <p>{frontierFeatureIntroCards[0].detail}</p>
+            </div>
+          </article>
+          <article className="frontier-feature-card wheel">
+            <img className="frontier-card-frame" src={frontierIntroAssets.wheelFrame} alt="" aria-hidden="true" />
+            <div className="frontier-card-copy">
+              <span className="frontier-card-label">{frontierFeatureIntroCards[1].label}</span>
+              <img className="frontier-card-icon" src={frontierIntroAssets.wheelIcon} alt="" aria-hidden="true" />
+              <h2>{frontierFeatureIntroCards[1].title}</h2>
+              <p>{frontierFeatureIntroCards[1].detail}</p>
+            </div>
+          </article>
+        </div>
+      </div>
+      <div className="frontier-intro-actions">
+        <button className="frontier-continue-button" onClick={onContinue}>
+          <span>Tap to Continue</span>
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export function getJackpotBadgeLabels(game: SlotConfig) {
@@ -142,19 +296,19 @@ export function getBonusBoostMenuOptions(game: SlotConfig, betAmount: number, cu
       id: "gold-boost",
       label: "Gold Boost",
       cost: getSpinCost(game, betAmount, "GOLD_BOOST"),
-      detail: "+20% cost, better coin chance",
+      detail: `+${Math.round(((game.boostSpins?.GOLD_BOOST?.costMultiplier ?? 1) - 1) * 100)}% cost, better coin chance`,
     },
     {
       id: "scatter-boost",
       label: "Scatter Boost",
       cost: getSpinCost(game, betAmount, "SCATTER_BOOST"),
-      detail: "+25% cost, better scatter chance",
+      detail: `+${Math.round(((game.boostSpins?.SCATTER_BOOST?.costMultiplier ?? 1) - 1) * 100)}% cost, better scatter chance`,
     },
   ];
 }
 
 export function getFrontierMainControlActions() {
-  return ["Speed", "Info", "Sound"];
+  return ["Feature Intro", "Speed", "Info", "Sound"];
 }
 
 export function getFrontierReelAction() {
@@ -167,6 +321,53 @@ export function getFrontierCollectorPlacement() {
 
 export function getWheelSectionLabels(game: SlotConfig) {
   return game.wheelBonus?.segments.map((segment) => segment.label) ?? [];
+}
+
+export function getWheelLandingDegrees(labels: string[], resultLabel?: string, rotations = 9) {
+  const count = Math.max(1, labels.length);
+  const index = Math.max(0, labels.findIndex((label) => label === resultLabel));
+  const segmentAngle = 360 / count;
+  const segmentCenter = index * segmentAngle + segmentAngle / 2;
+  return rotations * 360 - segmentCenter;
+}
+
+export function getFrontierWheelSegmentDisplayLabel(label: string) {
+  return label
+    .replace(" Free Spins", "\nFree Spins")
+    .replace("Hold & Win", "Hold\n& Win")
+    .replace("Super ", "Super\n");
+}
+
+export function getFrontierWheelPrizeClass(label: string) {
+  if (label.includes("Hold") || label.includes("Free Spins")) return "feature";
+  if (label === "Major") return "major";
+  if (["Mini", "Minor"].includes(label)) return "jackpot";
+  if (label === "2x" || label === "5x") return "small";
+  return "multiplier";
+}
+
+export function getFrontierWheelDrama(labels: string[], resultLabel?: string) {
+  if (!resultLabel || labels.length === 0) return "standard";
+  const index = labels.findIndex((label) => label === resultLabel);
+  if (index < 0) return "standard";
+  const isBig = (label: string) => getFrontierWheelPrizeClass(label) === "feature" || label === "Major";
+  if (isBig(resultLabel)) return "big-bonus";
+  const previous = labels[(index - 1 + labels.length) % labels.length];
+  const next = labels[(index + 1) % labels.length];
+  return isBig(previous) || isBig(next) ? "near-miss" : "standard";
+}
+
+export function getFrontierWheelResultAction(result?: SlotSpinResult | null) {
+  const wheel = result?.wheelBonus;
+  if (!wheel) return "Continue";
+  if (wheel.featureTrigger) return wheel.featureTrigger === "SUPER_HOLD_AND_WIN" ? "Start Super Hold & Win" : "Start Hold & Win";
+  if (wheel.freeSpinsAwarded) return `Start ${wheel.freeSpinsAwarded} Free Spins`;
+  return "Continue";
+}
+
+export function getNextFrontierStickyWildPositions(game: SlotConfig, result: SlotSpinResult, current: number[], freeSpinsRemainingAfterSpin: number) {
+  if (game.id !== "frontier-fortune" || !game.freeSpins.stickyWilds || freeSpinsRemainingAfterSpin <= 0) return [];
+  return getStickyWildPositions(game, result.grid, current);
 }
 
 export function getBonusChanceTier(betAmount: number, game: SlotConfig) {
@@ -218,14 +419,15 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
   const [sessionStats, setSessionStats] = useState(emptySessionStats);
   const [freeSpins, setFreeSpins] = useState(0);
   const [freeSpinTotal, setFreeSpinTotal] = useState(0);
+  const [stickyWildPositions, setStickyWildPositions] = useState<number[]>([]);
   const [bonusMeter, setBonusMeter] = useState(0);
   const [collectorCoins, setCollectorCoins] = useState(0);
   const [collectorFeedback, setCollectorFeedback] = useState("");
-  const [collectorAnimation, setCollectorAnimation] = useState({ key: 0, collected: 0, triggered: false, displayLevel: null as number | null });
+  const [collectorAnimation, setCollectorAnimation] = useState({ key: 0, collected: 0, triggered: false, cracked: false, displayLevel: null as number | null });
   const [paytableOpen, setPaytableOpen] = useState(false);
   const [buyBonusOpen, setBuyBonusOpen] = useState(false);
   const [bonusResult, setBonusResult] = useState<SlotSpinResult | null>(null);
-  const [wheelReveal, setWheelReveal] = useState<{ result: SlotSpinResult; revealed: boolean } | null>(null);
+  const [wheelReveal, setWheelReveal] = useState<FrontierWheelReveal | null>(null);
   const [uiState, setUiState] = useState<SlotUiState>("Idle");
   const [anticipating, setAnticipating] = useState(false);
   const [overlayResult, setOverlayResult] = useState<SlotSpinResult | null>(null);
@@ -234,11 +436,15 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
   const [bonusBusy, setBonusBusy] = useState(false);
   const [logoReady, setLogoReady] = useState(true);
   const [assetsLoaded, setAssetsLoaded] = useState(false);
+  const [assetLoadProgress, setAssetLoadProgress] = useState(0);
   const [lowPerformanceMode, setLowPerformanceMode] = useState(false);
   const [holdFeedback, setHoldFeedback] = useState("");
   const [animationState, setAnimationState] = useState<SlotAnimationState>("idle");
   const [reelStates, setReelStates] = useState<ReelVisualState[]>(() => Array.from({ length: game.reelCount }, () => "idle"));
   const [betMenuOpen, setBetMenuOpen] = useState(false);
+  const [frontierSkipIntro, setFrontierSkipIntro] = useState(false);
+  const [frontierEntryEntered, setFrontierEntryEntered] = useState(() => game.id !== "frontier-fortune");
+  const [frontierIntroReopened, setFrontierIntroReopened] = useState(false);
 
   if (!user) return null;
   const currentUser = user;
@@ -254,7 +460,9 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
   const scatterCount = grid.flat().filter((symbol) => symbol === game.scatterSymbol).length;
   const bonusCount = grid.flat().filter((symbol) => symbol === game.bonusSymbol).length;
   const betOptions = getBetOptions(game, currency);
-  const activePaylines = new Set(lastResult?.lineWins.map((win) => win.paylineId) ?? []);
+  const frontierEntryPhase = getFrontierEntryPhase(game.id, assetsLoaded, frontierEntryEntered, frontierSkipIntro, frontierIntroReopened);
+  const showLastWin = !spinning && animationState !== "spinning";
+  const activePaylines = new Set(showLastWin ? (lastResult?.lineWins.map((win) => win.paylineId) ?? []) : []);
   const modeLabel =
     animationState === "bonusRespinning"
       ? "Respinning"
@@ -275,6 +483,8 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
     collectorAnimation.triggered,
     collectorAnimation.collected,
   );
+  const wheelSectionLabels = getWheelSectionLabels(game);
+  const wheelDrama = wheelReveal ? getFrontierWheelDrama(wheelSectionLabels, wheelReveal.result.wheelBonus?.segment) : "standard";
 
   useEffect(() => {
     setBetAmount(getDefaultBetAmount(game, "GOLD"));
@@ -282,10 +492,11 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
     setHistory([]);
     setFreeSpins(0);
     setFreeSpinTotal(0);
+    setStickyWildPositions([]);
     setBonusMeter(0);
     setCollectorCoins(0);
     setCollectorFeedback("");
-    setCollectorAnimation({ key: 0, collected: 0, triggered: false, displayLevel: null });
+    setCollectorAnimation({ key: 0, collected: 0, triggered: false, cracked: false, displayLevel: null });
     setSpinMode("NORMAL");
     setSpinSpeed("NORMAL");
     setUiState("Idle");
@@ -297,6 +508,9 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
     setReelStates(Array.from({ length: game.reelCount }, () => "idle"));
     setBetMenuOpen(false);
     setWheelReveal(null);
+    setFrontierSkipIntro(false);
+    setFrontierEntryEntered(game.id !== "frontier-fortune");
+    setFrontierIntroReopened(false);
   }, [game]);
 
   useEffect(() => {
@@ -306,23 +520,47 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
   useEffect(() => {
     let active = true;
     setAssetsLoaded(false);
+    setAssetLoadProgress(0);
     const urls = [
       ...game.symbols.map((symbol) => symbol.image).filter((url): url is string => Boolean(url)),
       ...Object.values(frontierUiAssets),
+      ...(game.id === "frontier-fortune" ? Object.values(frontierIntroAssets) : []),
     ];
+    const uniqueUrls = [...new Set(urls)];
+    if (!uniqueUrls.length) {
+      setAssetLoadProgress(100);
+      setAssetsLoaded(true);
+      return () => {
+        active = false;
+      };
+    }
+    let loadedCount = 0;
+    const markLoaded = () => {
+      loadedCount += 1;
+      if (active) setAssetLoadProgress(Math.round((loadedCount / uniqueUrls.length) * 100));
+    };
     Promise.all(
-      [...new Set(urls)].map(
+      uniqueUrls.map(
         (url) =>
           new Promise<void>((resolve) => {
             const image = new Image();
             image.decoding = "async";
-            image.onload = () => resolve();
-            image.onerror = () => resolve();
+            image.onload = () => {
+              markLoaded();
+              resolve();
+            };
+            image.onerror = () => {
+              markLoaded();
+              resolve();
+            };
             image.src = url;
           }),
       ),
     ).then(() => {
-      if (active) setAssetsLoaded(true);
+      if (active) {
+        setAssetLoadProgress(100);
+        setAssetsLoaded(true);
+      }
     });
     const memory = "deviceMemory" in navigator ? Number((navigator as Navigator & { deviceMemory?: number }).deviceMemory) : 4;
     setLowPerformanceMode(memory <= 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -332,18 +570,18 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
   }, [game]);
 
   useEffect(() => {
-    if (!collectorAnimation.collected && !collectorAnimation.triggered) return;
+    if (!collectorAnimation.collected && !collectorAnimation.triggered && !collectorAnimation.cracked) return;
     const timeout = window.setTimeout(
       () =>
         setCollectorAnimation((current) =>
           current.key === collectorAnimation.key
-            ? { key: current.key, collected: 0, triggered: false, displayLevel: null }
+            ? { key: current.key, collected: 0, triggered: false, cracked: false, displayLevel: null }
             : current,
         ),
-      collectorAnimation.triggered ? 1100 : 760,
+      collectorAnimation.triggered ? 1100 : collectorAnimation.cracked ? 980 : 760,
     );
     return () => window.clearTimeout(timeout);
-  }, [collectorAnimation.collected, collectorAnimation.displayLevel, collectorAnimation.key, collectorAnimation.triggered]);
+  }, [collectorAnimation.collected, collectorAnimation.cracked, collectorAnimation.displayLevel, collectorAnimation.key, collectorAnimation.triggered]);
 
   const overlayIsBig = overlayResult?.winTier === "BIG" || overlayResult?.winTier === "MEGA";
 
@@ -351,6 +589,19 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
     const index = betOptions.indexOf(betAmount);
     const nextIndex = Math.min(betOptions.length - 1, Math.max(0, (index >= 0 ? index : 0) + direction));
     setBetAmount(betOptions[nextIndex] ?? betAmount);
+  }
+
+  function continueFrontierEntry() {
+    setFrontierFeatureIntroPreference(false);
+    setFrontierSkipIntro(false);
+    setFrontierEntryEntered(true);
+    setFrontierIntroReopened(false);
+    playClick();
+  }
+
+  function reopenFrontierIntro() {
+    setFrontierIntroReopened(true);
+    playClick();
   }
 
   useEffect(() => {
@@ -361,6 +612,35 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
     );
     return () => window.clearTimeout(timeout);
   }, [overlayResult]);
+
+  function completeFrontierWheelSpin(reveal: FrontierWheelReveal) {
+    const wheelBonus = reveal.result.wheelBonus;
+    if (!wheelBonus || reveal.phase !== "ready") return;
+    setWheelReveal({ ...reveal, phase: "spinning" });
+    setAnimationState("bonusReveal");
+    playSpin();
+    window.setTimeout(() => {
+      setWheelReveal((current) => current ? { ...current, phase: "revealed" } : current);
+      if (wheelBonus.featureTrigger) {
+        const superHold = wheelBonus.featureTrigger === "SUPER_HOLD_AND_WIN";
+        setHoldState(createHoldAndWinState(game, reveal.bonusBetAmount, 6, superHold));
+        setHoldBought(false);
+        setHoldFeedback(superHold ? "SUPER HOLD AND WIN - ALL STARTING COINS OVER 2x" : "Wheel awarded Hold & Win with 6 starting coins.");
+        setAnimationState("bonusIdle");
+        setUiState("Hold And Win");
+      } else if (wheelBonus.freeSpinsAwarded) {
+        setFreeSpins(Math.min(game.freeSpins.maxSpins ?? 30, wheelBonus.freeSpinsAwarded));
+        setFreeSpinTotal(0);
+        setStickyWildPositions([]);
+        setAnimationState("idle");
+        setUiState("Free Spins");
+      } else {
+        setOverlayResult(reveal.result);
+        setAnimationState("idle");
+        setUiState("Win");
+      }
+    }, frontierWheelSpinMs);
+  }
 
   function updateAfterSpin(result: SlotSpinResult, usedFreeSpin: boolean) {
     setGrid(result.grid);
@@ -376,6 +656,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
         key: Date.now(),
         collected: collectAdd,
         triggered: Boolean(result.triggeredCoinCollector),
+        cracked: chargedRelicCrackEvent(collectAdd),
         displayLevel: result.triggeredCoinCollector ? maxCollectorCoins : null,
       });
     }
@@ -388,36 +669,22 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
           : "",
     );
     setBonusMeter((current) => (result.triggeredBonus ? 0 : Math.min(100, current + game.bonusFeature.meterPerSpin)));
-    if (usedFreeSpin) {
-      setFreeSpins((count) => Math.max(0, count - 1));
-      setFreeSpinTotal((total) => nextFreeSpinTotal(total, result));
-    }
-    if (result.freeSpinsAwarded > 0) {
-      setFreeSpins((count) => count + result.freeSpinsAwarded);
-      setFreeSpinTotal(0);
+    const freeSpinCap = game.freeSpins.maxSpins ?? 30;
+    const freeSpinsAfterSpin = Math.max(0, freeSpins - (usedFreeSpin ? 1 : 0));
+    const freeSpinsAfterAwards = Math.min(freeSpinCap, freeSpinsAfterSpin + result.freeSpinsAwarded);
+    if (usedFreeSpin || result.freeSpinsAwarded > 0) {
+      setFreeSpins(freeSpinsAfterAwards);
+      setStickyWildPositions(getNextFrontierStickyWildPositions(game, result, stickyWildPositions, freeSpinsAfterAwards));
+      if (usedFreeSpin) setFreeSpinTotal((total) => nextFreeSpinTotal(total, result));
+      if (!usedFreeSpin && result.freeSpinsAwarded > 0) setFreeSpinTotal(0);
+    } else if (freeSpinsAfterAwards === 0 && stickyWildPositions.length > 0) {
+      setStickyWildPositions([]);
     }
     if (result.triggeredWheelBonus) {
       setBonusResult(null);
-      setWheelReveal({ result, revealed: false });
+      setWheelReveal({ result, phase: "ready", bonusBetAmount: betAmount, fromBuy: false });
       setOverlayResult(null);
       setAnimationState("bonusReveal");
-      if (result.wheelBonus?.featureTrigger) {
-        const superHold = result.wheelBonus.featureTrigger === "SUPER_HOLD_AND_WIN";
-        window.setTimeout(() => {
-          setWheelReveal((current) => current ? { ...current, revealed: true } : current);
-          setHoldState(createHoldAndWinState(game, betAmount, 6, superHold));
-          setHoldBought(false);
-          setHoldFeedback(superHold ? "SUPER HOLD AND WIN - ALL STARTING COINS OVER 2x" : "Wheel awarded Hold & Win with 6 starting coins.");
-          setAnimationState("bonusIdle");
-          setUiState("Hold And Win");
-        }, slotAnimation.bonus.revealMs);
-      } else {
-        window.setTimeout(() => {
-          setWheelReveal((current) => current ? { ...current, revealed: true } : current);
-          setOverlayResult(result);
-          setAnimationState("idle");
-        }, slotAnimation.bonus.revealMs + 620);
-      }
     } else if (result.triggeredHoldAndWin) {
       setHoldState(createHoldAndWinState(game, betAmount, game.holdAndWin?.triggerCount ?? 6));
       setHoldBought(false);
@@ -498,7 +765,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
     const stoppedReels = new Set<number>();
     let result: SlotSpinResult;
     try {
-      result = spinSlot({ user: currentUser, game, currency, betAmount, freeSpin: usedFreeSpin, spinMode: activeSpinMode });
+      result = spinSlot({ user: currentUser, game, currency, betAmount, freeSpin: usedFreeSpin, spinMode: activeSpinMode, stickyWildPositions: usedFreeSpin ? stickyWildPositions : undefined });
     } catch (caught) {
       setSpinning(false);
       setAnimationState("idle");
@@ -573,18 +840,61 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
         setOverlayResult(null);
         setUiState("Hold And Win");
         window.setTimeout(() => setAnimationState("bonusIdle"), slotAnimation.bonus.revealMs);
+      } else if (featureType === "WHEEL_BONUS" && game.id === "frontier-fortune") {
+        const payoutBetAmount = getBonusBuyPayoutBetAmount(game, betAmount, featureType, currency);
+        buyBonusDebit({ user: currentUser, game, currency, betAmount, featureType });
+        const wheelBonus = calculateWheelBonus(game, payoutBetAmount);
+        const payout = wheelBonus.payout;
+        resolvedPayout = payout;
+        const result: SlotSpinResult = {
+          gameId: game.id,
+          grid: generateGrid(game),
+          wager: cost,
+          payout,
+          multiplier: betAmount > 0 ? payout / betAmount : 0,
+          winType: "WHEEL_BONUS",
+          winTier: payout >= betAmount * 20 ? "MEGA" : payout >= betAmount * 8 ? "BIG" : payout > 0 ? "SMALL" : "NONE",
+          capped: false,
+          lineWins: [],
+          winningPositions: [],
+          freeSpinsAwarded: wheelBonus.freeSpinsAwarded ?? 0,
+          triggeredBonus: true,
+          triggeredFreeSpins: Boolean(wheelBonus.freeSpinsAwarded),
+          triggeredPickBonus: false,
+          triggeredHoldAndWin: Boolean(wheelBonus.featureTrigger),
+          triggeredWheelBonus: true,
+          bonusPayout: payout,
+          jackpotLabel: wheelBonus.jackpotLabel,
+          wheelBonus,
+        };
+        if (payout > 0) {
+          creditCurrency({
+            userId: currentUser.id,
+            type: result.jackpotLabel ? "JACKPOT_WIN" : "BONUS_WIN",
+            currency,
+            amount: payout,
+            metadata: {
+              gameId: game.id,
+              gameName: game.name,
+              featureType,
+              betAmount,
+              payoutBetAmount,
+              wheelBonus,
+              demoOnly: true,
+            },
+          });
+        }
+        setHistory((current) => [result, ...current].slice(0, 8));
+        setWheelReveal({ result, phase: "ready", bonusBetAmount: payoutBetAmount, fromBuy: true });
+        setOverlayResult(null);
+        setUiState("Bonus Triggered");
       } else {
         const result = buyBonusFeature({ user: currentUser, game, currency, betAmount, featureType });
         resolvedPayout = result.payout;
         setHistory((current) => [result, ...current].slice(0, 8));
-        setWheelReveal({ result, revealed: false });
+        setWheelReveal({ result, phase: "ready", bonusBetAmount: betAmount, fromBuy: true });
         setOverlayResult(null);
         setUiState("Win");
-        window.setTimeout(() => {
-          setWheelReveal((current) => current ? { ...current, revealed: true } : current);
-          setOverlayResult(result);
-          setAnimationState("idle");
-        }, slotAnimation.bonus.revealMs + 620);
       }
       refreshUser();
       recordRecentGame(game.id);
@@ -673,6 +983,30 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
     setAnimationState("idle");
   }
 
+  if (frontierEntryPhase === "loading") {
+    return (
+      <section
+        className={`slot-screen premium-slot-shell frontier frontier-entry-shell assets-loading ${lowPerformanceMode ? "low-performance" : ""}`}
+        style={{ "--accent": game.visual.accent, "--secondary": game.visual.secondary, "--panel": game.visual.panel } as React.CSSProperties}
+      >
+        <FrontierLoadingScreen progress={assetLoadProgress} />
+      </section>
+    );
+  }
+
+  if (frontierEntryPhase === "intro" && !frontierIntroReopened) {
+    return (
+      <section
+        className={`slot-screen premium-slot-shell frontier frontier-entry-shell assets-ready ${lowPerformanceMode ? "low-performance" : ""}`}
+        style={{ "--accent": game.visual.accent, "--secondary": game.visual.secondary, "--panel": game.visual.panel } as React.CSSProperties}
+      >
+        <FrontierFeatureIntroScreen
+          onContinue={continueFrontierEntry}
+        />
+      </section>
+    );
+  }
+
   return (
     <section
       className={`slot-screen premium-slot-shell ${game.visual.background ?? ""} ${inHoldAndWin ? "bonus-active" : ""} ${assetsLoaded ? "assets-ready" : "assets-loading"} ${lowPerformanceMode ? "low-performance" : ""} animation-${animationState}`}
@@ -718,33 +1052,36 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
         </div>
       </div>
       <div
-        className={`treasure-pot-collector charge-${treasurePotState.chargeLevel} ${treasurePotState.reset ? "triggered" : ""} ${treasurePotState.collecting ? "collecting" : ""}`}
-        style={{ "--charge": treasurePotState.level, "--pot-rise": `${5 - treasurePotState.level}px`, "--pot-scale": treasurePotState.scale, "--pot-glow": treasurePotState.glow } as React.CSSProperties}
-        aria-label={`Treasure Pot ${treasurePotState.level} of ${game.coinCollector?.maxCoins ?? 5}`}
-        title={collectorFeedback || `Treasure Pot ${treasurePotState.level} of ${game.coinCollector?.maxCoins ?? 5}`}
+        className={`charged-relic-collector charge-${treasurePotState.chargeLevel} ${treasurePotState.reset ? "triggered" : ""} ${treasurePotState.collecting ? "collecting" : ""} ${collectorAnimation.cracked ? "cracked" : ""}`}
+        style={{ "--charge": treasurePotState.level, "--relic-scale": treasurePotState.scale, "--relic-glow": treasurePotState.glow } as React.CSSProperties}
+        aria-label={`Charged Relic ${treasurePotState.level} of ${game.coinCollector?.maxCoins ?? 5}`}
+        title={collectorFeedback || `Charged Relic ${treasurePotState.level} of ${game.coinCollector?.maxCoins ?? 5}`}
       >
-        {treasurePotState.reset && <strong className="treasure-pot-trigger-label">Collector Triggered</strong>}
-        <div className="treasure-pot-core" aria-hidden="true">
-          <div className="treasure-pot-aura" />
-          <div className="treasure-pot-inner-light" />
-          <div className="treasure-pot-coins">
-            {treasurePotState.coins.map((filled, index) => (
-              <i className={filled ? "filled" : ""} key={index} />
-            ))}
-          </div>
-          <div className="treasure-pot-bowl" />
-          {Array.from({ length: 3 }, (_, index) => (
-            <span className="treasure-pot-spark" key={index} />
-          ))}
-          <div className="treasure-pot-flying-coins">
+        <span className="charged-relic-screen-glow" aria-hidden="true" />
+        {treasurePotState.reset && <strong className="charged-relic-trigger-label">Relic Burst</strong>}
+        {collectorAnimation.cracked && !treasurePotState.reset && <strong className="charged-relic-crack-label">Relic Surge</strong>}
+        <div className="charged-relic-core" aria-hidden="true">
+          <img className="charged-relic-shadow" src={frontierIntroAssets.relicShadow} alt="" />
+          <img className="charged-relic-aura" src={frontierIntroAssets.relicAura} alt="" />
+          <img className="charged-relic-spirit" src={frontierIntroAssets.relicSpirit} alt="" />
+          <span className="charged-relic-eye left" />
+          <span className="charged-relic-eye right" />
+          <span className="charged-relic-crack left" />
+          <span className="charged-relic-crack right" />
+          <div className="charged-relic-beams">
             {treasurePotState.flyingCoins.map((index) => (
               <span
                 key={`${collectorAnimation.key}-${index}`}
-                style={{ "--fly-index": index, "--fly-x": `${(index - (treasurePotState.flyingCoins.length - 1) / 2) * 18}px` } as React.CSSProperties}
+                style={{ "--beam-index": index, "--beam-x": `${(index - (treasurePotState.flyingCoins.length - 1) / 2) * 26}px` } as React.CSSProperties}
               />
             ))}
           </div>
-          <div className="treasure-pot-burst">
+          <div className="charged-relic-particles">
+            {(collectorAnimation.cracked ? Array.from({ length: 10 }, (_, index) => index) : []).map((index) => (
+              <span key={`${collectorAnimation.key}-crack-${index}`} style={{ "--particle-index": index } as React.CSSProperties} />
+            ))}
+          </div>
+          <div className="charged-relic-burst">
             {treasurePotState.burstCoins.map((index) => (
               <span key={`${collectorAnimation.key}-burst-${index}`} style={{ "--burst-index": index } as React.CSSProperties} />
             ))}
@@ -755,7 +1092,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
       <ScreenShake active={Boolean(overlayResult?.winTier === "MEGA")}>
       <div className="slot-board">
         <div className="slot-side-menu">
-          <button className="ghost-button icon-only" title="Menu"><Menu size={18} /></button>
+          <button className="ghost-button icon-only" onClick={reopenFrontierIntro} title="Feature Intro" aria-label="Feature Intro"><Menu size={18} /></button>
           <button className="ghost-button icon-only" onClick={() => setPaytableOpen(true)} title="Info"><Info size={18} /></button>
           <SoundToggle className="ghost-button icon-only" compact />
         </div>
@@ -803,7 +1140,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
             </div>
           ) : (
             <>
-              {lastResult?.lineWins.length ? (
+              {showLastWin && lastResult?.lineWins.length ? (
                 <svg className="payline-overlay" viewBox="0 0 500 300" preserveAspectRatio="none" aria-hidden="true">
                   {game.paylines.map((payline) => {
                     const points = payline.rows.map((lineRow, reel) => `${reel * 100 + 50},${lineRow * 100 + 50}`).join(" ");
@@ -815,14 +1152,17 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
                 Array.from({ length: game.reelCount }, (_, reel) => {
                   const symbolId = grid[reel]?.[row] ?? game.symbols[0].id;
                   const active = Boolean(
-                    lastResult?.winningPositions.some((position) => position.reel === reel && position.row === row) ||
-                    (lastResult?.triggeredHoldAndWin && symbolId === game.bonusSymbol)
+                    showLastWin &&
+                    (lastResult?.winningPositions.some((position) => position.reel === reel && position.row === row) ||
+                    (lastResult?.triggeredHoldAndWin && symbolId === game.bonusSymbol))
                   );
+                  const sticky = freeSpins > 0 && stickyWildPositions.includes(row * game.reelCount + reel);
                   return (
                     <SymbolTile
                       game={game}
                       symbolId={symbolId}
                       active={active}
+                      sticky={sticky}
                       reelState={reelStates[reel] ?? "idle"}
                       reelIndex={reel}
                       spinning={spinning && reelStates[reel] === "spinning"}
@@ -900,6 +1240,9 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
             </button>
           </div>
           <div className="premium-control-icons">
+            <button className="ghost-button icon-only" onClick={reopenFrontierIntro} title="Feature Intro" aria-label="Feature Intro">
+              <Menu size={18} />
+            </button>
             <button
               className={`ghost-button icon-only speed-control speed-${spinSpeed.toLowerCase()}`}
               onClick={() => setSpinSpeed((value) => getNextFrontierSpinSpeed(value))}
@@ -1066,7 +1409,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
                   <span>Gold Boost</span>
                 </span>
                 <strong>{formatCoins(getSpinCost(game, betAmount, "GOLD_BOOST"))} {currencyLabel}</strong>
-                <small>+20% cost, better coin chance.</small>
+                <small>+{Math.round(((game.boostSpins?.GOLD_BOOST?.costMultiplier ?? 1) - 1) * 100)}% cost, better coin chance.</small>
               </button>
               <button className="notice-card bonus-cost-card" disabled={balance < getSpinCost(game, betAmount, "SCATTER_BOOST")} onClick={() => startBoostSpin("SCATTER_BOOST")}>
                 <span className="bonus-card-icon scatter" aria-hidden="true"><img src="/assets/symbols/frontier/oasis_scatter.png" alt="" /></span>
@@ -1074,7 +1417,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
                   <span>Scatter Boost</span>
                 </span>
                 <strong>{formatCoins(getSpinCost(game, betAmount, "SCATTER_BOOST"))} {currencyLabel}</strong>
-                <small>+25% cost, better scatter chance.</small>
+                <small>+{Math.round(((game.boostSpins?.SCATTER_BOOST?.costMultiplier ?? 1) - 1) * 100)}% cost, better scatter chance.</small>
               </button>
             </div>
             <div className="modal-actions">
@@ -1084,23 +1427,77 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
         </Modal>
       )}
       {wheelReveal && (
-        <div className={`wheel-bonus-screen ${wheelReveal.revealed ? "revealed" : "spinning"}`} role="dialog" aria-label="Wheel Bonus">
+        <div
+          className={`wheel-bonus-screen ${wheelReveal.phase} drama-${wheelDrama}`}
+          role="dialog"
+          aria-label="Wheel Bonus"
+          style={{
+            "--wheel-end": `${getWheelLandingDegrees(wheelSectionLabels, wheelReveal.result.wheelBonus?.segment)}deg`,
+            "--segment-count": game.wheelBonus?.segments.length ?? 1,
+            "--wheel-spin-ms": `${frontierWheelSpinMs}ms`,
+          } as React.CSSProperties}
+        >
           <div className="wheel-bonus-panel">
             <span>WHEEL BONUS</span>
+            <div className="wheel-pointer" aria-hidden="true"><i /></div>
             <div className="wheel-disc">
-              {(game.wheelBonus?.segments ?? []).map((segment, index) => (
-                <i style={{ "--segment-index": index } as React.CSSProperties} key={`${segment.label}-${index}`}>{segment.label}</i>
-              ))}
-              <b>{wheelReveal.revealed ? wheelReveal.result.wheelBonus?.segment : ""}</b>
+              <div className="wheel-rim" aria-hidden="true">
+                {Array.from({ length: 24 }, (_, index) => <span key={index} style={{ "--peg-index": index } as React.CSSProperties} />)}
+              </div>
+              <div className="wheel-segment-ring">
+                {(game.wheelBonus?.segments ?? []).map((segment, index) => (
+                  <i
+                    style={{
+                      "--segment-index": index,
+                      "--segment-angle": `${360 / Math.max(1, game.wheelBonus?.segments.length ?? 1)}deg`,
+                      "--label-angle": `${index * -360 / Math.max(1, game.wheelBonus?.segments.length ?? 1)}deg`,
+                    } as React.CSSProperties}
+                    className={`wheel-prize-${getFrontierWheelPrizeClass(segment.label)}`}
+                    key={`${segment.label}-${index}`}
+                  >
+                    <em>{getFrontierWheelSegmentDisplayLabel(segment.label)}</em>
+                  </i>
+                ))}
+              </div>
+              <button
+                className="wheel-center-spin"
+                type="button"
+                disabled={wheelReveal.phase !== "ready"}
+                onClick={() => completeFrontierWheelSpin(wheelReveal)}
+                aria-label={wheelReveal.phase === "ready" ? "Spin Wheel Bonus" : "Wheel spinning"}
+              >
+                {wheelReveal.phase === "revealed" ? wheelReveal.result.wheelBonus?.segment : wheelReveal.phase === "ready" ? "SPIN" : "SPINNING"}
+              </button>
             </div>
-            <strong>{wheelReveal.revealed ? `Result: ${wheelReveal.result.wheelBonus?.segment}` : "Spinning..."}</strong>
-            {wheelReveal.revealed && (
+            <strong>
+              {wheelReveal.phase === "ready"
+                ? "Tap the center to spin"
+                : wheelReveal.phase === "spinning"
+                  ? wheelDrama === "near-miss"
+                    ? "Slowing near a big one..."
+                    : "Wheel is spinning..."
+                  : `${wheelReveal.result.wheelBonus?.segment}`}
+            </strong>
+            {wheelReveal.phase === "revealed" && (
               <p className="wheel-win-amount">
-                Won +{formatCoins(wheelReveal.result.payout)} {currencyLabel}
+                {wheelReveal.result.wheelBonus?.freeSpinsAwarded
+                  ? `${wheelReveal.result.wheelBonus.freeSpinsAwarded} sticky wild free spins awarded`
+                  : wheelReveal.result.wheelBonus?.featureTrigger
+                    ? getFrontierWheelResultAction(wheelReveal.result)
+                    : `Won +${formatCoins(wheelReveal.result.payout)} ${currencyLabel}`}
               </p>
             )}
-            <button className="primary-button" disabled={!wheelReveal.revealed} onClick={() => setWheelReveal(null)}>Continue</button>
+            <button className="primary-button" disabled={wheelReveal.phase !== "revealed"} onClick={() => setWheelReveal(null)}>
+              {wheelReveal.phase === "revealed" ? getFrontierWheelResultAction(wheelReveal.result) : wheelReveal.phase === "ready" ? "Spin the wheel first" : "Spinning"}
+            </button>
           </div>
+        </div>
+      )}
+      {frontierIntroReopened && (
+        <div className="frontier-intro-reopen-layer">
+          <FrontierFeatureIntroScreen
+            onContinue={continueFrontierEntry}
+          />
         </div>
       )}
       {bonusResult && (

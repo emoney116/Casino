@@ -9,6 +9,7 @@ export function SymbolTile({
   reelState = "idle",
   reelIndex = 0,
   compact = false,
+  sticky = false,
 }: {
   game: SlotConfig;
   symbolId: string;
@@ -17,6 +18,7 @@ export function SymbolTile({
   reelState?: ReelVisualState;
   reelIndex?: number;
   compact?: boolean;
+  sticky?: boolean;
 }) {
   const symbol = game.symbols.find((candidate) => candidate.id === symbolId);
   const label = symbol?.label ?? symbolId;
@@ -24,7 +26,7 @@ export function SymbolTile({
 
   return (
     <div
-      className={`symbol-tile ${symbol?.kind ?? "regular"} ${active ? "win" : ""} ${spinning ? "spinning" : ""} ${reelState} ${compact ? "compact" : ""}`}
+      className={`symbol-tile ${symbol?.kind ?? "regular"} ${active ? "win" : ""} ${sticky ? "sticky-wild" : ""} ${spinning ? "spinning" : ""} ${reelState} ${compact ? "compact" : ""}`}
       style={{ "--symbol": color, "--reel-index": reelIndex } as React.CSSProperties}
       title={label}
     >

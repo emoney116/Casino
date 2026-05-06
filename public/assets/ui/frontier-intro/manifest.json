@@ -1,0 +1,23 @@
+{
+  "pack": "Frontier Fortune intro screen production asset pack",
+  "target": "mobile-first feature intro screen only",
+  "assets": [
+    "ff_intro_bg_blurred_canyon_1080x1920.png",
+    "ff_intro_card_frame_hold_win_red_gold.png",
+    "ff_intro_card_frame_wheel_bonus_green_gold.png",
+    "ff_intro_center_relic_aura.png",
+    "ff_intro_center_relic_spirit.png",
+    "ff_intro_center_shadow.png",
+    "ff_intro_cta_button_gold_blank.png",
+    "ff_intro_icon_hold_win_coins.png",
+    "ff_intro_icon_wheel_bonus.png",
+    "ff_intro_logo_frontier_fortune.png",
+    "ff_intro_logo_with_glow.png",
+    "ff_intro_overlay_embers.png",
+    "ff_intro_overlay_soft_light_rays.png",
+    "ff_intro_overlay_vignette_1080x1920.png",
+    "ff_intro_preview_composed.png",
+    "ff_intro_text_tap_to_continue.png"
+  ],
+  "notes": "Text should still be rendered in React/HTML for responsiveness. Card frames and icons are separated for animation. Do not modify slot math or backend."
+}

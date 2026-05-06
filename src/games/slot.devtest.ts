@@ -1,12 +1,12 @@
 import { exposedSlotConfigs, slotConfigs } from "./slotConfigs";
 import { getMathWarnings, simulateSlot } from "./slotMath";
-import { buyBonusDebit, buyBonusFeature, calculateHoldAndWinBonus, calculateNeonCascadeResult, calculateSlotResult, calculateWheelBonus, createHoldAndWinState, creditHoldAndWinBonus, creditPickBonus, getBonusBuyCost, getBonusBuyPayoutBetAmount, getSpinCost, spinSlot, stepHoldAndWinBonus } from "./slotEngine";
+import { buyBonusDebit, buyBonusFeature, calculateDirectFeature, calculateFreeSpinsBonus, calculateHoldAndWinBonus, calculateNeonCascadeResult, calculateSlotResult, calculateWheelBonus, createHoldAndWinState, creditHoldAndWinBonus, creditPickBonus, generateGrid, getBonusBuyCost, getBonusBuyPayoutBetAmount, getSpinCost, spinSlot, stepHoldAndWinBonus } from "./slotEngine";
 import { creditCurrency, getBalance, getTransactions } from "../wallet/walletService";
 import type { User } from "../types";
 import { clearRecentGames, getRecentGames, recordRecentGame } from "./recentGames";
 import { dismissOnboarding, hasDismissedOnboarding } from "../app/onboarding";
 import { frontierUiAssets, requiredFrontierUiAssetKeys } from "./frontierAssets";
-import { frontierTurboBypassesAnimation, getBetOptions, getBonusBoostMenuOptions, getBonusChanceTier, getBuyBonusCost, getCoinDisplayLabels, getDefaultBetAmount, getFrontierAnticipationState, getFrontierBetModalLayout, getFrontierCollectorPlacement, getFrontierEBoostIconAsset, getFrontierMainControlActions, getFrontierReelAction, getFrontierSpinAnimationMode, getJackpotBadgeLabels, getNextFrontierSpinSpeed, getTreasurePotChargeLevel, getTreasurePotVisualState, getWheelSectionLabels } from "./SlotMachine";
+import { chargedRelicCrackEvent, frontierEntryLoadingMessages, frontierFeatureIntroCards, frontierIntroAssets, frontierTurboBypassesAnimation, frontierWheelSpinMs, getBetOptions, getBonusBoostMenuOptions, getBonusChanceTier, getBuyBonusCost, getCoinDisplayLabels, getDefaultBetAmount, getFrontierAnticipationState, getFrontierBetModalLayout, getFrontierCollectorPlacement, getFrontierEBoostIconAsset, getFrontierEntryPhase, getFrontierFeatureIntroPreference, getFrontierLoadingMessage, getFrontierMainControlActions, getFrontierReelAction, getFrontierSpinAnimationMode, getFrontierWheelDrama, getFrontierWheelPrizeClass, getFrontierWheelResultAction, getFrontierWheelSegmentDisplayLabel, getJackpotBadgeLabels, getNextFrontierSpinSpeed, getNextFrontierStickyWildPositions, getTreasurePotChargeLevel, getTreasurePotVisualState, getWheelLandingDegrees, getWheelSectionLabels, setFrontierFeatureIntroPreference } from "./SlotMachine";
 import { getSpinDuration, slotAnimation } from "./slotAnimation";
 import { nextFreeSpinTotal } from "./slotSession";
 import { feedbackUiMarkers } from "../feedback/components";
@@ -16,6 +16,7 @@ import { claimMission, getMissions, recordMissionEvent } from "../missions/missi
 import { isFavorite, toggleFavorite } from "./favorites";
 import { updateData } from "../lib/storage";
 import { canClaimLowBalanceOffer, claimLowBalanceOffer, claimPromotion, getMostPlayedGames, getRetentionState, recordRetentionRound, resetRetention } from "../retention/retentionService";
+import type { SlotSpinResult } from "./types";
 
 const memory: Record<string, string> = {};
 globalThis.localStorage = {
@@ -228,6 +229,69 @@ if (bonusMenu.length !== 4 || !bonusMenu.some((option) => option.label === "Buy 
 if (getBonusBuyCost(frontier, 0.1, "HOLD_AND_WIN", "BONUS") !== 10 || getBonusBuyCost(frontier, 0.1, "WHEEL_BONUS", "BONUS") !== 8) {
   throw new Error("Expected Sweeps bonus buy costs to be 10 SC for Hold & Win and 8 SC for Wheel at 0.10 bet.");
 }
+if (getBonusBuyCost(frontier, 10, "HOLD_AND_WIN", "GOLD") !== 1000 || getBonusBuyCost(frontier, 10, "WHEEL_BONUS", "GOLD") !== 800) {
+  throw new Error("Expected Gold bonus buy costs to match Sweeps multipliers: 100x Hold & Win and 80x Wheel.");
+}
+for (const sweepsBet of getBetOptions(frontier, "BONUS")) {
+  if (Math.abs(getBonusBuyCost(frontier, sweepsBet, "HOLD_AND_WIN", "BONUS") - sweepsBet * 100) > 0.001) {
+    throw new Error("Expected Sweeps Hold & Win buy cost to scale from the 0.10 bet as 100x bet.");
+  }
+  if (Math.abs(getBonusBuyCost(frontier, sweepsBet, "WHEEL_BONUS", "BONUS") - sweepsBet * 80) > 0.001) {
+    throw new Error("Expected Sweeps Wheel buy cost to scale from the 0.10 bet as 80x bet.");
+  }
+}
+for (const goldBet of getBetOptions(frontier, "GOLD")) {
+  if (Math.abs(getBonusBuyCost(frontier, goldBet, "HOLD_AND_WIN", "GOLD") - goldBet * 100) > 0.001) {
+    throw new Error("Expected Gold Hold & Win buy cost to scale as 100x bet.");
+  }
+  if (Math.abs(getBonusBuyCost(frontier, goldBet, "WHEEL_BONUS", "GOLD") - goldBet * 80) > 0.001) {
+    throw new Error("Expected Gold Wheel buy cost to scale as 80x bet.");
+  }
+}
+function simulateCurrencyBonusBuyRtp(featureType: "HOLD_AND_WIN" | "WHEEL_BONUS", betAmount: number, currency: "GOLD" | "BONUS", samples = 3000) {
+  let paid = 0;
+  let wagered = 0;
+  const previousRandom = Math.random;
+  let seed = featureType === "HOLD_AND_WIN" ? 77 : 177;
+  seed += currency === "GOLD" ? 1000 : 0;
+  Math.random = () => {
+    seed = (seed * 1664525 + 1013904223) % 4294967296;
+    return seed / 4294967296;
+  };
+  try {
+    for (let index = 0; index < samples; index += 1) {
+      const payoutBetAmount = getBonusBuyPayoutBetAmount(frontier!, betAmount, featureType, currency);
+      const feature = calculateDirectFeature(frontier!, payoutBetAmount, featureType);
+      paid += Math.min(feature.bonusPayout, betAmount * frontier!.maxPayoutMultiplier);
+      wagered += getBonusBuyCost(frontier!, betAmount, featureType, currency);
+    }
+  } finally {
+    Math.random = previousRandom;
+  }
+  return paid / wagered;
+}
+const sweepsBuyRandom = Math.random;
+let sweepsBuySeed = 77;
+Math.random = () => {
+  sweepsBuySeed = (sweepsBuySeed * 1664525 + 1013904223) % 4294967296;
+  return sweepsBuySeed / 4294967296;
+};
+try {
+  const sweepsHoldBuyRtp = simulateCurrencyBonusBuyRtp("HOLD_AND_WIN", 0.1, "BONUS");
+  const sweepsWheelBuyRtp = simulateCurrencyBonusBuyRtp("WHEEL_BONUS", 0.1, "BONUS");
+  const goldHoldBuyRtp = simulateCurrencyBonusBuyRtp("HOLD_AND_WIN", 10, "GOLD");
+  const goldWheelBuyRtp = simulateCurrencyBonusBuyRtp("WHEEL_BONUS", 10, "GOLD");
+  if (
+    sweepsHoldBuyRtp < 0.85 || sweepsHoldBuyRtp > 0.95 ||
+    sweepsWheelBuyRtp < 0.85 || sweepsWheelBuyRtp > 0.95 ||
+    goldHoldBuyRtp < 0.85 || goldHoldBuyRtp > 0.95 ||
+    goldWheelBuyRtp < 0.85 || goldWheelBuyRtp > 0.95
+  ) {
+    throw new Error(`Expected Gold/Sweeps buy bonus RTPs to stay 85-95%, got SC Hold ${sweepsHoldBuyRtp} SC Wheel ${sweepsWheelBuyRtp} GC Hold ${goldHoldBuyRtp} GC Wheel ${goldWheelBuyRtp}.`);
+  }
+} finally {
+  Math.random = sweepsBuyRandom;
+}
 if (bonusMenu.filter((option) => option.label.includes("Boost")).length !== 2) {
   throw new Error("Expected boost actions to live in the Bonus/Boost menu.");
 }
@@ -237,6 +301,38 @@ if (mainActions.includes("Gold Boost") || mainActions.includes("Scatter Boost") 
 }
 if (!getFrontierEBoostIconAsset().endsWith("/assets/ui/money-lightning/primary_256.svg") || !getFrontierEBoostIconAsset("active").endsWith("/assets/ui/money-lightning/neon_256.svg")) {
   throw new Error("Expected Frontier E-Boost to render the money-lightning primary icon with a neon active asset.");
+}
+if (getFrontierEntryPhase(frontier.id, false, false, false) !== "loading") {
+  throw new Error("Expected Frontier Fortune to render a loading screen before assets are ready.");
+}
+if (getFrontierEntryPhase(frontier.id, true, false, false) !== "intro" || frontierFeatureIntroCards.length !== 2) {
+  throw new Error("Expected Frontier Fortune to render the feature intro after loading.");
+}
+if (!frontierFeatureIntroCards[0].detail.includes("Gold coins lock in place.") || !frontierFeatureIntroCards[1].detail.includes("Land oasis scatters.")) {
+  throw new Error("Expected Frontier intro cards to use the short mobile-safe feature copy.");
+}
+if (!frontierIntroAssets.bg.endsWith("ff_intro_bg_blurred_canyon_1080x1920.png") || frontierIntroAssets.logo !== frontierUiAssets.titleLogo || !frontierIntroAssets.holdIcon.endsWith("/assets/ui/money-lightning/primary_256.svg")) {
+  throw new Error("Expected Frontier intro to use separated pro intro assets, not the composed preview.");
+}
+if (Object.values(frontierIntroAssets).some((asset) => asset.includes("ff_intro_preview_composed") || asset.includes("ff_intro_text_tap_to_continue"))) {
+  throw new Error("Expected Frontier intro text to render in HTML and the preview to remain unused.");
+}
+if (getFrontierEntryPhase(frontier.id, true, true, false) !== "game") {
+  throw new Error("Expected tapping continue to enter the Frontier Fortune game.");
+}
+if (getFrontierEntryPhase(frontier.id, true, true, true, true) !== "intro") {
+  throw new Error("Expected the in-game feature menu to reopen the Frontier Fortune intro.");
+}
+if (getFrontierLoadingMessage(0) !== frontierEntryLoadingMessages[0] || getFrontierLoadingMessage(48) !== "Loading bonuses..." || getFrontierLoadingMessage(100) !== "Preparing reels...") {
+  throw new Error("Expected Frontier loading progress to advance through premium loading messages.");
+}
+setFrontierFeatureIntroPreference(true, globalThis.localStorage);
+if (!getFrontierFeatureIntroPreference(globalThis.localStorage) || getFrontierEntryPhase(frontier.id, true, false, true) !== "game") {
+  throw new Error("Expected Frontier don't-show-again preference to persist and skip the intro.");
+}
+setFrontierFeatureIntroPreference(false, globalThis.localStorage);
+if (getFrontierFeatureIntroPreference(globalThis.localStorage)) {
+  throw new Error("Expected Frontier intro preference to clear when don't-show-again is disabled.");
 }
 if (frontier.coinCollector?.maxCoins !== 5) {
   throw new Error("Expected collector display to use a compact 1-5 charge model.");
@@ -256,24 +352,97 @@ if (!frontierTurboBypassesAnimation("TURBO") || frontierTurboBypassesAnimation("
 }
 const potVisual = getTreasurePotVisualState(3, 5, false, 2);
 if (getFrontierCollectorPlacement() !== "above-reels") {
-  throw new Error("Expected Treasure Pot collector to render above the reels.");
+  throw new Error("Expected Charged Relic collector to render above the reels.");
 }
 if (getTreasurePotChargeLevel(0, 5) !== "empty" || getTreasurePotChargeLevel(1, 5) !== "low" || getTreasurePotChargeLevel(3, 5) !== "medium" || getTreasurePotChargeLevel(4, 5) !== "high" || getTreasurePotChargeLevel(5, 5) !== "full") {
-  throw new Error("Expected Treasure Pot charge levels to map empty, low, medium, high, and full.");
+  throw new Error("Expected Charged Relic charge levels to map empty, low, medium, high, and full.");
 }
 if (potVisual.level !== 3 || potVisual.chargeLevel !== "medium" || potVisual.coins.filter(Boolean).length !== 3 || potVisual.flyingCoins.length !== 2 || !potVisual.collecting || potVisual.scale <= 1 || potVisual.glow <= 0) {
-  throw new Error("Expected Treasure Pot visual state to grow and fill as coins collect.");
+  throw new Error("Expected Charged Relic visual state to grow and energize as coins collect.");
 }
 const triggeredPotVisual = getTreasurePotVisualState(5, 5, true, 1);
 if (!triggeredPotVisual.reset || triggeredPotVisual.burstCoins.length === 0 || triggeredPotVisual.chargeLevel !== "full") {
-  throw new Error("Expected Treasure Pot trigger state to run the burst animation at full charge.");
+  throw new Error("Expected Charged Relic trigger state to run the burst animation at full charge.");
+}
+if (!chargedRelicCrackEvent(1, 0.05) || chargedRelicCrackEvent(1, 0.5) || chargedRelicCrackEvent(0, 0.01)) {
+  throw new Error("Expected Charged Relic crack/surge animation to be a coin-hit-only random visual event.");
+}
+if (frontier.payoutTable.some((rule) => rule.count < 3)) {
+  throw new Error("Expected Frontier Fortune line pays to start at 3 symbols, with no 2-symbol payouts.");
 }
 const wheelSections = getWheelSectionLabels(frontier);
-for (const section of ["2x", "3x", "5x", "8x", "10x", "15x", "Mini", "Major", "Trigger Hold & Win", "SUPER Hold & Win"]) {
+for (const section of ["2x", "5x", "10x", "15x", "Mini x2", "Minor x2", "Major x2", "Hold & Win", "Super Hold & Win", "10 Free Spins", "15 Free Spins", "20 Free Spins"]) {
   if (!wheelSections.includes(section)) throw new Error(`Expected Wheel Bonus section ${section}.`);
 }
-if (getBonusBuyPayoutBetAmount(frontier, 0.1, "WHEEL_BONUS", "BONUS") <= 0.1 || getBonusBuyPayoutBetAmount(frontier, 0.1, "HOLD_AND_WIN", "BONUS") <= 0.1) {
-  throw new Error("Expected Sweeps bonus buys to use a payout basis aligned with their fixed buy costs.");
+if (wheelSections.includes("3x") || wheelSections.includes("8x")) {
+  throw new Error("Expected Frontier Wheel Bonus to remove weak 3x/8x filler sections.");
+}
+const featureWheelIndexes = wheelSections
+  .map((label, index) => ({ label, index }))
+  .filter((entry) => getFrontierWheelPrizeClass(entry.label) === "feature")
+  .map((entry) => entry.index);
+for (const index of featureWheelIndexes) {
+  const previous = (index - 1 + wheelSections.length) % wheelSections.length;
+  const next = (index + 1) % wheelSections.length;
+  if (featureWheelIndexes.includes(previous) || featureWheelIndexes.includes(next)) {
+    throw new Error("Expected Frontier Wheel feature prizes to be spread out between regular prizes.");
+  }
+}
+if (frontierWheelSpinMs < 5000 || !getFrontierWheelSegmentDisplayLabel("10 Free Spins").includes("\n") || getFrontierWheelDrama(wheelSections, "5x") !== "near-miss") {
+  throw new Error("Expected Frontier Wheel to use a slower click-to-spin presentation with readable labels and near-miss drama.");
+}
+if (getWheelLandingDegrees(wheelSections, "Major x2") === getWheelLandingDegrees(wheelSections, "2x")) {
+  throw new Error("Expected wheel visual result mapping to land different segments at different pointer angles.");
+}
+const wheelRandom = Math.random;
+function randomForFrontierWheelSegment(label: string) {
+  const segments = frontier!.wheelBonus?.segments ?? [];
+  const total = segments.reduce((sum, segment) => sum + segment.weight, 0);
+  let before = 0;
+  for (const segment of segments) {
+    if (segment.label === label) return (before + segment.weight / 2) / total;
+    before += segment.weight;
+  }
+  throw new Error(`Missing Frontier wheel segment ${label}.`);
+}
+Math.random = () => randomForFrontierWheelSegment("10 Free Spins");
+try {
+  const freeSpinWheel = calculateWheelBonus(frontier, 100);
+  if (freeSpinWheel.freeSpinsAwarded !== 10 || freeSpinWheel.payout !== 0) {
+    throw new Error("Expected Wheel Bonus free-spin segment to award 10 free spins without an immediate multiplier payout.");
+  }
+  if (getFrontierWheelResultAction({ wheelBonus: freeSpinWheel } as SlotSpinResult) !== "Start 10 Free Spins") {
+    throw new Error("Expected Wheel Bonus result action to identify free-spin starts.");
+  }
+} finally {
+  Math.random = wheelRandom;
+}
+Math.random = () => randomForFrontierWheelSegment("Hold & Win");
+try {
+  const holdWheel = calculateWheelBonus(frontier, 100);
+  if (holdWheel.featureTrigger !== "HOLD_AND_WIN" || getFrontierWheelResultAction({ wheelBonus: holdWheel } as SlotSpinResult) !== "Start Hold & Win") {
+    throw new Error("Expected Wheel Bonus Hold & Win segment to route into Hold & Win.");
+  }
+} finally {
+  Math.random = wheelRandom;
+}
+Math.random = () => randomForFrontierWheelSegment("Super Hold & Win");
+try {
+  const superHoldWheel = calculateWheelBonus(frontier, 100);
+  if (superHoldWheel.featureTrigger !== "SUPER_HOLD_AND_WIN" || getFrontierWheelResultAction({ wheelBonus: superHoldWheel } as SlotSpinResult) !== "Start Super Hold & Win") {
+    throw new Error("Expected Wheel Bonus Super Hold & Win segment to route into the super hold path.");
+  }
+} finally {
+  Math.random = wheelRandom;
+}
+if (getBonusBuyPayoutBetAmount(frontier, 0.1, "WHEEL_BONUS", "BONUS") !== 0.1 || getBonusBuyPayoutBetAmount(frontier, 0.1, "HOLD_AND_WIN", "BONUS") <= 0.1) {
+  throw new Error("Expected Sweeps Wheel Bonus to use the spin bet as its payout basis while Hold & Win keeps its buy-basis tuning.");
+}
+const wheelSpinBasis = calculateWheelBonus({ ...frontier, wheelBonus: { triggerCount: 3, segments: [{ label: "2x", multiplier: 2, weight: 1 }] } }, 0.1);
+const wheelBuyBasis = calculateWheelBonus({ ...frontier, wheelBonus: { triggerCount: 3, segments: [{ label: "2x", multiplier: 2, weight: 1 }] } }, getBonusBuyPayoutBetAmount(frontier, 0.1, "WHEEL_BONUS", "BONUS"));
+const wheelMajorBasis = calculateWheelBonus({ ...frontier, wheelBonus: { triggerCount: 3, segments: [{ label: "Major x2", multiplier: 100, weight: 1, jackpotLabel: "Major" }] } }, 0.1);
+if (wheelSpinBasis.payout !== 0.2 || wheelBuyBasis.payout !== 0.2 || wheelMajorBasis.payout !== 10) {
+  throw new Error(`Expected Wheel multipliers to pay from the bet size: 2x = 0.20 and Major x2 = 10.00 on 0.10, got ${wheelSpinBasis.payout}, ${wheelBuyBasis.payout}, ${wheelMajorBasis.payout}.`);
 }
 const sweepsHoldPayoutBasis = getBonusBuyPayoutBetAmount(frontier, 0.1, "HOLD_AND_WIN", "BONUS");
 const sweepsHoldState = createHoldAndWinState(frontier, sweepsHoldPayoutBasis, 6);
@@ -297,8 +466,45 @@ for (const mode of ["NORMAL", "GOLD_BOOST", "SCATTER_BOOST", "BUY_HOLD_AND_WIN",
     throw new Error(`Expected admin simulation to report ${mode}.`);
   }
 }
+const wheelBuyRtp = frontierSim.modeResults?.BUY_WHEEL_BONUS?.observedRtp ?? 0;
+const holdBuyRtp = frontierSim.modeResults?.BUY_HOLD_AND_WIN?.observedRtp ?? 0;
+const normalRtp = frontierSim.modeResults?.NORMAL?.observedRtp ?? 0;
+const goldBoostRtp = frontierSim.modeResults?.GOLD_BOOST?.observedRtp ?? 0;
+const scatterBoostRtp = frontierSim.modeResults?.SCATTER_BOOST?.observedRtp ?? 0;
+if (normalRtp < 0.85 || normalRtp > 0.95) {
+  throw new Error(`Expected normal Frontier Fortune RTP to stay between 85% and 95% after line-pay tuning, got ${normalRtp}.`);
+}
+if (goldBoostRtp < 0.85 || goldBoostRtp > 0.95 || scatterBoostRtp < 0.85 || scatterBoostRtp > 0.95) {
+  throw new Error(`Expected Frontier boost RTPs to stay between 85% and 95%, got Gold ${goldBoostRtp} Scatter ${scatterBoostRtp}.`);
+}
+if (holdBuyRtp < 0.85 || holdBuyRtp > 0.95) {
+  throw new Error(`Expected Buy Hold & Win RTP to stay between 85% and 95%, got ${holdBuyRtp}.`);
+}
+if (wheelBuyRtp < 0.88 || wheelBuyRtp > 0.93) {
+  throw new Error(`Expected Buy Wheel Bonus RTP to tune around 88-93%, got ${wheelBuyRtp}.`);
+}
+if (frontierSim.observedRtp >= 0.95) {
+  throw new Error(`Expected full Frontier Fortune RTP impact to stay under 95%, got ${frontierSim.observedRtp}.`);
+}
 if (getMathWarnings(frontier, frontierSim).some((warning) => warning.includes("above 95"))) {
   throw new Error("Expected Frontier test simulation modes to stay under configured RTP warnings.");
+}
+const lowAceGrid = [
+  ["10", "A", "J"],
+  ["K", "A", "Q"],
+  ["Q", "A", "10"],
+  ["J", "K", "Q"],
+  ["10", "Q", "J"],
+];
+const lowAceResult = calculateSlotResult(frontier, 0.1, false, lowAceGrid);
+const lowAceLine = lowAceResult.lineWins.find((win) => win.paylineId === "middle" && win.symbol === "A");
+if (!lowAceLine || lowAceLine.count !== 3 || lowAceLine.payout !== 0.02) {
+  throw new Error(`Expected a 0.10 SC bet with a 3-A line to pay 0.02, got ${lowAceLine?.payout}.`);
+}
+for (let index = 0; index < 200; index += 1) {
+  if (generateGrid(frontier, "NORMAL", true).flat().some((symbol) => symbol === "10" || symbol === "J")) {
+    throw new Error("Expected Frontier free spins to remove lowest-value 10/J symbols from generated grids.");
+  }
 }
 const holdBonus = calculateHoldAndWinBonus(frontier, frontier.minBet);
 if (!Number.isFinite(holdBonus.total) || holdBonus.respinRounds.length === 0) {
@@ -325,6 +531,26 @@ const frontierScatterGrid = [
 const forcedWheel = calculateSlotResult(frontier, 100, false, frontierScatterGrid);
 if (!forcedWheel.triggeredWheelBonus || !forcedWheel.wheelBonus) {
   throw new Error("Expected 3 Frontier Oasis Scatters to trigger Wheel Bonus.");
+}
+const forcedFreeSpinRetrigger = calculateSlotResult(frontier, 100, true, frontierScatterGrid);
+if (forcedFreeSpinRetrigger.triggeredWheelBonus || forcedFreeSpinRetrigger.freeSpinsAwarded !== 5) {
+  throw new Error("Expected 3 scatters during Frontier free spins to retrigger +5 spins without nesting another wheel.");
+}
+const stickyGrid = [
+  ["mirage_wild", "10", "J"],
+  ["A", "K", "Q"],
+  ["K", "10", "J"],
+  ["Q", "J", "A"],
+  ["10", "K", "Q"],
+];
+const stickyResult = calculateSlotResult(frontier, 100, true, stickyGrid);
+const stickyPositions = getNextFrontierStickyWildPositions(frontier, stickyResult, [], 4);
+if (!stickyPositions.includes(0) || getNextFrontierStickyWildPositions(frontier, stickyResult, stickyPositions, 0).length !== 0) {
+  throw new Error("Expected sticky wilds to persist during Frontier free spins and reset when the round ends.");
+}
+const freeSpinRound = calculateFreeSpinsBonus(frontier, 100, 10);
+if (freeSpinRound.spinsAwarded > (frontier.freeSpins.maxSpins ?? 30) || freeSpinRound.spinsPlayed > (frontier.freeSpins.maxSpins ?? 30)) {
+  throw new Error("Expected Frontier free spins retriggers to respect the configured cap.");
 }
 const wheelMultiplier = calculateWheelBonus(frontier, 100);
 if (wheelMultiplier.payout !== Math.round(wheelMultiplier.multiplier * 100)) {

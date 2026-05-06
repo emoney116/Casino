@@ -1,6 +1,7 @@
 import type { SimulationResult, SlotConfig } from "./types";
-import { calculateDirectFeature, calculateHoldAndWinBonus, calculateNeonCascadeResult, calculateSlotResult, getBonusBuyCost, getSpinCost } from "./slotEngine";
+import { calculateDirectFeature, calculateFreeSpinsBonus, calculateHoldAndWinBonus, calculateNeonCascadeResult, calculateSlotResult, getBonusBuyCost, getBonusBuyPayoutBetAmount, getSpinCost } from "./slotEngine";
 import { capDemoPayout } from "../economy/limits";
+import type { Currency } from "../types";
 import type { BonusFeatureType, SpinMode } from "./types";
 
 // Demo-only math tooling. Any real regulated gambling product would need certified
@@ -22,13 +23,8 @@ export function simulateSlot(game: SlotConfig, spins = 100000, betAmount = game.
   for (let index = 0; index < spins; index += 1) {
     const result = game.id === "neon-fortune" ? calculateNeonCascadeResult(game, betAmount) : calculateSlotResult(game, betAmount);
     totalWagered += betAmount;
-    let freeSpinPaid = 0;
-    for (let freeSpin = 0; freeSpin < result.freeSpinsAwarded; freeSpin += 1) {
-      const freeResult =
-        game.id === "neon-fortune" ? calculateNeonCascadeResult(game, betAmount, true) : calculateSlotResult(game, betAmount, true);
-      freeSpinPaid += freeResult.payout + (freeResult.pickBonusAwards?.[0] ?? 0);
-      biggestWin = Math.max(biggestWin, freeResult.payout);
-    }
+    const freeSpinBonus = result.freeSpinsAwarded > 0 ? calculateFreeSpinsBonus(game, betAmount, result.freeSpinsAwarded) : undefined;
+    const freeSpinPaid = freeSpinBonus?.total ?? 0;
     const pickAward = result.pickBonusAwards?.[0] ?? 0;
     const holdAward = result.triggeredHoldAndWin ? calculateHoldAndWinBonus(game, betAmount).total : 0;
     if (result.capped || holdAward >= betAmount * game.maxPayoutMultiplier) cappedResults += 1;
@@ -42,7 +38,7 @@ export function simulateSlot(game: SlotConfig, spins = 100000, betAmount = game.
     if (result.triggeredHoldAndWin) holdAndWinTriggers += 1;
     if (result.triggeredWheelBonus) wheelBonusTriggers += 1;
     if (result.triggeredCoinCollector) coinCollectorTriggers += 1;
-    biggestWin = Math.max(biggestWin, totalResultPaid);
+    biggestWin = Math.max(biggestWin, totalResultPaid, freeSpinPaid);
   }
 
   const modeResults: NonNullable<SimulationResult["modeResults"]> = {
@@ -51,10 +47,10 @@ export function simulateSlot(game: SlotConfig, spins = 100000, betAmount = game.
   if (game.boostSpins?.GOLD_BOOST) modeResults.GOLD_BOOST = simulateSpinMode(game, spins, betAmount, "GOLD_BOOST");
   if (game.boostSpins?.SCATTER_BOOST) modeResults.SCATTER_BOOST = simulateSpinMode(game, spins, betAmount, "SCATTER_BOOST");
   if (game.bonusBuys?.some((buy) => buy.featureType === "HOLD_AND_WIN")) {
-    modeResults.BUY_HOLD_AND_WIN = simulateBonusBuyMode(game, spins, betAmount, "HOLD_AND_WIN");
+    modeResults.BUY_HOLD_AND_WIN = simulateBonusBuyMode(game, spins, betAmount, "HOLD_AND_WIN", "GOLD");
   }
   if (game.bonusBuys?.some((buy) => buy.featureType === "WHEEL_BONUS")) {
-    modeResults.BUY_WHEEL_BONUS = simulateBonusBuyMode(game, spins, betAmount, "WHEEL_BONUS");
+    modeResults.BUY_WHEEL_BONUS = simulateBonusBuyMode(game, spins, betAmount, "WHEEL_BONUS", "GOLD");
   }
 
   let buyBonusRtp: number | undefined;
@@ -63,10 +59,11 @@ export function simulateSlot(game: SlotConfig, spins = 100000, betAmount = game.
     let buyPaid = 0;
     let buyCost = 0;
     let buyCapHits = 0;
-    const cost = getBonusBuyCost(game, betAmount, game.buyBonus.featureType);
-    const buySpins = Math.min(250, spins);
+    const cost = getBonusBuyCost(game, betAmount, game.buyBonus.featureType, "GOLD");
+    const buySpins = Math.min(5000, spins);
     for (let index = 0; index < buySpins; index += 1) {
-      const feature = calculateDirectFeature(game, betAmount, game.buyBonus.featureType);
+      const payoutBetAmount = getBonusBuyPayoutBetAmount(game, betAmount, game.buyBonus.featureType, "GOLD");
+      const feature = calculateDirectFeature(game, payoutBetAmount, game.buyBonus.featureType);
       const payout = Math.min(feature.bonusPayout, capDemoPayout(Math.round(betAmount * game.maxPayoutMultiplier)));
       buyCost += cost;
       buyPaid += payout;
@@ -108,7 +105,8 @@ function simulateSpinMode(game: SlotConfig, spins: number, betAmount: number, sp
       ? calculateNeonCascadeResult(game, betAmount)
       : calculateSlotResult(game, betAmount, false, undefined, spinMode);
     const holdAward = result.triggeredHoldAndWin ? calculateHoldAndWinBonus(game, betAmount).total : 0;
-    const totalResultPaid = result.payout + (result.pickBonusAwards?.[0] ?? 0) + holdAward;
+    const freeSpinAward = result.freeSpinsAwarded > 0 ? calculateFreeSpinsBonus(game, betAmount, result.freeSpinsAwarded).total : 0;
+    const totalResultPaid = result.payout + (result.pickBonusAwards?.[0] ?? 0) + holdAward + freeSpinAward;
     const wager = getSpinCost(game, betAmount, spinMode);
     totalWagered += wager;
     totalPaid += totalResultPaid;
@@ -119,16 +117,17 @@ function simulateSpinMode(game: SlotConfig, spins: number, betAmount: number, sp
   return { totalWagered, totalPaid, observedRtp, biggestWin, capHitRate: capHits / spins, warning: observedRtp > 0.95 };
 }
 
-function simulateBonusBuyMode(game: SlotConfig, spins: number, betAmount: number, featureType: BonusFeatureType) {
+function simulateBonusBuyMode(game: SlotConfig, spins: number, betAmount: number, featureType: BonusFeatureType, currency?: Currency) {
   let totalWagered = 0;
   let totalPaid = 0;
   let biggestWin = 0;
   let capHits = 0;
   const buySpins = Math.max(1, Math.min(5000, spins));
   for (let index = 0; index < buySpins; index += 1) {
-    const feature = calculateDirectFeature(game, betAmount, featureType);
+    const payoutBetAmount = currency ? getBonusBuyPayoutBetAmount(game, betAmount, featureType, currency) : betAmount;
+    const feature = calculateDirectFeature(game, payoutBetAmount, featureType);
     const payout = Math.min(feature.bonusPayout, capDemoPayout(Math.round(betAmount * game.maxPayoutMultiplier)));
-    totalWagered += getBonusBuyCost(game, betAmount, featureType);
+    totalWagered += getBonusBuyCost(game, betAmount, featureType, currency);
     totalPaid += payout;
     biggestWin = Math.max(biggestWin, payout);
     if (feature.bonusPayout > payout) capHits += 1;

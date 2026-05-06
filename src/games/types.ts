@@ -87,6 +87,7 @@ export interface SlotConfig {
       weight: number;
       jackpotLabel?: "Grand" | "Major" | "Minor" | "Mini";
       featureTrigger?: "HOLD_AND_WIN" | "SUPER_HOLD_AND_WIN";
+      freeSpinsAwarded?: number;
     }>;
   };
   coinCollector?: {
@@ -118,6 +119,9 @@ export interface SlotConfig {
     awarded: [number, number];
     winMultiplier: number;
     retrigger: boolean;
+    retriggerAward?: number;
+    maxSpins?: number;
+    stickyWilds?: boolean;
   };
   pickBonus: {
     triggerCount: number;
@@ -153,6 +157,7 @@ export interface SlotSpinInput {
   betAmount: number;
   freeSpin?: boolean;
   spinMode?: SpinMode;
+  stickyWildPositions?: number[];
 }
 
 export interface SlotSpinResult {
@@ -250,4 +255,5 @@ export interface WheelBonusResult {
   payout: number;
   jackpotLabel?: "Grand" | "Major" | "Minor" | "Mini";
   featureTrigger?: "HOLD_AND_WIN" | "SUPER_HOLD_AND_WIN";
+  freeSpinsAwarded?: number;
 }
