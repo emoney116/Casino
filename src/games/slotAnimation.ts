@@ -33,7 +33,20 @@ export const slotAnimation = {
   },
 } as const;
 
-export function getSpinDuration(mode: SlotAnimationMode) {
+export function getReelStopSchedule(mode: SlotAnimationMode, reelCount?: number) {
   const timing = slotAnimation[mode];
-  return timing.reelStopMs[timing.reelStopMs.length - 1] + timing.settleMs + timing.evaluateMs;
+  const schedule: number[] = [...timing.reelStopMs];
+  const targetReelCount = reelCount ?? schedule.length;
+  if (targetReelCount <= schedule.length) return schedule.slice(0, targetReelCount);
+  const lastGap = schedule[schedule.length - 1] - schedule[schedule.length - 2];
+  while (schedule.length < targetReelCount) {
+    schedule.push(schedule[schedule.length - 1] + lastGap);
+  }
+  return schedule;
+}
+
+export function getSpinDuration(mode: SlotAnimationMode, reelCount?: number) {
+  const timing = slotAnimation[mode];
+  const reelStopMs = getReelStopSchedule(mode, reelCount);
+  return reelStopMs[reelStopMs.length - 1] + timing.settleMs + timing.evaluateMs;
 }

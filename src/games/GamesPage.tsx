@@ -1,6 +1,7 @@
 import { lazy, Suspense, useMemo, useState } from "react";
 import { GameCard } from "../components/GameCard";
 import { getSlotConfig, exposedSlotConfigs } from "./slotConfigs";
+import { SlotMachine as EagerSlotMachine } from "./SlotMachine";
 
 const SlotMachine = lazy(() => import("./SlotMachine").then((module) => ({ default: module.SlotMachine })));
 
@@ -55,9 +56,13 @@ export function GamesPage({
 
   return (
     <section className="page-stack flagship-game-page">
-      <Suspense fallback={<div className="card loading-card">Loading slot...</div>}>
-        <SlotMachine game={game} onExit={onExit} />
-      </Suspense>
+      {game.id === "gold-rush-showdown" ? (
+        <EagerSlotMachine game={game} onExit={onExit} />
+      ) : (
+        <Suspense fallback={<div className="card loading-card">Loading slot...</div>}>
+          <SlotMachine game={game} onExit={onExit} />
+        </Suspense>
+      )}
     </section>
   );
 }

@@ -59,6 +59,7 @@ if (navItems.some((item) => item.id === "redemption")) {
 const routes = [
   { path: "/wallet", text: "Coins at a glance" },
   { path: "/slots/frontier-fortune", text: "Loading slot..." },
+  { path: "/slots/gold-rush-showdown", text: "Gold Rush Showdown" },
   { path: "/games/blackjack", text: "Loading game..." },
   { path: "/games/roulette", text: "Loading game..." },
   { path: "/games/over-under", text: "Loading game..." },

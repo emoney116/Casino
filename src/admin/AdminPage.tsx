@@ -226,6 +226,30 @@ export function AdminPage() {
                     <span>Pick bonus</span><strong>{(sim.pickBonusTriggerRate * 100).toFixed(2)}%</strong>
                     <span>Hold and win</span><strong>{((sim.holdAndWinTriggerRate ?? 0) * 100).toFixed(2)}%</strong>
                     <span>Wheel bonus</span><strong>{((sim.wheelBonusTriggerRate ?? 0) * 100).toFixed(2)}%</strong>
+                    <span>Expansion bonus</span><strong>{((sim.expansionBonusTriggerRate ?? 0) * 100).toFixed(2)}%</strong>
+                    {game.expansionBonus?.mechanic === "mine-clash" && (
+                      <>
+                        <span>Mine Clash trigger</span><strong>{((sim.mineClashTriggerRate ?? 0) * 100).toFixed(2)}%</strong>
+                        <span>Avg Mine Clash payout</span><strong>{formatCoins(sim.averageMineClashPayout ?? 0)}</strong>
+                        <span>Multiplier wild EV</span><strong>{(sim.multiplierWildEv ?? 0).toFixed(2)}</strong>
+                        <span>Free spins EV</span><strong>{formatCoins(sim.freeSpinsAveragePayout ?? 0)}</strong>
+                      </>
+                    )}
+                    {game.id === "gold-rush-showdown" && (
+                      <>
+                        <span>Base line RTP</span><strong>{((sim.baseLineRtp ?? 0) * 100).toFixed(2)}%</strong>
+                        <span>Inactive VS</span><strong>{sim.inactiveVsCount ?? 0}</strong>
+                        <span>Active normal VS</span><strong>{sim.activeNormalVsCount ?? 0} ({((sim.activeNormalVsRate ?? 0) * 100).toFixed(2)}%)</strong>
+                        <span>Interior boards</span><strong>{sim.interiorBoardAppearanceCount ?? 0} ({((sim.interiorBoardAppearanceRate ?? 0) * 100).toFixed(2)}%)</strong>
+                        <span>VS inside interior</span><strong>{sim.vsInsideInteriorCount ?? 0}</strong>
+                        <span>Active interior VS</span><strong>{sim.activeInteriorVsCount ?? 0} ({((sim.activeInteriorVsRate ?? 0) * 100).toFixed(2)}%)</strong>
+                        <span>Avg normal VS pay</span><strong>{formatCoins(sim.averageActiveNormalVsPayout ?? 0)}</strong>
+                        <span>Avg interior VS pay</span><strong>{formatCoins(sim.averageActiveInteriorVsPayout ?? 0)}</strong>
+                        <span>Interior sizes</span><strong>{Object.entries(sim.interiorSizeDistribution ?? {}).map(([size, count]) => `${size}c:${count}`).join(" ") || "N/A"}</strong>
+                        <span>VS tiers</span><strong>{Object.entries(sim.vsDuelTierDistribution ?? {}).map(([tier, count]) => `${tier}:${count}`).join(" ") || "N/A"}</strong>
+                        <span>VS multipliers</span><strong>{Object.entries(sim.vsMultiplierDistribution ?? {}).map(([multiplier, count]) => `${multiplier}:${count}`).join(" ") || "N/A"}</strong>
+                      </>
+                    )}
                     <span>Coin collector</span><strong>{((sim.coinCollectorTriggerRate ?? 0) * 100).toFixed(2)}%</strong>
                     <span>Buy bonus RTP</span><strong>{sim.buyBonusRtp ? `${(sim.buyBonusRtp * 100).toFixed(2)}%` : "N/A"}</strong>
                     {Object.entries(sim.modeResults ?? {}).map(([mode, modeSim]) => (

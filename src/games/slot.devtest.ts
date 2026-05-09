@@ -3,11 +3,13 @@ import { getMathWarnings, simulateSlot } from "./slotMath";
 import { buyBonusDebit, buyBonusFeature, calculateDirectFeature, calculateFreeSpinsBonus, calculateHoldAndWinBonus, calculateNeonCascadeResult, calculateSlotResult, calculateWheelBonus, createHoldAndWinState, creditHoldAndWinBonus, creditPickBonus, generateGrid, getBonusBuyCost, getBonusBuyPayoutBetAmount, getSpinCost, spinSlot, stepHoldAndWinBonus } from "./slotEngine";
 import { creditCurrency, getBalance, getTransactions } from "../wallet/walletService";
 import type { User } from "../types";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { clearRecentGames, getRecentGames, recordRecentGame } from "./recentGames";
 import { dismissOnboarding, hasDismissedOnboarding } from "../app/onboarding";
 import { frontierUiAssets, requiredFrontierUiAssetKeys } from "./frontierAssets";
-import { chargedRelicCrackEvent, frontierEntryLoadingMessages, frontierFeatureIntroCards, frontierIntroAssets, frontierTurboBypassesAnimation, frontierWheelSpinMs, getBetOptions, getBonusBoostMenuOptions, getBonusChanceTier, getBuyBonusCost, getCoinDisplayLabels, getDefaultBetAmount, getFrontierAnticipationState, getFrontierBetModalLayout, getFrontierCollectorPlacement, getFrontierEBoostIconAsset, getFrontierEntryPhase, getFrontierFeatureIntroPreference, getFrontierLoadingMessage, getFrontierMainControlActions, getFrontierReelAction, getFrontierSpinAnimationMode, getFrontierWheelDrama, getFrontierWheelPrizeClass, getFrontierWheelResultAction, getFrontierWheelSegmentDisplayLabel, getJackpotBadgeLabels, getNextFrontierSpinSpeed, getNextFrontierStickyWildPositions, getTreasurePotChargeLevel, getTreasurePotVisualState, getWheelLandingDegrees, getWheelSectionLabels, setFrontierFeatureIntroPreference } from "./SlotMachine";
-import { getSpinDuration, slotAnimation } from "./slotAnimation";
+import { GoldRushMineClashFinalPanel, GoldRushMineClashGridOverlay, chargedRelicCrackEvent, frontierEntryLoadingMessages, frontierFeatureIntroCards, frontierIntroAssets, frontierTurboBypassesAnimation, frontierWheelSpinMs, getBetOptions, getBonusBoostMenuOptions, getBonusChanceTier, getBuyBonusCost, getCoinDisplayLabels, getDefaultBetAmount, getFrontierAnticipationState, getFrontierBetModalLayout, getFrontierCollectorPlacement, getFrontierEBoostIconAsset, getFrontierEntryPhase, getFrontierFeatureIntroPreference, getFrontierLoadingMessage, getFrontierMainControlActions, getFrontierReelAction, getFrontierSpinAnimationMode, getFrontierWheelDrama, getFrontierWheelPrizeClass, getFrontierWheelResultAction, getFrontierWheelSegmentDisplayLabel, getGoldRushMineClashArea, getGoldRushMineClashDisplayMultipliers, getJackpotBadgeLabels, getNextFrontierSpinSpeed, getNextFrontierStickyWildPositions, getTreasurePotChargeLevel, getTreasurePotVisualState, getWheelLandingDegrees, getWheelSectionLabels, setFrontierFeatureIntroPreference } from "./SlotMachine";
+import { getReelStopSchedule, getSpinDuration, slotAnimation } from "./slotAnimation";
 import { nextFreeSpinTotal } from "./slotSession";
 import { feedbackUiMarkers } from "../feedback/components";
 import { getProgression, recordSpinProgress } from "../progression/progressionService";
@@ -17,6 +19,8 @@ import { isFavorite, toggleFavorite } from "./favorites";
 import { updateData } from "../lib/storage";
 import { canClaimLowBalanceOffer, claimLowBalanceOffer, claimPromotion, getMostPlayedGames, getRetentionState, recordRetentionRound, resetRetention } from "../retention/retentionService";
 import type { SlotSpinResult } from "./types";
+import { ExpansionBonusOverlay } from "./ExpansionBonusOverlay";
+import { calculateExpansionBonus, getExpansionFramePositions, getExpansionTriggerPositions, selectExpansionFrame } from "./expansionBonus";
 
 const memory: Record<string, string> = {};
 globalThis.localStorage = {
@@ -47,9 +51,11 @@ const user: User = {
 };
 
 creditCurrency({ userId: user.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 1000 });
-if (exposedSlotConfigs.length !== 1 || exposedSlotConfigs[0].id !== "frontier-fortune") {
-  throw new Error("Expected only Frontier Fortune to be exposed.");
+if (!exposedSlotConfigs.some((candidate) => candidate.id === "frontier-fortune") || !exposedSlotConfigs.some((candidate) => candidate.id === "gold-rush-showdown")) {
+  throw new Error("Expected Frontier Fortune and Gold Rush Showdown to be exposed.");
 }
+const exposedFrontier = exposedSlotConfigs.find((candidate) => candidate.id === "frontier-fortune");
+if (!exposedFrontier) throw new Error("Expected exposed Frontier Fortune config.");
 const requiredFrontierAssets = [
   "sun_hawk.png",
   "canyon_ram.png",
@@ -72,11 +78,11 @@ const requiredFrontierAssets = [
 ];
 for (const filename of requiredFrontierAssets) {
   const assetPath = `/assets/symbols/frontier/${filename}`;
-  if (!exposedSlotConfigs[0].symbols.some((symbol) => symbol.image === assetPath)) {
+  if (!exposedFrontier.symbols.some((symbol) => symbol.image === assetPath)) {
     throw new Error(`Missing Frontier Fortune symbol config asset: ${filename}`);
   }
 }
-if (exposedSlotConfigs[0].symbols.some((symbol) => !symbol.image)) {
+if (exposedFrontier.symbols.some((symbol) => !symbol.image)) {
   throw new Error("Expected exposed Frontier Fortune symbols to use image assets.");
 }
 const requiredUiAssetValues = new Set(Object.values(frontierUiAssets));
@@ -180,6 +186,365 @@ if (!Number.isFinite(sim.freeSpinTriggerRate) || !Number.isFinite(sim.pickBonusT
 }
 if (!Number.isFinite(sim.holdAndWinTriggerRate ?? 0) || !Number.isFinite(sim.wheelBonusTriggerRate ?? 0)) {
   throw new Error("Simulation did not produce premium bonus trigger rates.");
+}
+
+const goldRush = slotConfigs.find((candidate) => candidate.id === "gold-rush-showdown");
+if (!goldRush) throw new Error("Expected Gold Rush Showdown config.");
+if (!goldRush.visual.logoImage?.includes("title-logo")) {
+  throw new Error("Expected Gold Rush Showdown to expose its title logo for shared game surfaces.");
+}
+if (goldRush.jackpotLabels) {
+  throw new Error("Expected Gold Rush Showdown to omit header jackpot badges.");
+}
+if (getBetOptions(goldRush, "GOLD")[0] !== 10 || getBetOptions(goldRush, "BONUS")[0] !== 0.1) {
+  throw new Error("Expected Gold Rush Showdown to use configured Gold and Sweeps bet ladders.");
+}
+const goldUser: User = { ...user, id: "gold-rush-test-user", email: "gold-rush@test.local" };
+creditCurrency({ userId: goldUser.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 100000 });
+const goldBetTxBefore = getTransactions(goldUser.id).filter((tx) => tx.type === "GAME_BET").length;
+spinSlot({ user: goldUser, game: goldRush, currency: "GOLD", betAmount: goldRush.minBet });
+if (getTransactions(goldUser.id).filter((tx) => tx.type === "GAME_BET").length !== goldBetTxBefore + 1) {
+  throw new Error("Expected Gold Rush Showdown spin to create a GAME_BET ledger entry.");
+}
+try {
+  spinSlot({ user: goldUser, game: goldRush, currency: "GOLD", betAmount: goldRush.minBet / 2 });
+  throw new Error("Expected Gold Rush below-min bet to fail.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("Minimum bet")) throw error;
+}
+try {
+  spinSlot({ user: goldUser, game: goldRush, currency: "GOLD", betAmount: goldRush.maxBet + 1 });
+  throw new Error("Expected Gold Rush above-max bet to fail.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("Maximum bet")) throw error;
+}
+const goldBonusBefore = getBalance(goldUser.id, "BONUS");
+try {
+  spinSlot({ user: goldUser, game: goldRush, currency: "BONUS", betAmount: goldRush.minBet });
+  throw new Error("Expected Gold Rush overdraft spin to fail.");
+} catch (error) {
+  if (!(error instanceof Error) || error.message !== "Insufficient balance.") throw error;
+}
+if (getBalance(goldUser.id, "BONUS") !== goldBonusBefore) throw new Error("Gold Rush overdraft changed balance.");
+if (goldRush.reelCount !== 6 || goldRush.rowCount !== 4 || goldRush.paylines.some((payline) => payline.rows.length !== 6 || payline.rows.some((row) => row < 0 || row > 3))) {
+  throw new Error("Expected Gold Rush Showdown to use a real 6x4 reel grid with 6-column paylines.");
+}
+const generatedGoldGrid = generateGrid(goldRush);
+if (generatedGoldGrid.length !== 6 || generatedGoldGrid.some((reel) => reel.length !== 4)) {
+  throw new Error("Expected Gold Rush generated spins to fill all 6 columns and 4 rows.");
+}
+const goldStopSchedule = getReelStopSchedule("normal", goldRush.reelCount);
+if (goldStopSchedule.length !== 6 || goldStopSchedule[5] <= goldStopSchedule[4]) {
+  throw new Error("Expected Gold Rush sixth reel to receive a Frontier-style staggered stop time.");
+}
+const goldLineGrid = [
+  ["10", "K", "treasure_chest", "J"],
+  ["K", "Q", "treasure_chest", "A"],
+  ["Q", "10", "treasure_chest", "K"],
+  ["J", "Q", "treasure_chest", "10"],
+  ["10", "K", "treasure_chest", "Q"],
+  ["A", "J", "treasure_chest", "K"],
+];
+const goldLineResult = calculateSlotResult(goldRush, 100, false, goldLineGrid);
+if (!goldLineResult.lineWins.some((win) => win.paylineId === "middle-low" && win.symbol === "treasure_chest" && win.count === 6 && win.positions.some((position) => position.reel === 5 && position.row === 2))) {
+  throw new Error("Expected Gold Rush 6-column payline to calculate through the sixth reel.");
+}
+const goldRushRenderedSymbols = ["10", "J", "Q", "K", "A", "pickaxe", "lantern", "mine_cart", "dynamite", "gold_nugget", "blue_diamond", "treasure_chest", "mine_scatter", "vs_mine_clash"];
+goldRushRenderedSymbols.forEach((symbolId) => {
+  const symbol = goldRush.symbols.find((candidate) => candidate.id === symbolId);
+  if (!symbol?.image) throw new Error(`Expected Gold Rush symbol ${symbolId} to use a rendered image asset.`);
+});
+if (goldRush.specialSymbols?.wild !== "wild") {
+  throw new Error("Expected Gold Rush to reserve the wild id for VS multiplier transforms.");
+}
+if (goldRush.symbols.some((symbol) => symbol.kind === "wild" || symbol.id === "wild")) {
+  throw new Error("Expected Gold Rush base reels to exclude regular wild symbols.");
+}
+if (goldRush.freeSpins.stickyWilds) {
+  throw new Error("Expected Gold Rush free spins to avoid sticky wilds while Mine Clash tuning is pending.");
+}
+const threeJackGrid = [
+  ["J", "Q", "K", "A"],
+  ["J", "K", "A", "Q"],
+  ["J", "A", "Q", "K"],
+  ["Q", "10", "K", "A"],
+  ["A", "Q", "10", "K"],
+  ["K", "A", "Q", "10"],
+];
+const threeJackResult = calculateSlotResult(goldRush, 0.1, false, threeJackGrid);
+const threeJackTopWin = threeJackResult.lineWins.find((win) => win.paylineId === "top" && win.symbol === "J");
+if (!threeJackTopWin || Math.abs(threeJackTopWin.payout - 0.01) > 0.0001) {
+  throw new Error(`Expected 0.10 bet with 3 J symbols to pay 0.01, got ${threeJackTopWin?.payout}.`);
+}
+const sixTreasureWin = goldLineResult.lineWins.find((win) => win.paylineId === "middle-low" && win.symbol === "treasure_chest");
+if (!sixTreasureWin || sixTreasureWin.payout !== 2500) {
+  throw new Error(`Expected 6 treasure chests to pay 25x total bet, got ${sixTreasureWin?.payout}.`);
+}
+const goldThreeScatterGrid = [
+  ["mine_scatter", "10", "J", "A"],
+  ["A", "mine_scatter", "Q", "K"],
+  ["K", "10", "mine_scatter", "J"],
+  ["Q", "J", "A", "10"],
+  ["10", "K", "Q", "A"],
+  ["J", "Q", "K", "10"],
+];
+const goldFourScatterGrid = [
+  ["mine_scatter", "10", "J", "A"],
+  ["A", "mine_scatter", "Q", "K"],
+  ["K", "10", "mine_scatter", "J"],
+  ["Q", "mine_scatter", "A", "10"],
+  ["10", "K", "Q", "A"],
+  ["J", "Q", "K", "10"],
+];
+const goldFiveScatterGrid = [
+  ["mine_scatter", "10", "J", "A"],
+  ["A", "mine_scatter", "Q", "K"],
+  ["K", "10", "mine_scatter", "J"],
+  ["Q", "mine_scatter", "A", "10"],
+  ["10", "K", "mine_scatter", "A"],
+  ["J", "Q", "K", "10"],
+];
+if (calculateSlotResult(goldRush, 100, false, goldThreeScatterGrid).freeSpinsAwarded !== 10) throw new Error("Expected 3 Gold Rush scatters to award 10 free spins.");
+if (calculateSlotResult(goldRush, 100, false, goldFourScatterGrid).freeSpinsAwarded !== 15) throw new Error("Expected 4 Gold Rush scatters to award 15 free spins.");
+if (calculateSlotResult(goldRush, 100, false, goldFiveScatterGrid).freeSpinsAwarded !== 20) throw new Error("Expected 5 Gold Rush scatters to award 20 free spins.");
+if (calculateSlotResult(goldRush, 100, true, goldThreeScatterGrid).freeSpinsAwarded !== 5) {
+  throw new Error("Expected 3 Gold Rush scatters during free spins to retrigger +5 spins.");
+}
+const cappedGoldFreeSpins = calculateFreeSpinsBonus(goldRush, 100, 30);
+if (cappedGoldFreeSpins.spinsAwarded > 30 || cappedGoldFreeSpins.spinsPlayed > 30) {
+  throw new Error("Expected Gold Rush free spin retriggers to respect the 30-spin cap.");
+}
+if (goldRush.expansionBonus?.mechanic !== "mine-clash") {
+  throw new Error("Expected Gold Rush expansion bonus to use Mine Clash.");
+}
+const fixedMineClashConfig = {
+  ...goldRush.expansionBonus,
+  frameWidths: [{ width: 2, weight: 1 }],
+  mineClash: {
+    goldMiner: { min: 2, max: 2, weight: 1 },
+    diamondMiner: { min: 2, max: 2, weight: 0 },
+    rareBoost: { multiplier: 50, chance: 0 },
+  },
+} as NonNullable<typeof goldRush.expansionBonus>;
+const mineTriggerPositions = getExpansionTriggerPositions([
+  ["10", "10", "J", "A"],
+  ["A", "K", "Q", "J"],
+  ["K", "vs_mine_clash", "J", "Q"],
+  ["Q", "J", "A", "10"],
+  ["10", "K", "Q", "A"],
+  ["J", "Q", "K", "10"],
+], "vs_mine_clash");
+if (mineTriggerPositions.length !== 1) {
+  throw new Error("Expected VS trigger detection to find one Mine Clash symbol.");
+}
+const selectedFrame = selectExpansionFrame(goldRush, [{ reel: 4, row: 1 }], {
+  ...fixedMineClashConfig,
+  frameWidths: [{ width: 3, weight: 1 }],
+});
+if (selectedFrame.width !== 3 || selectedFrame.startReel !== 3) {
+  throw new Error(`Expected frame size to clamp around the trigger, got ${selectedFrame.startReel}/${selectedFrame.width}.`);
+}
+const directMineClash = calculateExpansionBonus(goldRush, 100, [{ reel: 2, row: 1 }], fixedMineClashConfig);
+if (directMineClash.sourceFeature !== "mine-clash" || directMineClash.mineClash?.winner !== "gold" || directMineClash.multiplier !== 2) {
+  throw new Error("Expected weighted Mine Clash config to select the Gold Miner 2x outcome.");
+}
+if ((directMineClash.transformedPositions?.length ?? 0) !== getExpansionFramePositions(directMineClash.frame!).length) {
+  throw new Error("Expected Mine Clash transformed positions to match the selected frame.");
+}
+const fixedGoldRushVs = {
+  ...goldRush.goldRushVs!,
+  duelTiers: [
+    {
+      id: "gold-gold" as const,
+      label: "Gold vs Gold",
+      weight: 1,
+      winner: "gold" as const,
+      multipliers: [{ multiplier: 2, weight: 1 }],
+    },
+  ],
+};
+const mineClashTestGame = {
+  ...goldRush,
+  expansionBonus: fixedMineClashConfig,
+  goldRushVs: fixedGoldRushVs,
+  goldRushInterior: { ...goldRush.goldRushInterior!, appearanceChance: 0 },
+};
+const inactiveVsGrid = [
+  ["J", "Q", "K", "A"],
+  ["Q", "K", "A", "J"],
+  ["K", "A", "J", "Q"],
+  ["A", "J", "Q", "K"],
+  ["vs_mine_clash", "10", "J", "A"],
+  ["10", "Q", "K", "J"],
+];
+const inactiveVsResult = calculateSlotResult(mineClashTestGame, 100, false, inactiveVsGrid);
+if (inactiveVsResult.triggeredExpansionBonus || inactiveVsResult.goldRush?.vsActive) {
+  throw new Error("Expected VS to stay inactive when a column transform cannot create or complete a line pay.");
+}
+if ((inactiveVsResult.goldRush?.inactiveVsPositions.length ?? 0) !== 1 || inactiveVsResult.payout !== inactiveVsResult.goldRush?.baseLinePayout) {
+  throw new Error("Expected inactive VS metadata to retain the VS position without extra pay.");
+}
+const mineClashGrid = [
+  ["J", "Q", "K", "A"],
+  ["J", "K", "A", "Q"],
+  ["vs_mine_clash", "A", "Q", "K"],
+  ["Q", "10", "J", "A"],
+  ["A", "Q", "10", "K"],
+  ["K", "A", "Q", "10"],
+];
+const mineClashResult = calculateSlotResult(mineClashTestGame, 100, false, mineClashGrid);
+if (!mineClashResult.triggeredExpansionBonus || !mineClashResult.expansionBonus) {
+  throw new Error("Expected VS symbol to trigger Mine Clash.");
+}
+if (mineClashResult.expansionBonus.sourceFeature !== "mine-clash" || mineClashResult.goldRush?.vsType !== "normal-column") {
+  throw new Error("Expected Mine Clash to create multiplier wild transformed positions.");
+}
+if ((mineClashResult.expansionBonus.transformedPositions?.length ?? 0) !== 4 || new Set(mineClashResult.expansionBonus.transformedPositions?.map((position) => position.reel)).size !== 1) {
+  throw new Error("Expected normal Mine Clash to transform all 4 rows in the active VS column only.");
+}
+if (!mineClashResult.lineWins.some((win) => win.paylineId === "top" && win.symbol === "J" && Math.abs(win.multiplier - 0.2) < 0.0001)) {
+  throw new Error("Expected Mine Clash multiplier wilds to participate in payline evaluation.");
+}
+if (mineClashResult.expansionBonus.payout !== mineClashResult.payout) {
+  throw new Error("Expected Mine Clash payout metadata to match the transformed line payout.");
+}
+const normalVsArea = getGoldRushMineClashArea(mineClashResult, goldRush.reelCount, goldRush.rowCount);
+if (normalVsArea.areaType !== "column" || normalVsArea.width !== 1 || normalVsArea.rowSpan !== 4 || normalVsArea.startReel !== 2) {
+  throw new Error(`Expected normal VS grid overlay to cover one full-height column, got ${JSON.stringify(normalVsArea)}.`);
+}
+if (mineClashResult.goldRush?.activeColumns?.count !== 1 || mineClashResult.goldRush.activeRows?.count !== 4 || !mineClashResult.goldRush.vsCandidateMultipliers || mineClashResult.goldRush.vsWinningMultiplier !== 2 || mineClashResult.goldRush.vsWinnerSide !== "gold") {
+  throw new Error("Expected normal VS metadata to include active bounds, candidate multipliers, and one winning multiplier.");
+}
+const normalGridOverlayMarkup = renderToStaticMarkup(createElement(GoldRushMineClashGridOverlay, {
+  result: mineClashResult,
+  reelCount: goldRush.reelCount,
+  rowCount: goldRush.rowCount,
+  onComplete: () => undefined,
+}));
+if (!normalGridOverlayMarkup.includes("gold-rush-grid-clash-overlay") || normalGridOverlayMarkup.includes("expansion-bonus-overlay") || normalGridOverlayMarkup.includes("aria-modal")) {
+  throw new Error("Expected Mine Clash to render as a grid-local overlay, not a full-screen modal.");
+}
+if (!normalGridOverlayMarkup.includes("--clash-width:1") || !normalGridOverlayMarkup.includes("--clash-row-span:4")) {
+  throw new Error("Expected normal VS overlay style variables to match one column and four rows.");
+}
+const normalDisplayMultipliers = getGoldRushMineClashDisplayMultipliers(mineClashResult);
+if (normalDisplayMultipliers.gold === normalDisplayMultipliers.diamond || normalDisplayMultipliers.gold !== mineClashResult.goldRush?.vsWinningMultiplier) {
+  throw new Error("Expected Mine Clash duel display to show distinct visual multipliers while preserving the winning multiplier.");
+}
+const finalColumnPanelMarkup = renderToStaticMarkup(createElement(GoldRushMineClashFinalPanel, {
+  result: mineClashResult,
+  reelCount: goldRush.reelCount,
+  rowCount: goldRush.rowCount,
+}));
+if (!finalColumnPanelMarkup.includes("gold-rush-final-clash-panel") || !finalColumnPanelMarkup.includes("area-column") || !finalColumnPanelMarkup.includes("--clash-width:1")) {
+  throw new Error("Expected completed normal Mine Clash to render one connected winner column.");
+}
+if ((finalColumnPanelMarkup.match(/vs-mine-clash/g) ?? []).length > 0) {
+  throw new Error("Expected completed normal Mine Clash to avoid repeating VS symbols in every transformed cell.");
+}
+const multiVsGrid = [
+  ["J", "Q", "K", "A"],
+  ["J", "K", "A", "Q"],
+  ["vs_mine_clash", "A", "Q", "K"],
+  ["Q", "10", "J", "A"],
+  ["vs_mine_clash", "Q", "10", "K"],
+  ["K", "A", "Q", "10"],
+];
+const multiVsResult = calculateSlotResult(mineClashTestGame, 100, false, multiVsGrid);
+if (multiVsResult.goldRush?.vsType !== "normal-column" || new Set(multiVsResult.goldRush.transformedPositions?.map((position) => position.reel)).size !== 1) {
+  throw new Error("Expected Gold Rush normal VS cap to activate only one column per base spin.");
+}
+const fullInteriorGame = {
+  ...mineClashTestGame,
+  goldRushInterior: {
+    ...goldRush.goldRushInterior!,
+    appearanceChance: 1,
+    sizes: [{ columns: 6, weight: 1 }],
+  },
+};
+const interiorVsGrid = [
+  ["J", "Q", "K", "A"],
+  ["J", "K", "A", "Q"],
+  ["vs_mine_clash", "A", "Q", "K"],
+  ["Q", "10", "J", "A"],
+  ["vs_mine_clash", "Q", "10", "K"],
+  ["K", "A", "Q", "10"],
+];
+const interiorVsResult = calculateSlotResult(fullInteriorGame, 100, false, interiorVsGrid);
+if (interiorVsResult.goldRush?.interior?.columns !== 6 || interiorVsResult.goldRush.interior.rowCount !== 4 || interiorVsResult.goldRush.interior.startColumn !== 0) {
+  throw new Error("Expected Gold Rush interior board to cover a valid full-height 2-6 column range.");
+}
+if (interiorVsResult.goldRush?.vsType !== "interior" || (interiorVsResult.goldRush.transformedPositions?.length ?? 0) !== 24) {
+  throw new Error("Expected VS inside the interior to transform every covered grid position.");
+}
+if (interiorVsResult.goldRush.activeVsPosition?.reel !== 2 || interiorVsResult.goldRush.activeVsPosition?.row !== 0) {
+  throw new Error("Expected multiple interior VS symbols to resolve deterministically by reel then row.");
+}
+const interiorVsArea = getGoldRushMineClashArea(interiorVsResult, goldRush.reelCount, goldRush.rowCount);
+if (interiorVsArea.areaType !== "interior" || interiorVsArea.startReel !== 0 || interiorVsArea.width !== 6 || interiorVsArea.rowSpan !== 4) {
+  throw new Error(`Expected interior VS grid overlay to cover the active interior and four rows, got ${JSON.stringify(interiorVsArea)}.`);
+}
+const interiorGridOverlayMarkup = renderToStaticMarkup(createElement(GoldRushMineClashGridOverlay, {
+  result: interiorVsResult,
+  reelCount: goldRush.reelCount,
+  rowCount: goldRush.rowCount,
+  onComplete: () => undefined,
+}));
+if (!interiorGridOverlayMarkup.includes("area-interior") || !interiorGridOverlayMarkup.includes("--clash-width:6") || interiorGridOverlayMarkup.includes("expansion-bonus-overlay")) {
+  throw new Error("Expected interior Mine Clash to render inside the reel grid with interior bounds only.");
+}
+const finalInteriorPanelMarkup = renderToStaticMarkup(createElement(GoldRushMineClashFinalPanel, {
+  result: interiorVsResult,
+  reelCount: goldRush.reelCount,
+  rowCount: goldRush.rowCount,
+}));
+if (!finalInteriorPanelMarkup.includes("gold-rush-final-clash-panel") || !finalInteriorPanelMarkup.includes("area-interior") || !finalInteriorPanelMarkup.includes("--clash-width:6")) {
+  throw new Error("Expected completed interior Mine Clash to render one connected interior winner panel.");
+}
+const overlayMarkup = renderToStaticMarkup(createElement(ExpansionBonusOverlay, {
+  open: true,
+  theme: { title: "Gold Rush Showdown", introLabel: "Mine Clash", accent: "#f59e0b", secondary: "#38bdf8", panel: "#241006" },
+  triggerPositions: mineClashResult.expansionBonus.triggerPositions,
+  result: mineClashResult.expansionBonus,
+  config: goldRush.expansionBonus,
+  betAmount: 100,
+  onComplete: () => undefined,
+}));
+if (!overlayMarkup.includes("Mine Clash") || !overlayMarkup.includes("mine-clash-overlay")) {
+  throw new Error("Expected ExpansionBonusOverlay to mount with Mine Clash content.");
+}
+const closedOverlayMarkup = renderToStaticMarkup(createElement(ExpansionBonusOverlay, {
+  open: false,
+  theme: { title: "Gold Rush Showdown", accent: "#f59e0b", secondary: "#ef4444", panel: "#241006" },
+  triggerPositions: mineClashResult.expansionBonus.triggerPositions,
+  result: mineClashResult.expansionBonus,
+  config: goldRush.expansionBonus,
+  betAmount: 100,
+  onComplete: () => undefined,
+}));
+if (closedOverlayMarkup.includes("expansion-bonus-overlay")) {
+  throw new Error("Expected ExpansionBonusOverlay to unmount cleanly when closed.");
+}
+const goldSimulationRandom = Math.random;
+let goldSimulationSeed = 4242;
+Math.random = () => {
+  goldSimulationSeed = (goldSimulationSeed * 1664525 + 1013904223) % 4294967296;
+  return goldSimulationSeed / 4294967296;
+};
+let goldSim: ReturnType<typeof simulateSlot>;
+try {
+  goldSim = simulateSlot(goldRush, 80000, 100);
+} finally {
+  Math.random = goldSimulationRandom;
+}
+if (goldSim.observedRtp >= 0.95) {
+  throw new Error(`Expected Gold Rush Showdown RTP simulation to stay under 95%, got ${goldSim.observedRtp}.`);
+}
+if (goldSim.observedRtp < 0.75) {
+  throw new Error(`Expected Gold Rush Showdown RTP simulation to stay non-broken before tuning, got ${goldSim.observedRtp}.`);
+}
+if (!Number.isFinite(goldSim.mineClashTriggerRate ?? NaN) || !Number.isFinite(goldSim.averageMineClashPayout ?? NaN) || !Number.isFinite(goldSim.multiplierWildEv ?? NaN) || !Number.isFinite(goldSim.freeSpinsAveragePayout ?? NaN)) {
+  throw new Error("Expected Gold Rush simulation to report Mine Clash, multiplier wild, and free spins EV.");
 }
 
 const frontier = slotConfigs.find((candidate) => candidate.id === "frontier-fortune");

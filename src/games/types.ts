@@ -1,7 +1,7 @@
 import type { Currency, User } from "../types";
 
 export type Volatility = "Low" | "Medium" | "High";
-export type BonusFeatureType = "FREE_SPINS" | "HOLD_AND_WIN" | "WHEEL_BONUS" | "PICK_BONUS";
+export type BonusFeatureType = "FREE_SPINS" | "HOLD_AND_WIN" | "WHEEL_BONUS" | "PICK_BONUS" | "EXPANSION_BONUS";
 export type SpinMode = "NORMAL" | "GOLD_BOOST" | "SCATTER_BOOST";
 
 export interface SlotSymbol {
@@ -108,6 +108,7 @@ export interface SlotConfig {
     collector?: string;
   };
   payoutTable: PayoutRule[];
+  paytableBasis?: "lineBet" | "totalBet";
   twoMatchMultiplier: number;
   scatterSymbol: string;
   bonusSymbol: string;
@@ -117,12 +118,16 @@ export interface SlotConfig {
   freeSpins: {
     triggerCount: number;
     awarded: [number, number];
+    awardsByScatter?: Partial<Record<3 | 4 | 5, number>>;
     winMultiplier: number;
     retrigger: boolean;
     retriggerAward?: number;
     maxSpins?: number;
     stickyWilds?: boolean;
   };
+  expansionBonus?: ExpansionBonusConfig;
+  goldRushVs?: GoldRushVsConfig;
+  goldRushInterior?: GoldRushInteriorConfig;
   pickBonus: {
     triggerCount: number;
     picks: number;
@@ -142,6 +147,27 @@ export interface SlotConfig {
     background?: string;
     cabinet?: string;
   };
+}
+
+export interface GoldRushVsConfig {
+  triggerSymbol: string;
+  maxActiveNormalVs: number;
+  duelTiers: Array<{
+    id: "gold-gold" | "gold-diamond" | "diamond-diamond";
+    label: string;
+    weight: number;
+    winner: "gold" | "diamond";
+    multipliers: Array<{ multiplier: number; weight: number }>;
+  }>;
+}
+
+export interface GoldRushInteriorConfig {
+  appearanceChance: number;
+  sizes: Array<{ columns: number; weight: number }>;
+  freeSpinsInteriorAlwaysActive?: boolean;
+  freeSpinsInitialInteriorColumns?: number;
+  scatterGrowInteriorColumns?: number;
+  maxInteriorColumns: number;
 }
 
 export interface Payline {
@@ -166,7 +192,7 @@ export interface SlotSpinResult {
   wager: number;
   payout: number;
   multiplier: number;
-  winType: "LOSS" | "LINE_WIN" | "BIG_WIN" | "FREE_SPINS" | "PICK_BONUS" | "HOLD_AND_WIN" | "WHEEL_BONUS" | "BUY_BONUS";
+  winType: "LOSS" | "LINE_WIN" | "BIG_WIN" | "FREE_SPINS" | "PICK_BONUS" | "HOLD_AND_WIN" | "WHEEL_BONUS" | "EXPANSION_BONUS" | "BUY_BONUS";
   winTier: "NONE" | "SMALL" | "BIG" | "MEGA";
   capped: boolean;
   lineWins: Array<{
@@ -188,17 +214,46 @@ export interface SlotSpinResult {
   triggeredPickBonus: boolean;
   triggeredHoldAndWin?: boolean;
   triggeredWheelBonus?: boolean;
+  triggeredExpansionBonus?: boolean;
   triggeredCoinCollector?: boolean;
   bonusPayout?: number;
   jackpotLabel?: "Grand" | "Major" | "Minor" | "Mini";
   holdAndWin?: HoldAndWinResult;
   wheelBonus?: WheelBonusResult;
+  expansionBonus?: ExpansionBonusResult;
   cascades?: Array<{
     grid: string[][];
     payout: number;
     multiplier: number;
     winningPositions: Array<{ reel: number; row: number }>;
   }>;
+  goldRush?: GoldRushSpinMetadata;
+}
+
+export interface GoldRushSpinMetadata {
+  baseLinePayout: number;
+  inactiveVsPositions: Array<{ reel: number; row: number }>;
+  activeVsPosition?: { reel: number; row: number };
+  vsActive: boolean;
+  vsType?: "normal-column" | "interior";
+  activeAreaType?: "column" | "interior";
+  activeColumns?: { start: number; count: number };
+  activeRows?: { start: number; count: number };
+  vsTier?: "gold-gold" | "gold-diamond" | "diamond-diamond";
+  vsMultiplier?: number;
+  vsCandidateMultipliers?: { gold: number; diamond: number };
+  vsWinningMultiplier?: number;
+  vsWinnerSide?: "gold" | "diamond";
+  transformedPositions?: Array<{ reel: number; row: number }>;
+  interior?: {
+    startColumn: number;
+    columns: number;
+    rowStart: number;
+    rowCount: number;
+  };
+  vsInsideInteriorCount: number;
+  activeNormalVsPayout: number;
+  activeInteriorVsPayout: number;
 }
 
 export interface SimulationResult {
@@ -221,11 +276,31 @@ export interface SimulationResult {
   pickBonusTriggerRate: number;
   holdAndWinTriggerRate?: number;
   wheelBonusTriggerRate?: number;
+  expansionBonusTriggerRate?: number;
+  mineClashTriggerRate?: number;
+  averageMineClashPayout?: number;
+  multiplierWildEv?: number;
+  freeSpinsAveragePayout?: number;
   coinCollectorTriggerRate?: number;
   buyBonusRtp?: number;
   buyBonusAveragePayout?: number;
   holdAndWinAveragePayout?: number;
   capHitRate?: number;
+  baseLineRtp?: number;
+  inactiveVsCount?: number;
+  activeNormalVsCount?: number;
+  activeNormalVsRate?: number;
+  interiorBoardAppearanceCount?: number;
+  interiorBoardAppearanceRate?: number;
+  vsInsideInteriorCount?: number;
+  activeInteriorVsCount?: number;
+  activeInteriorVsRate?: number;
+  averageActiveNormalVsPayout?: number;
+  averageActiveInteriorVsPayout?: number;
+  maxWinObserved?: number;
+  interiorSizeDistribution?: Record<string, number>;
+  vsDuelTierDistribution?: Record<string, number>;
+  vsMultiplierDistribution?: Record<string, number>;
 }
 
 export interface HoldAndWinResult {
@@ -256,4 +331,112 @@ export interface WheelBonusResult {
   jackpotLabel?: "Grand" | "Major" | "Minor" | "Mini";
   featureTrigger?: "HOLD_AND_WIN" | "SUPER_HOLD_AND_WIN";
   freeSpinsAwarded?: number;
+}
+
+export interface ExpansionBonusGainOption {
+  label: string;
+  min: number;
+  max: number;
+  weight: number;
+}
+
+export interface ExpansionBonusPhaseConfig {
+  id: string;
+  title: string;
+  rounds: number | [number, number];
+  gains: ExpansionBonusGainOption[];
+}
+
+export interface ExpansionBonusConfig {
+  triggerSymbol: string;
+  triggerCount: number;
+  phases: ExpansionBonusPhaseConfig[];
+  mechanic?: "round-accumulator" | "mine-clash";
+  rareFinalChance?: number;
+  maxMultiplier: number;
+  frameWidths?: Array<{
+    width: number;
+    weight: number;
+  }>;
+  mineClash?: {
+    goldMiner: {
+      min: number;
+      max: number;
+      weight: number;
+    };
+    diamondMiner: {
+      min: number;
+      max: number;
+      weight: number;
+    };
+    rareBoost: {
+      multiplier: number;
+      chance: number;
+    };
+  };
+  labels?: {
+    intro?: string;
+    total?: string;
+    final?: string;
+  };
+  vsActive?: boolean;
+  vsType?: "normal-column" | "interior";
+  activeAreaType?: "column" | "interior";
+  activeColumns?: { start: number; count: number };
+  activeRows?: { start: number; count: number };
+  vsTier?: "gold-gold" | "gold-diamond" | "diamond-diamond";
+  vsMultiplier?: number;
+  vsCandidateMultipliers?: { gold: number; diamond: number };
+  vsWinningMultiplier?: number;
+  vsWinnerSide?: "gold" | "diamond";
+  inactiveVsPositions?: Array<{ reel: number; row: number }>;
+  activeVsPosition?: { reel: number; row: number };
+  interiorColumns?: number;
+  interiorStartColumn?: number;
+}
+
+export interface ExpansionBonusRound {
+  phaseId: string;
+  phaseTitle: string;
+  label: string;
+  gain: number;
+  totalMultiplier: number;
+}
+
+export interface ExpansionBonusResult {
+  triggerPositions: Array<{ reel: number; row: number }>;
+  rounds: ExpansionBonusRound[];
+  multiplier: number;
+  payout: number;
+  capped: boolean;
+  sourceFeature?: "heist-showdown" | "mine-clash";
+  frame?: {
+    startReel: number;
+    width: number;
+    rowStart: number;
+    rowCount: number;
+    reelCount: number;
+  };
+  transformedPositions?: Array<{ reel: number; row: number }>;
+  vsActive?: boolean;
+  vsType?: "normal-column" | "interior";
+  activeAreaType?: "column" | "interior";
+  activeColumns?: { start: number; count: number };
+  activeRows?: { start: number; count: number };
+  vsTier?: "gold-gold" | "gold-diamond" | "diamond-diamond";
+  vsMultiplier?: number;
+  vsCandidateMultipliers?: { gold: number; diamond: number };
+  vsWinningMultiplier?: number;
+  vsWinnerSide?: "gold" | "diamond";
+  inactiveVsPositions?: Array<{ reel: number; row: number }>;
+  activeVsPosition?: { reel: number; row: number };
+  interiorColumns?: number;
+  interiorStartColumn?: number;
+  mineClash?: {
+    winner: "gold" | "diamond";
+    goldMultiplier: number;
+    diamondMultiplier: number;
+    frameWidth: number;
+    multiplierWildEv: number;
+  };
 }

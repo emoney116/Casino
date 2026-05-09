@@ -1,7 +1,8 @@
 import { creditCurrency, debitCurrency } from "../wallet/walletService";
 import { DEMO_MAX_SINGLE_BET, capDemoPayout } from "../economy/limits";
 import type { Currency, User } from "../types";
-import type { BonusFeatureType, HoldAndWinResult, HoldAndWinState, SlotConfig, SlotSpinInput, SlotSpinResult, SpinMode, WheelBonusResult } from "./types";
+import type { BonusFeatureType, ExpansionBonusResult, GoldRushSpinMetadata, GoldRushVsConfig, HoldAndWinResult, HoldAndWinState, SlotConfig, SlotSpinInput, SlotSpinResult, SpinMode, WheelBonusResult } from "./types";
+import { calculateExpansionBonus, getExpansionTriggerPositions } from "./expansionBonus";
 
 function frontierFreeSpinSymbolWeight(symbolId: string, weight: number) {
   if (symbolId === "10" || symbolId === "J") return 0;
@@ -9,6 +10,13 @@ function frontierFreeSpinSymbolWeight(symbolId: string, weight: number) {
   if (symbolId === "K" || symbolId === "A") return weight * 0.55;
   if (["sun_hawk", "canyon_ram", "sand_fox", "crystal_scorpion", "desert_relic", "oasis_gem", "dust_spirit"].includes(symbolId)) return weight * 1.25;
   if (symbolId === "mirage_wild") return weight * 1.2;
+  return weight;
+}
+
+function goldRushFreeSpinSymbolWeight(symbolId: string, weight: number) {
+  if (symbolId === "10" || symbolId === "J") return weight * 0.45;
+  if (symbolId === "Q" || symbolId === "K" || symbolId === "A") return weight * 0.72;
+  if (["treasure_chest", "blue_diamond", "gold_nugget", "dynamite", "mine_cart", "lantern", "pickaxe"].includes(symbolId)) return weight * 1.18;
   return weight;
 }
 
@@ -23,7 +31,11 @@ function weightedSymbols(game: SlotConfig, spinMode: SpinMode = "NORMAL", freeSp
         : symbol.id === scatterSymbol
           ? symbol.weight * (boost?.scatterWeightMultiplier ?? 1)
           : symbol.weight;
-    const weight = freeSpin && game.id === "frontier-fortune" ? frontierFreeSpinSymbolWeight(symbol.id, boostedWeight) : boostedWeight;
+    const weight = freeSpin && game.id === "frontier-fortune"
+      ? frontierFreeSpinSymbolWeight(symbol.id, boostedWeight)
+      : freeSpin && game.id === "gold-rush-showdown"
+        ? goldRushFreeSpinSymbolWeight(symbol.id, boostedWeight)
+        : boostedWeight;
     return { ...symbol, weight };
   });
 }
@@ -87,14 +99,29 @@ function payoutMultiplier(game: SlotConfig, symbol: string, count: number) {
   return rules[0]?.multiplier ?? 0;
 }
 
-function evaluatePaylines(game: SlotConfig, grid: string[][], betAmount: number, freeSpin: boolean) {
-  const lineBet = betAmount / game.paylines.length;
+function bestWildSubstituteSymbol(game: SlotConfig, count: number) {
+  return game.symbols
+    .filter((symbol) => symbol.kind !== "wild" && symbol.kind !== "scatter" && symbol.kind !== "bonus" && symbol.kind !== "coin")
+    .map((symbol) => ({ symbol: symbol.id, multiplier: payoutMultiplier(game, symbol.id, count) }))
+    .sort((a, b) => b.multiplier - a.multiplier)[0]?.symbol;
+}
+
+function evaluatePaylines(
+  game: SlotConfig,
+  grid: string[][],
+  betAmount: number,
+  freeSpin: boolean,
+  multiplierWilds?: { positions: Array<{ reel: number; row: number }>; multiplier: number },
+) {
+  const lineBet = game.paytableBasis === "totalBet" ? betAmount : betAmount / game.paylines.length;
   const lineWins: SlotSpinResult["lineWins"] = [];
+  const multiplierWildPositions = new Set(multiplierWilds?.positions.map((position) => `${position.reel}:${position.row}`) ?? []);
 
   for (const payline of game.paylines) {
     const symbols = payline.rows.map((row, reel) => grid[reel][row]);
     const wildSymbol = game.specialSymbols?.wild ?? "wild";
-    const firstRegular = symbols.find((symbol) => symbol !== wildSymbol && symbol !== game.scatterSymbol && symbol !== game.bonusSymbol);
+    const firstRegular = symbols.find((symbol) => symbol !== wildSymbol && symbol !== game.scatterSymbol && symbol !== game.bonusSymbol)
+      ?? (symbols.every((symbol) => symbol === wildSymbol) ? bestWildSubstituteSymbol(game, symbols.length) : undefined);
     if (!firstRegular) continue;
 
     let count = 0;
@@ -111,7 +138,10 @@ function evaluatePaylines(game: SlotConfig, grid: string[][], betAmount: number,
 
     const multiplier = payoutMultiplier(game, firstRegular, count);
     if (multiplier > 0) {
-      const boosted = multiplier * (freeSpin ? game.freeSpins.winMultiplier : 1);
+      const wildMultiplier = multiplierWildPositions.size > 0 && positions.some((position) => multiplierWildPositions.has(`${position.reel}:${position.row}`))
+        ? Math.max(1, multiplierWilds?.multiplier ?? 1)
+        : 1;
+      const boosted = multiplier * (freeSpin ? game.freeSpins.winMultiplier : 1) * wildMultiplier;
       lineWins.push({
         paylineId: payline.id,
         paylineName: payline.name,
@@ -127,6 +157,20 @@ function evaluatePaylines(game: SlotConfig, grid: string[][], betAmount: number,
   return lineWins;
 }
 
+function applyMultiplierWildTransform(
+  game: SlotConfig,
+  grid: string[][],
+  positions: Array<{ reel: number; row: number }> = [],
+) {
+  const wildSymbol = game.specialSymbols?.wild;
+  if (!wildSymbol || positions.length === 0) return grid;
+  const nextGrid = grid.map((reel) => [...reel]);
+  positions.forEach((position) => {
+    if (nextGrid[position.reel]?.[position.row] !== undefined) nextGrid[position.reel][position.row] = wildSymbol;
+  });
+  return nextGrid;
+}
+
 function collapseGrid(game: SlotConfig, grid: string[][], positions: Array<{ reel: number; row: number }>) {
   const remove = new Set(positions.map((position) => `${position.reel}:${position.row}`));
   return grid.map((reelSymbols, reel) => {
@@ -136,7 +180,15 @@ function collapseGrid(game: SlotConfig, grid: string[][], positions: Array<{ ree
   });
 }
 
-function freeSpinAward(game: SlotConfig) {
+function freeSpinAward(game: SlotConfig, scatterCount = 0) {
+  const countAward = scatterCount >= 5
+    ? game.freeSpins.awardsByScatter?.[5]
+    : scatterCount >= 4
+      ? game.freeSpins.awardsByScatter?.[4]
+      : scatterCount >= 3
+        ? game.freeSpins.awardsByScatter?.[3]
+        : undefined;
+  if (typeof countAward === "number") return countAward;
   const range = game.freeSpins.awarded;
   return range[0] + Math.floor(Math.random() * (range[1] - range[0] + 1));
 }
@@ -161,6 +213,233 @@ function weightedRandom<T extends { weight: number }>(items: T[]) {
     if (roll <= 0) return item;
   }
   return items[items.length - 1];
+}
+
+function totalLinePayout(lineWins: SlotSpinResult["lineWins"]) {
+  return lineWins.reduce((sum, line) => sum + line.payout, 0);
+}
+
+function selectGoldRushInterior(game: SlotConfig, freeSpin: boolean) {
+  const config = game.goldRushInterior;
+  if (!config) return undefined;
+  const shouldAppear = freeSpin && config.freeSpinsInteriorAlwaysActive ? true : Math.random() < config.appearanceChance;
+  if (!shouldAppear) return undefined;
+  const selected = weightedRandom(config.sizes);
+  const columns = Math.max(2, Math.min(config.maxInteriorColumns, game.reelCount, selected.columns));
+  const maxStart = Math.max(0, game.reelCount - columns);
+  const startColumn = Math.floor(Math.random() * (maxStart + 1));
+  return { startColumn, columns, rowStart: 0, rowCount: game.rowCount };
+}
+
+function getGoldRushInteriorPositions(interior: NonNullable<GoldRushSpinMetadata["interior"]>) {
+  const positions: Array<{ reel: number; row: number }> = [];
+  for (let reel = interior.startColumn; reel < interior.startColumn + interior.columns; reel += 1) {
+    for (let row = interior.rowStart; row < interior.rowStart + interior.rowCount; row += 1) {
+      positions.push({ reel, row });
+    }
+  }
+  return positions;
+}
+
+function getGoldRushColumnPositions(game: SlotConfig, reel: number) {
+  return Array.from({ length: game.rowCount }, (_, row) => ({ reel, row }));
+}
+
+function isInsideInterior(position: { reel: number; row: number }, interior?: GoldRushSpinMetadata["interior"]) {
+  if (!interior) return false;
+  return position.reel >= interior.startColumn && position.reel < interior.startColumn + interior.columns && position.row >= interior.rowStart && position.row < interior.rowStart + interior.rowCount;
+}
+
+function selectGoldRushVsDuel(config: GoldRushVsConfig) {
+  const tier = weightedRandom(config.duelTiers);
+  const multiplier = weightedRandom(tier.multipliers).multiplier;
+  return { tier, multiplier };
+}
+
+function makeGoldRushMineClashResult({
+  game,
+  betAmount,
+  triggerPosition,
+  type,
+  transformedPositions,
+  duel,
+  payout,
+  capped,
+  interior,
+}: {
+  game: SlotConfig;
+  betAmount: number;
+  triggerPosition: { reel: number; row: number };
+  type: "normal-column" | "interior";
+  transformedPositions: Array<{ reel: number; row: number }>;
+  duel: ReturnType<typeof selectGoldRushVsDuel>;
+  payout: number;
+  capped: boolean;
+  interior?: GoldRushSpinMetadata["interior"];
+}): ExpansionBonusResult {
+  const frame = type === "interior" && interior
+    ? {
+      startReel: interior.startColumn,
+      width: interior.columns,
+      rowStart: interior.rowStart,
+      rowCount: interior.rowCount,
+      reelCount: game.reelCount,
+    }
+    : {
+      startReel: triggerPosition.reel,
+      width: 1,
+      rowStart: 0,
+      rowCount: game.rowCount,
+      reelCount: game.reelCount,
+    };
+  const winner = duel.tier.winner;
+  const goldMultiplier = winner === "gold" ? duel.multiplier : Math.max(2, Math.floor(duel.multiplier * 0.65));
+  const diamondMultiplier = winner === "diamond" ? duel.multiplier : Math.max(2, Math.floor(duel.multiplier * 0.65));
+  return {
+    triggerPositions: [triggerPosition],
+    rounds: [
+      { phaseId: "vs-flash", phaseTitle: "Mine Clash", label: "VS symbol flashes", gain: 0, totalMultiplier: 0 },
+      { phaseId: "frame-expand", phaseTitle: type === "interior" ? "Interior Mine Frame" : "Column Mine Frame", label: type === "interior" ? `${frame.width} column chamber opens` : "Column glows with ore", gain: 0, totalMultiplier: 0 },
+      { phaseId: "mining", phaseTitle: duel.tier.label, label: "Gold and diamond miners clash", gain: 0, totalMultiplier: 0 },
+      { phaseId: "winner", phaseTitle: winner === "gold" ? "Gold Miner Wins" : "Diamond Miner Wins", label: `${duel.multiplier}x multiplier revealed`, gain: duel.multiplier, totalMultiplier: duel.multiplier },
+      { phaseId: "wild-transform", phaseTitle: "Multiplier Wilds", label: `${transformedPositions.length} positions transform`, gain: duel.multiplier, totalMultiplier: duel.multiplier },
+    ],
+    multiplier: duel.multiplier,
+    payout,
+    capped,
+    sourceFeature: "mine-clash",
+    frame,
+    transformedPositions,
+    mineClash: {
+      winner,
+      goldMultiplier,
+      diamondMultiplier,
+      frameWidth: frame.width,
+      multiplierWildEv: transformedPositions.length * duel.multiplier,
+    },
+    vsActive: true,
+    vsType: type,
+    activeAreaType: type === "normal-column" ? "column" : "interior",
+    activeColumns: { start: frame.startReel, count: frame.width },
+    activeRows: { start: frame.rowStart, count: frame.rowCount },
+    vsTier: duel.tier.id,
+    vsMultiplier: duel.multiplier,
+    vsCandidateMultipliers: { gold: goldMultiplier, diamond: diamondMultiplier },
+    vsWinningMultiplier: duel.multiplier,
+    vsWinnerSide: winner,
+    activeVsPosition: triggerPosition,
+    interiorColumns: interior?.columns,
+    interiorStartColumn: interior?.startColumn,
+  };
+}
+
+function resolveGoldRushVsFeature(
+  game: SlotConfig,
+  grid: string[][],
+  betAmount: number,
+  freeSpin: boolean,
+  baseLineWins: SlotSpinResult["lineWins"],
+): {
+  lineWins: SlotSpinResult["lineWins"];
+  payout: number;
+  expansionBonus?: ExpansionBonusResult;
+  goldRush: GoldRushSpinMetadata;
+} {
+  const vsConfig = game.goldRushVs;
+  const interior = selectGoldRushInterior(game, freeSpin);
+  const vsPositions = vsConfig ? getExpansionTriggerPositions(grid, vsConfig.triggerSymbol).sort((a, b) => a.reel - b.reel || a.row - b.row) : [];
+  const baseLinePayout = totalLinePayout(baseLineWins);
+  const metadata: GoldRushSpinMetadata = {
+    baseLinePayout,
+    inactiveVsPositions: vsPositions,
+    vsActive: false,
+    interior,
+    vsInsideInteriorCount: vsPositions.filter((position) => isInsideInterior(position, interior)).length,
+    activeNormalVsPayout: 0,
+    activeInteriorVsPayout: 0,
+  };
+  if (!vsConfig || vsPositions.length === 0) return { lineWins: baseLineWins, payout: baseLinePayout, goldRush: metadata };
+
+  const candidates: Array<{
+    position: { reel: number; row: number };
+    type: "normal-column" | "interior";
+    positions: Array<{ reel: number; row: number }>;
+    transformedWins: SlotSpinResult["lineWins"];
+    payout: number;
+  }> = [];
+
+  const interiorVs = interior ? vsPositions.filter((position) => isInsideInterior(position, interior)) : [];
+  if (interior && interiorVs.length > 0) {
+    const position = interiorVs[0];
+    const positions = getGoldRushInteriorPositions(interior);
+    const transformedGrid = applyMultiplierWildTransform(game, grid, positions);
+    const transformedWins = evaluatePaylines(game, transformedGrid, betAmount, freeSpin, { positions, multiplier: 1 });
+    const payout = totalLinePayout(transformedWins);
+    if (payout > baseLinePayout) candidates.push({ position, type: "interior", positions, transformedWins, payout });
+  }
+
+  if (candidates.length === 0 && (vsConfig.maxActiveNormalVs ?? 1) > 0) {
+    for (const position of vsPositions) {
+      const positions = getGoldRushColumnPositions(game, position.reel);
+      const transformedGrid = applyMultiplierWildTransform(game, grid, positions);
+      const transformedWins = evaluatePaylines(game, transformedGrid, betAmount, freeSpin, { positions, multiplier: 1 });
+      const payout = totalLinePayout(transformedWins);
+      if (payout > baseLinePayout) {
+        candidates.push({ position, type: "normal-column", positions, transformedWins, payout });
+        break;
+      }
+    }
+  }
+
+  if (candidates.length === 0) return { lineWins: baseLineWins, payout: baseLinePayout, goldRush: metadata };
+
+  const selected = candidates[0];
+  const duel = selectGoldRushVsDuel(vsConfig);
+  const transformedGrid = applyMultiplierWildTransform(game, grid, selected.positions);
+  const lineWins = evaluatePaylines(game, transformedGrid, betAmount, freeSpin, {
+    positions: selected.positions,
+    multiplier: duel.multiplier,
+  });
+  const uncappedPayout = totalLinePayout(lineWins);
+  const maxWin = maxWinFor(game, betAmount);
+  const payout = Math.min(uncappedPayout, maxWin);
+  const capped = uncappedPayout > payout;
+  const expansionBonus = makeGoldRushMineClashResult({
+    game,
+    betAmount,
+    triggerPosition: selected.position,
+    type: selected.type,
+    transformedPositions: selected.positions,
+    duel,
+    payout,
+    capped,
+    interior,
+  });
+  metadata.vsActive = true;
+  metadata.vsType = selected.type;
+  metadata.activeAreaType = selected.type === "normal-column" ? "column" : "interior";
+  metadata.activeColumns = {
+    start: selected.type === "interior" && interior ? interior.startColumn : selected.position.reel,
+    count: selected.type === "interior" && interior ? interior.columns : 1,
+  };
+  metadata.activeRows = {
+    start: selected.type === "interior" && interior ? interior.rowStart : 0,
+    count: selected.type === "interior" && interior ? interior.rowCount : game.rowCount,
+  };
+  metadata.vsTier = duel.tier.id;
+  metadata.vsMultiplier = duel.multiplier;
+  metadata.vsCandidateMultipliers = {
+    gold: expansionBonus.mineClash?.goldMultiplier ?? duel.multiplier,
+    diamond: expansionBonus.mineClash?.diamondMultiplier ?? duel.multiplier,
+  };
+  metadata.vsWinningMultiplier = duel.multiplier;
+  metadata.vsWinnerSide = expansionBonus.mineClash?.winner;
+  metadata.activeVsPosition = selected.position;
+  metadata.transformedPositions = selected.positions;
+  metadata.inactiveVsPositions = vsPositions.filter((position) => position.reel !== selected.position.reel || position.row !== selected.position.row);
+  metadata.activeNormalVsPayout = selected.type === "normal-column" ? Math.max(0, payout - baseLinePayout) : 0;
+  metadata.activeInteriorVsPayout = selected.type === "interior" ? Math.max(0, payout - baseLinePayout) : 0;
+  return { lineWins, payout, expansionBonus, goldRush: metadata };
 }
 
 function coinAward(game: SlotConfig, betAmount: number, superHold = false) {
@@ -388,9 +667,12 @@ export function calculateSlotResult(
   const grid = applyStickyWilds(game, forcedGrid ?? generateGrid(game, spinMode, freeSpin), freeSpin ? stickyWildPositions : []);
   const scatterCount = countInGrid(grid, game.scatterSymbol);
   const bonusCount = countInGrid(grid, game.bonusSymbol);
-  const frontierFreeSpinRetrigger = freeSpin && game.id === "frontier-fortune" && game.freeSpins.retrigger && scatterCount >= (game.wheelBonus?.triggerCount ?? 3);
-  let triggeredFreeSpins = frontierFreeSpinRetrigger || (scatterCount >= game.freeSpins.triggerCount && (!freeSpin || game.freeSpins.retrigger));
+  const retriggerCount = game.id === "frontier-fortune" ? (game.wheelBonus?.triggerCount ?? game.freeSpins.triggerCount) : game.freeSpins.triggerCount;
+  const freeSpinRetrigger = freeSpin && game.freeSpins.retrigger && scatterCount >= retriggerCount;
+  let triggeredFreeSpins = freeSpinRetrigger || (scatterCount >= game.freeSpins.triggerCount && (!freeSpin || game.freeSpins.retrigger));
   const triggeredPickBonus = bonusCount >= game.pickBonus.triggerCount;
+  const expansionTriggerPositions = game.expansionBonus ? getExpansionTriggerPositions(grid, game.expansionBonus.triggerSymbol) : [];
+  let triggeredExpansionBonus = Boolean(game.id !== "gold-rush-showdown" && game.expansionBonus && expansionTriggerPositions.length >= game.expansionBonus.triggerCount);
   const coinSymbol = game.specialSymbols?.coin;
   const coinCount = coinSymbol ? countInGrid(grid, coinSymbol) : 0;
   const boost = spinMode === "NORMAL" ? undefined : game.boostSpins?.[spinMode];
@@ -407,7 +689,7 @@ export function calculateSlotResult(
   const collectorTriggerChance = (collector?.triggerChancePerCoin ?? 0) * collectorAdds * (boost?.collectorTriggerBoost ?? 1);
   const triggeredCoinCollector = Boolean(collector?.enabled && collectorAdds > 0 && Math.random() < collectorTriggerChance);
   triggeredHoldAndWin = triggeredHoldAndWin || triggeredCoinCollector;
-  const lineWins = evaluatePaylines(game, grid, betAmount, freeSpin);
+  let lineWins = evaluatePaylines(game, grid, betAmount, freeSpin);
 
   let payout = lineWins.reduce((sum, line) => sum + line.payout, 0);
   let bonusPayout = 0;
@@ -415,11 +697,23 @@ export function calculateSlotResult(
   let pickBonusAwards: number[] | undefined;
   let holdAndWin: HoldAndWinResult | undefined;
   let wheelBonus: WheelBonusResult | undefined;
+  let expansionBonus: SlotSpinResult["expansionBonus"];
+  let goldRush: GoldRushSpinMetadata | undefined;
   let jackpotLabel: SlotSpinResult["jackpotLabel"];
   let winType: SlotSpinResult["winType"] = payout > betAmount * 8 ? "BIG_WIN" : payout > 0 ? "LINE_WIN" : "LOSS";
 
+  if (game.id === "gold-rush-showdown") {
+    const resolved = resolveGoldRushVsFeature(game, grid, betAmount, freeSpin, lineWins);
+    lineWins = resolved.lineWins;
+    payout = resolved.payout;
+    expansionBonus = resolved.expansionBonus;
+    goldRush = resolved.goldRush;
+    triggeredExpansionBonus = Boolean(expansionBonus);
+    if (expansionBonus) winType = "EXPANSION_BONUS";
+  }
+
   if (triggeredFreeSpins) {
-    freeSpinsAwarded = frontierFreeSpinRetrigger ? (game.freeSpins.retriggerAward ?? 5) : freeSpinAward(game);
+    freeSpinsAwarded = freeSpinRetrigger ? (game.freeSpins.retriggerAward ?? 5) : freeSpinAward(game, scatterCount);
     winType = "FREE_SPINS";
   }
 
@@ -447,17 +741,41 @@ export function calculateSlotResult(
     winType = "WHEEL_BONUS";
   }
 
+  if (triggeredExpansionBonus && game.expansionBonus && game.id !== "gold-rush-showdown") {
+    expansionBonus = calculateExpansionBonus(game, betAmount, expansionTriggerPositions, game.expansionBonus);
+    if (expansionBonus.sourceFeature === "mine-clash") {
+      const transformedGrid = applyMultiplierWildTransform(game, grid, expansionBonus.transformedPositions);
+      lineWins = evaluatePaylines(game, transformedGrid, betAmount, freeSpin, {
+        positions: expansionBonus.transformedPositions ?? [],
+        multiplier: expansionBonus.multiplier,
+      });
+      payout = lineWins.reduce((sum, line) => sum + line.payout, 0);
+      expansionBonus.payout = payout;
+    } else {
+      bonusPayout += expansionBonus.payout;
+    }
+    winType = "EXPANSION_BONUS";
+  }
+
   payout += bonusPayout;
   const uncappedPayout = payout;
   const maxWin = maxWinFor(game, betAmount);
   payout = Math.min(payout, maxWin);
   bonusPayout = Math.min(bonusPayout, payout);
   const capped = uncappedPayout > payout;
+  if (expansionBonus?.sourceFeature === "mine-clash") {
+    expansionBonus.payout = payout;
+    expansionBonus.capped = capped;
+  }
   const multiplier = betAmount > 0 ? payout / betAmount : 0;
   const winTier: SlotSpinResult["winTier"] =
     multiplier >= 20 ? "MEGA" : multiplier >= 8 ? "BIG" : multiplier > 0 ? "SMALL" : "NONE";
 
-  const winningPositions = lineWins.flatMap((line) => line.positions);
+  const winningPositions = [
+    ...lineWins.flatMap((line) => line.positions),
+    ...(triggeredExpansionBonus ? expansionTriggerPositions : []),
+    ...(expansionBonus?.sourceFeature === "mine-clash" ? (expansionBonus.transformedPositions ?? []) : []),
+  ];
 
   return {
     gameId: game.id,
@@ -473,16 +791,19 @@ export function calculateSlotResult(
     freeSpinsAwarded,
     pickBonusAwards,
     pickBonusPicks: triggeredPickBonus ? game.pickBonus.picks : undefined,
-    triggeredBonus: triggeredFreeSpins || triggeredPickBonus || Boolean(triggeredHoldAndWin) || Boolean(triggeredWheelBonus),
+    triggeredBonus: triggeredFreeSpins || triggeredPickBonus || Boolean(triggeredHoldAndWin) || Boolean(triggeredWheelBonus) || triggeredExpansionBonus,
     triggeredFreeSpins,
     triggeredPickBonus,
     triggeredHoldAndWin,
     triggeredWheelBonus,
+    triggeredExpansionBonus,
     triggeredCoinCollector,
     bonusPayout,
     jackpotLabel,
     holdAndWin,
     wheelBonus,
+    expansionBonus,
+    goldRush,
   };
 }
 
@@ -734,7 +1055,7 @@ export function spinSlot(input: SlotSpinInput) {
   if (result.payout > 0) {
     creditCurrency({
       userId: input.user.id,
-      type: result.bonusPayout && result.bonusPayout >= result.payout ? (result.jackpotLabel ? "JACKPOT_WIN" : "BONUS_WIN") : "GAME_WIN",
+      type: result.winType === "EXPANSION_BONUS" || (result.bonusPayout && result.bonusPayout >= result.payout) ? (result.jackpotLabel ? "JACKPOT_WIN" : "BONUS_WIN") : "GAME_WIN",
       currency: input.currency,
       amount: result.payout,
       metadata: {
@@ -746,6 +1067,7 @@ export function spinSlot(input: SlotSpinInput) {
         freeSpin: Boolean(input.freeSpin),
         spinMode,
         wheelBonus: result.wheelBonus,
+        expansionBonus: result.expansionBonus,
         triggeredCoinCollector: result.triggeredCoinCollector,
       },
     });

@@ -16,15 +16,35 @@ export function simulateSlot(game: SlotConfig, spins = 100000, betAmount = game.
   let pickBonusTriggers = 0;
   let holdAndWinTriggers = 0;
   let wheelBonusTriggers = 0;
+  let expansionBonusTriggers = 0;
   let coinCollectorTriggers = 0;
   let cappedResults = 0;
   let holdAndWinPaid = 0;
+  let mineClashTriggers = 0;
+  let mineClashPaid = 0;
+  let mineClashWildEv = 0;
+  let freeSpinPaidTotal = 0;
+  let baseLinePaid = 0;
+  let inactiveVsCount = 0;
+  let activeNormalVsCount = 0;
+  let activeNormalVsPaid = 0;
+  let interiorBoardAppearanceCount = 0;
+  let vsInsideInteriorCount = 0;
+  let activeInteriorVsCount = 0;
+  let activeInteriorVsPaid = 0;
+  const interiorSizeDistribution: Record<string, number> = {};
+  const vsDuelTierDistribution: Record<string, number> = {};
+  const vsMultiplierDistribution: Record<string, number> = {};
+  const increment = (record: Record<string, number>, key: string) => {
+    record[key] = (record[key] ?? 0) + 1;
+  };
 
   for (let index = 0; index < spins; index += 1) {
     const result = game.id === "neon-fortune" ? calculateNeonCascadeResult(game, betAmount) : calculateSlotResult(game, betAmount);
     totalWagered += betAmount;
     const freeSpinBonus = result.freeSpinsAwarded > 0 ? calculateFreeSpinsBonus(game, betAmount, result.freeSpinsAwarded) : undefined;
     const freeSpinPaid = freeSpinBonus?.total ?? 0;
+    freeSpinPaidTotal += freeSpinPaid;
     const pickAward = result.pickBonusAwards?.[0] ?? 0;
     const holdAward = result.triggeredHoldAndWin ? calculateHoldAndWinBonus(game, betAmount).total : 0;
     if (result.capped || holdAward >= betAmount * game.maxPayoutMultiplier) cappedResults += 1;
@@ -37,6 +57,32 @@ export function simulateSlot(game: SlotConfig, spins = 100000, betAmount = game.
     if (result.triggeredPickBonus) pickBonusTriggers += 1;
     if (result.triggeredHoldAndWin) holdAndWinTriggers += 1;
     if (result.triggeredWheelBonus) wheelBonusTriggers += 1;
+    if (result.triggeredExpansionBonus) expansionBonusTriggers += 1;
+    if (result.expansionBonus?.sourceFeature === "mine-clash") {
+      mineClashTriggers += 1;
+      mineClashPaid += result.expansionBonus.payout;
+      mineClashWildEv += result.expansionBonus.mineClash?.multiplierWildEv ?? 0;
+    }
+    if (result.goldRush) {
+      const goldRush = result.goldRush;
+      baseLinePaid += goldRush.baseLinePayout;
+      inactiveVsCount += goldRush.inactiveVsPositions.length;
+      vsInsideInteriorCount += goldRush.vsInsideInteriorCount;
+      if (goldRush.interior) {
+        interiorBoardAppearanceCount += 1;
+        increment(interiorSizeDistribution, `${goldRush.interior.columns}`);
+      }
+      if (goldRush.vsActive && goldRush.vsType === "normal-column") {
+        activeNormalVsCount += 1;
+        activeNormalVsPaid += goldRush.activeNormalVsPayout;
+      }
+      if (goldRush.vsActive && goldRush.vsType === "interior") {
+        activeInteriorVsCount += 1;
+        activeInteriorVsPaid += goldRush.activeInteriorVsPayout;
+      }
+      if (goldRush.vsTier) increment(vsDuelTierDistribution, goldRush.vsTier);
+      if (goldRush.vsMultiplier) increment(vsMultiplierDistribution, `${goldRush.vsMultiplier}x`);
+    }
     if (result.triggeredCoinCollector) coinCollectorTriggers += 1;
     biggestWin = Math.max(biggestWin, totalResultPaid, freeSpinPaid);
   }
@@ -87,11 +133,31 @@ export function simulateSlot(game: SlotConfig, spins = 100000, betAmount = game.
     pickBonusTriggerRate: pickBonusTriggers / spins,
     holdAndWinTriggerRate: holdAndWinTriggers / spins,
     wheelBonusTriggerRate: wheelBonusTriggers / spins,
+    expansionBonusTriggerRate: expansionBonusTriggers / spins,
+    mineClashTriggerRate: mineClashTriggers / spins,
+    averageMineClashPayout: mineClashTriggers > 0 ? mineClashPaid / mineClashTriggers : 0,
+    multiplierWildEv: mineClashTriggers > 0 ? mineClashWildEv / mineClashTriggers : 0,
+    freeSpinsAveragePayout: freeSpinTriggers > 0 ? freeSpinPaidTotal / freeSpinTriggers : 0,
     coinCollectorTriggerRate: coinCollectorTriggers / spins,
     buyBonusRtp,
     buyBonusAveragePayout,
     holdAndWinAveragePayout: holdAndWinTriggers > 0 ? holdAndWinPaid / holdAndWinTriggers : 0,
     capHitRate: cappedResults / (spins + (game.buyBonus?.enabled ? Math.min(250, spins) : 0)),
+    baseLineRtp: baseLinePaid / totalWagered,
+    inactiveVsCount,
+    activeNormalVsCount,
+    activeNormalVsRate: activeNormalVsCount / spins,
+    interiorBoardAppearanceCount,
+    interiorBoardAppearanceRate: interiorBoardAppearanceCount / spins,
+    vsInsideInteriorCount,
+    activeInteriorVsCount,
+    activeInteriorVsRate: activeInteriorVsCount / spins,
+    averageActiveNormalVsPayout: activeNormalVsCount > 0 ? activeNormalVsPaid / activeNormalVsCount : 0,
+    averageActiveInteriorVsPayout: activeInteriorVsCount > 0 ? activeInteriorVsPaid / activeInteriorVsCount : 0,
+    maxWinObserved: biggestWin,
+    interiorSizeDistribution,
+    vsDuelTierDistribution,
+    vsMultiplierDistribution,
   };
 }
 

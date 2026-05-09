@@ -56,6 +56,12 @@ export function PaytableModal({ game, onClose }: { game: SlotConfig; onClose: ()
             Each collection can randomly trigger Hold & Win and the meter {game.coinCollector.resetOnTrigger ? "resets" : "stays"} after a trigger.
           </div>
         )}
+        {game.expansionBonus?.mechanic === "mine-clash" && (
+          <div className="notice-card">
+            VS symbols open the Mine Clash frame. The frame expands over the reels, the Gold Miner and Diamond Miner compete,
+            and the winning miner turns the covered frame into multiplier wilds. Demo prototype math only; feature buys are not real-money play.
+          </div>
+        )}
         {game.boostSpins && (
           <div className="notice-card">
             Boost spins debit the displayed cost exactly. Gold Boost increases Gold Coin and collector feature chances;

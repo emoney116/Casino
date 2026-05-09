@@ -17308,6 +17308,2918 @@ body {
   }
 }
 
+/* Gold Rush Showdown and reusable expansion bonus overlay. */
+.premium-slot-shell.gold-rush {
+  min-height: 100dvh;
+  overflow-x: hidden;
+  isolation: isolate;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-content: start;
+  gap: clamp(8px, 2dvh, 14px);
+  padding: clamp(8px, 2vw, 16px);
+  background:
+    radial-gradient(circle at 84% 12%, rgba(244, 114, 48, 0.28), transparent 10rem),
+    radial-gradient(circle at 18% 24%, rgba(250, 204, 21, 0.18), transparent 12rem),
+    linear-gradient(180deg, #120705 0%, #26100b 44%, #060403 100%);
+}
+
+.premium-slot-shell.gold-rush::before,
+.premium-slot-shell.gold-rush::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.premium-slot-shell.gold-rush::before {
+  background:
+    linear-gradient(180deg, transparent 0 42%, rgba(96, 38, 12, 0.38) 43% 66%, rgba(5, 5, 5, 0.86) 67%),
+    linear-gradient(115deg, transparent 0 13%, rgba(124, 45, 18, 0.42) 14% 20%, transparent 21% 100%),
+    linear-gradient(64deg, transparent 0 72%, rgba(120, 53, 15, 0.32) 73% 80%, transparent 81% 100%);
+  opacity: 0.9;
+}
+
+.premium-slot-shell.gold-rush::after {
+  inset: auto -8% 13dvh -8%;
+  height: 25dvh;
+  background:
+    radial-gradient(ellipse at 50% 100%, rgba(245, 158, 11, 0.18), transparent 52%),
+    linear-gradient(90deg, transparent 0 5%, #0b0b0b 6% 20%, #451a03 21% 38%, #161616 39% 73%, #451a03 74% 88%, transparent 89%),
+    repeating-linear-gradient(90deg, transparent 0 34px, rgba(254, 243, 199, 0.18) 35px 37px);
+  border-top: 2px solid rgba(251, 191, 36, 0.22);
+  transform: skewX(-9deg);
+  filter: blur(0.2px);
+  opacity: 0.82;
+}
+
+.gold-rush .slot-header,
+.gold-rush .screen-shake,
+.gold-rush .slot-board,
+.gold-rush .slot-controls,
+.gold-rush .frontier-reel-stage,
+.gold-rush .spin-history,
+.gold-rush > .card {
+  position: relative;
+  z-index: 2;
+}
+
+.gold-rush .slot-header,
+.gold-rush .slot-controls,
+.gold-rush .slot-state-pill {
+  border-color: rgba(250, 204, 21, 0.32);
+  background:
+    linear-gradient(135deg, rgba(36, 16, 6, 0.92), rgba(63, 22, 10, 0.86)),
+    repeating-linear-gradient(90deg, rgba(250, 204, 21, 0.08) 0 1px, transparent 1px 18px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.38);
+}
+
+.gold-rush .slot-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 760px);
+  margin: 0 auto;
+  padding: 10px;
+  color: #fff7ed;
+  border: 1px solid rgba(250, 204, 21, 0.24);
+  border-radius: 10px;
+}
+
+.gold-rush .game-heading {
+  display: grid;
+  grid-template-columns: 40px 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.gold-rush .game-back-button {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+}
+
+.gold-rush .frontier-title-logo {
+  display: none;
+}
+
+.gold-rush .game-logo {
+  background:
+    radial-gradient(circle at 50% 26%, rgba(255, 255, 255, 0.56), transparent 23%),
+    linear-gradient(145deg, #facc15, #7f1d1d 54%, #111827);
+  color: #fff7ed;
+  border-color: rgba(254, 243, 199, 0.58);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.72);
+}
+
+.gold-rush .game-logo.small {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  box-shadow: 0 0 18px rgba(245, 158, 11, 0.28);
+}
+
+.gold-rush .game-heading > div:not(.game-logo) {
+  min-width: 0;
+}
+
+.gold-rush .slot-header h1 {
+  margin: 0;
+  color: #fef3c7;
+  font-size: clamp(1.28rem, 5vw, 2.65rem);
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  text-shadow: 0 0 18px rgba(245, 158, 11, 0.42);
+}
+
+.gold-rush .slot-header .eyebrow,
+.gold-rush .slot-header .muted {
+  color: #fed7aa;
+}
+
+.gold-rush .header-jackpot-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  width: clamp(92px, 24vw, 132px);
+}
+
+.gold-rush .header-jackpot-strip strong {
+  display: grid;
+  place-items: center;
+  min-height: 28px;
+  padding: 3px;
+  border-radius: 7px;
+  color: #fff7ed;
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.88), rgba(127, 29, 29, 0.86));
+  box-shadow: inset 0 0 0 1px rgba(254, 243, 199, 0.24);
+}
+
+.gold-rush .header-jackpot-strip span,
+.gold-rush .header-jackpot-strip em,
+.gold-rush .header-jackpot-strip b {
+  display: block;
+  font-style: normal;
+  line-height: 1;
+  text-align: center;
+}
+
+.gold-rush .header-jackpot-strip em {
+  font-size: 0.52rem;
+}
+
+.gold-rush .header-jackpot-strip b {
+  font-size: 0.58rem;
+}
+
+.gold-rush .slot-board {
+  width: min(100%, 760px);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "state"
+    "reels"
+    "controls";
+  align-items: stretch;
+  gap: clamp(7px, 1.6dvh, 10px);
+  color: #fff7ed;
+}
+
+.gold-rush .slot-state-pill {
+  grid-area: state;
+  min-height: 36px;
+  padding: 7px 10px;
+  color: #fef3c7;
+  border: 1px solid rgba(250, 204, 21, 0.2);
+  border-radius: 8px;
+}
+
+.gold-rush .slot-side-menu,
+.gold-rush .reel-bonus-action {
+  display: none;
+}
+
+.gold-rush .frontier-reel-stage {
+  grid-area: reels;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: repeat(7, minmax(0, 1fr));
+  gap: clamp(4px, 1vw, 8px);
+  align-items: stretch;
+}
+
+.gold-rush .slot-controls {
+  grid-area: controls;
+  color: #fff7ed;
+  position: sticky;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  z-index: 8;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid rgba(250, 204, 21, 0.26);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+}
+
+.gold-rush .slot-controls label,
+.gold-rush .quick-bets,
+.gold-rush .meter,
+.gold-rush .toggle-row,
+.gold-rush .session-stats,
+.gold-rush .slot-controls > .ghost-button.icon-button,
+.gold-rush .segmented,
+.gold-rush .balance-line,
+.gold-rush .bet-stepper,
+.gold-rush .slot-controls > .spin-button {
+  display: none;
+}
+
+.gold-rush .slot-control-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 78px;
+  gap: 8px;
+  align-items: center;
+}
+
+.gold-rush .control-readout,
+.gold-rush .bet-readout {
+  min-width: 0;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(12, 7, 5, 0.58);
+  box-shadow: inset 0 0 0 1px rgba(254, 243, 199, 0.1);
+}
+
+.gold-rush .control-readout > span,
+.gold-rush .bet-readout > span {
+  color: #fed7aa;
+  font-size: 0.62rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.gold-rush .balance-amount {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1px;
+}
+
+.gold-rush .balance-amount strong,
+.gold-rush .balance-amount small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.05;
+}
+
+.gold-rush .balance-amount strong {
+  font-size: clamp(0.78rem, 3vw, 1rem);
+}
+
+.gold-rush .currency-mini {
+  display: flex;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.gold-rush .currency-mini button {
+  min-height: 24px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 0.58rem;
+  font-weight: 900;
+}
+
+.gold-rush .bet-readout > div {
+  display: grid;
+  grid-template-columns: 30px minmax(34px, 1fr) 30px;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.gold-rush .round-control {
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.gold-rush .bet-amount-trigger {
+  width: 100%;
+  min-width: 0;
+  padding-inline: 4px;
+  text-align: center;
+  min-height: 30px;
+  border-radius: 999px;
+  color: #fef3c7;
+  font-size: clamp(0.72rem, 2.8vw, 0.9rem);
+  font-weight: 1000;
+  background: rgba(0, 0, 0, 0.38);
+}
+
+.gold-rush .premium-control-icons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(34px, 1fr));
+  gap: 6px;
+}
+
+.gold-rush .premium-control-icons .icon-only {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  min-height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 8px;
+  background: rgba(15, 10, 7, 0.66);
+}
+
+.gold-rush .premium-control-icons img {
+  display: none;
+}
+
+.gold-rush .frontier-reel-stage {
+  position: relative;
+  min-height: 0;
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  max-height: min(64dvh, 620px);
+  margin: 0 auto;
+  padding: clamp(8px, 2vw, 14px);
+  border-radius: 14px;
+  background:
+    linear-gradient(90deg, rgba(10, 6, 4, 0.78), rgba(0, 0, 0, 0.84)),
+    radial-gradient(ellipse at 50% 92%, rgba(245, 158, 11, 0.28), transparent 48%),
+    repeating-linear-gradient(90deg, transparent 0 19%, rgba(254, 243, 199, 0.08) 19% 20%),
+    linear-gradient(180deg, #3b1608, #080504);
+  border: 3px solid rgba(250, 204, 21, 0.58);
+  box-shadow:
+    0 0 0 1px rgba(69, 26, 3, 0.95),
+    inset 0 0 0 2px rgba(120, 53, 15, 0.62),
+    inset 0 0 46px rgba(0, 0, 0, 0.74),
+    0 20px 50px rgba(0, 0, 0, 0.44);
+}
+
+.gold-rush .frontier-reel-stage::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 8px;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent 0 18%, rgba(250, 204, 21, 0.16) 19% 20%, transparent 21% 38%, rgba(250, 204, 21, 0.16) 39% 40%, transparent 41% 58%, rgba(250, 204, 21, 0.16) 59% 60%, transparent 61% 78%, rgba(250, 204, 21, 0.16) 79% 80%, transparent 81% 100%);
+  z-index: 1;
+}
+
+.gold-rush .symbol-tile,
+.gold-rush .gold-rush-frame-cell {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 9px;
+  border: 1px solid rgba(251, 191, 36, 0.38);
+}
+
+.gold-rush .gold-rush-frame-cell {
+  opacity: 0.48;
+  background:
+    linear-gradient(145deg, rgba(120, 53, 15, 0.22), rgba(12, 7, 5, 0.82)),
+    repeating-linear-gradient(135deg, transparent 0 8px, rgba(250, 204, 21, 0.08) 9px 10px);
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.55);
+}
+
+.gold-rush .symbol-tile {
+  background:
+    radial-gradient(circle at 34% 20%, rgba(255, 255, 255, 0.7), transparent 22%),
+    linear-gradient(145deg, #fff7ed 0%, #d19445 48%, #3f1d0d 100%);
+  box-shadow:
+    inset 0 -12px 24px rgba(0, 0, 0, 0.34),
+    0 8px 16px rgba(0, 0, 0, 0.28);
+}
+
+.gold-rush .symbol-tile::before {
+  content: attr(data-symbol-icon);
+  width: 78%;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #1c0a05;
+  font-size: clamp(0.78rem, 3.2vw, 1.55rem);
+  font-weight: 1000;
+  line-height: 0.9;
+  text-align: center;
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.82), transparent 22%),
+    linear-gradient(145deg, color-mix(in srgb, var(--symbol) 76%, #fff), #7c2d12);
+  box-shadow:
+    inset 0 -7px 12px rgba(0, 0, 0, 0.28),
+    0 3px 9px rgba(0, 0, 0, 0.36);
+}
+
+.gold-rush .symbol-tile[data-symbol-id="gold_train"]::before { content: "TRAIN"; font-size: clamp(0.55rem, 2.3vw, 1rem); border-radius: 10px; }
+.gold-rush .symbol-tile[data-symbol-id="sheriff"]::before { content: "STAR"; }
+.gold-rush .symbol-tile[data-symbol-id="outlaw"]::before { content: "MASK"; font-size: clamp(0.58rem, 2.3vw, 1rem); }
+.gold-rush .symbol-tile[data-symbol-id="pistol"]::before { content: "GUN"; }
+.gold-rush .symbol-tile[data-symbol-id="cowboy_hat"]::before { content: "HAT"; }
+.gold-rush .symbol-tile[data-symbol-id="horseshoe"]::before { content: "U"; font-size: clamp(1.1rem, 4.4vw, 2rem); }
+.gold-rush .symbol-tile[data-symbol-id="wild"]::before { content: "WILD"; font-size: clamp(0.54rem, 2.2vw, 0.98rem); }
+.gold-rush .symbol-tile[data-symbol-id="scatter_train"]::before { content: "SCAT"; font-size: clamp(0.54rem, 2.2vw, 0.98rem); }
+.gold-rush .symbol-tile[data-symbol-id="heist_badge"]::before { content: "HEIST"; font-size: clamp(0.48rem, 2vw, 0.9rem); }
+
+.gold-rush .symbol-tile span {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  font-size: 0;
+  line-height: 1;
+}
+
+.gold-rush .symbol-tile .symbol-fallback {
+  z-index: 1;
+  opacity: 1;
+  display: grid;
+  place-items: center;
+  color: #fff7ed;
+  font-size: clamp(0.88rem, 4vw, 1.8rem);
+  font-weight: 1000;
+  text-shadow:
+    0 2px 0 rgba(69, 26, 3, 0.92),
+    0 0 10px color-mix(in srgb, var(--symbol) 72%, transparent);
+}
+
+.gold-rush .symbol-tile small {
+  display: none;
+}
+
+.gold-rush .symbol-tile[title*="HEIST"],
+.gold-rush .symbol-tile[title*="Scatter"],
+.gold-rush .symbol-tile[title*="WILD"] {
+  background:
+    radial-gradient(circle at 50% 26%, rgba(255, 255, 255, 0.86), transparent 22%),
+    linear-gradient(145deg, #fef3c7, #f59e0b 45%, #7f1d1d);
+  box-shadow:
+    0 0 24px rgba(250, 204, 21, 0.42),
+    inset 0 -12px 24px rgba(0, 0, 0, 0.32);
+}
+
+.gold-rush .symbol-tile[title*="HEIST"]::after {
+  content: "";
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  border: 1px solid rgba(254, 243, 199, 0.75);
+  box-shadow: 0 0 18px rgba(250, 204, 21, 0.44);
+  pointer-events: none;
+}
+
+.gold-rush .symbol-tile.sticky-wild {
+  border-color: #fef3c7;
+  animation: goldRushStickyPulse 1.05s ease-in-out infinite alternate;
+}
+
+.gold-rush .free-spin-banner {
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  background: linear-gradient(135deg, rgba(12, 74, 110, 0.82), rgba(67, 20, 7, 0.86));
+}
+
+.gold-rush .slot-main-action,
+.gold-rush .spin-button {
+  background: linear-gradient(180deg, #fef3c7, #f59e0b 46%, #7f1d1d);
+  color: #1c0a05;
+  border-color: rgba(254, 243, 199, 0.8);
+  box-shadow: 0 0 28px rgba(245, 158, 11, 0.38);
+}
+
+.gold-rush .slot-main-action {
+  width: 78px;
+  height: 78px;
+}
+
+.gold-rush > .card:not(.slot-controls) {
+  width: min(100%, 760px);
+  margin: 0 auto;
+  padding: 10px;
+  border-color: rgba(250, 204, 21, 0.16);
+  background: rgba(18, 8, 5, 0.68);
+}
+
+.expansion-bonus-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 35;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: inherit;
+  color: #fff7ed;
+}
+
+.expansion-reel-dim {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(245, 158, 11, 0.24), transparent 36%),
+    rgba(0, 0, 0, 0.74);
+  backdrop-filter: blur(2px);
+}
+
+.expansion-trigger-map {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  pointer-events: none;
+}
+
+.expansion-trigger-map span {
+  grid-column: calc(var(--trigger-reel) + 1);
+  grid-row: calc(var(--trigger-row) + 1);
+  align-self: center;
+  justify-self: center;
+  width: min(82%, 72px);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: radial-gradient(circle, #fef3c7 0 20%, #f59e0b 45%, rgba(127, 29, 29, 0.08) 72%);
+  box-shadow: 0 0 28px rgba(250, 204, 21, 0.76);
+  animation: expansionBadgeBurst 1.15s cubic-bezier(0.18, 0.88, 0.24, 1) both;
+  animation-delay: calc(var(--trigger-index) * 90ms);
+}
+
+.expansion-bonus-stage {
+  position: relative;
+  z-index: 2;
+  width: min(92%, 520px);
+  min-height: min(82%, 390px);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  padding: clamp(14px, 4vw, 26px);
+  border: 1px solid color-mix(in srgb, var(--expansion-accent) 54%, transparent);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(9, 9, 11, 0.3), rgba(9, 9, 11, 0.92)),
+    linear-gradient(135deg, color-mix(in srgb, var(--expansion-panel) 88%, black), rgba(69, 10, 10, 0.9));
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.62),
+    inset 0 0 34px color-mix(in srgb, var(--expansion-accent) 18%, transparent);
+}
+
+.expansion-train-scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  opacity: 0.92;
+}
+
+.expansion-train-scene::before {
+  content: "";
+  position: absolute;
+  left: -8%;
+  right: -8%;
+  bottom: 18%;
+  height: 28%;
+  background:
+    linear-gradient(90deg, transparent 0 7%, #111827 8% 22%, #78350f 23% 54%, #111827 55% 92%, transparent 93%),
+    linear-gradient(180deg, #f59e0b, #451a03);
+  border-top: 3px solid rgba(254, 243, 199, 0.58);
+  transform: skewX(-10deg);
+  animation: expansionTrainSlide 2.8s ease-in-out infinite alternate;
+}
+
+.expansion-train-scene .vault-door {
+  position: absolute;
+  right: 10%;
+  top: 15%;
+  width: clamp(74px, 22vw, 128px);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  border: 10px solid #78716c;
+  background: radial-gradient(circle, #fef3c7 0 10%, #44403c 11% 38%, #1c1917 39%);
+  box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.68), 0 0 32px rgba(245, 158, 11, 0.26);
+}
+
+.expansion-train-scene .train-light {
+  position: absolute;
+  top: 28%;
+  width: 34%;
+  height: 28%;
+  background: radial-gradient(ellipse, rgba(254, 243, 199, 0.44), transparent 62%);
+  filter: blur(5px);
+}
+
+.expansion-train-scene .train-light.left {
+  left: -8%;
+}
+
+.expansion-train-scene .train-light.right {
+  right: 0;
+}
+
+.expansion-train-scene span {
+  position: absolute;
+  left: calc((var(--particle-index) * 17%) - 16%);
+  bottom: calc(10% + (var(--particle-index) % 5) * 7%);
+  width: 5px;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--expansion-accent) 82%, #fff);
+  animation: expansionDust 1.6s ease-in-out infinite;
+  animation-delay: calc(var(--particle-index) * 60ms);
+}
+
+.expansion-bonus-copy {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.expansion-bonus-copy span {
+  color: color-mix(in srgb, var(--expansion-accent) 78%, #fff);
+  font-size: clamp(0.7rem, 2.7vw, 0.88rem);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.expansion-bonus-copy h2 {
+  margin: 0;
+  font-size: clamp(1.45rem, 8vw, 3.4rem);
+  line-height: 0.98;
+  color: #fff7ed;
+  text-shadow: 0 0 20px color-mix(in srgb, var(--expansion-accent) 58%, transparent);
+}
+
+.expansion-bonus-copy strong {
+  font-size: clamp(2.5rem, 14vw, 6rem);
+  line-height: 0.92;
+  color: #fef3c7;
+}
+
+.expansion-bonus-copy p {
+  margin: 0;
+  max-width: 100%;
+  color: #fed7aa;
+  font-size: clamp(0.92rem, 3.4vw, 1.22rem);
+  font-weight: 800;
+}
+
+.expansion-bonus-copy b {
+  color: #ffffff;
+}
+
+.expansion-complete-button {
+  position: relative;
+  z-index: 3;
+  width: min(100%, 260px);
+  justify-self: center;
+  min-height: 46px;
+}
+
+.expansion-complete-button:disabled {
+  opacity: 0.78;
+}
+
+.expansion-bonus-overlay.phase-escape .expansion-bonus-stage,
+.expansion-bonus-overlay.complete .expansion-bonus-stage {
+  animation: expansionShowdownShake 520ms ease-in-out both;
+}
+
+@keyframes expansionBadgeBurst {
+  0% { transform: scale(0.72); opacity: 0; }
+  38% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(5.8); opacity: 0.42; }
+}
+
+@keyframes expansionTrainSlide {
+  from { transform: translateX(-2%) skewX(-10deg); }
+  to { transform: translateX(3%) skewX(-10deg); }
+}
+
+@keyframes expansionDust {
+  0% { transform: translate(0, 0) scale(0.5); opacity: 0; }
+  35% { opacity: 1; }
+  100% { transform: translate(44px, -34px) scale(1.4); opacity: 0; }
+}
+
+@keyframes expansionShowdownShake {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  20% { transform: translate3d(-5px, 2px, 0); }
+  42% { transform: translate3d(5px, -2px, 0); }
+  64% { transform: translate3d(-3px, 1px, 0); }
+}
+
+@keyframes goldRushStickyPulse {
+  from { box-shadow: 0 0 16px rgba(254, 243, 199, 0.34), inset 0 -12px 24px rgba(0, 0, 0, 0.3); }
+  to { box-shadow: 0 0 28px rgba(254, 243, 199, 0.74), inset 0 -12px 24px rgba(0, 0, 0, 0.3); }
+}
+
+@media (max-width: 420px) {
+  .gold-rush {
+    gap: 7px;
+    padding: 7px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .gold-rush .slot-header {
+    grid-template-columns: minmax(0, 1fr) 86px;
+    gap: 6px;
+    padding: 7px;
+  }
+
+  .gold-rush .game-heading {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  .gold-rush .game-back-button {
+    width: 34px;
+    height: 34px;
+  }
+
+  .gold-rush .slot-header .muted,
+  .gold-rush .slot-side-menu,
+  .gold-rush .reel-bonus-action,
+  .gold-rush .slot-controls label,
+  .gold-rush .quick-bets,
+  .gold-rush .meter,
+  .gold-rush .toggle-row,
+  .gold-rush .session-stats,
+  .gold-rush .slot-controls > .ghost-button.icon-button,
+  .gold-rush .segmented,
+  .gold-rush .balance-line,
+  .gold-rush .bet-stepper,
+  .gold-rush .slot-controls > .spin-button {
+    display: none;
+  }
+
+  .gold-rush .game-logo {
+    display: none;
+  }
+
+  .gold-rush .premium-control-icons {
+    grid-column: 1 / -1;
+  }
+
+  .gold-rush .balance-amount {
+    grid-template-columns: 1fr;
+    gap: 1px;
+  }
+
+  .gold-rush .balance-amount small {
+    line-height: 1;
+  }
+
+  .gold-rush .slot-header h1 {
+    font-size: clamp(1.12rem, 7.2vw, 1.9rem);
+  }
+
+  .gold-rush .header-jackpot-strip {
+    width: 86px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3px;
+  }
+
+  .gold-rush .header-jackpot-strip strong {
+    min-height: 20px;
+    padding: 2px;
+  }
+
+  .gold-rush .header-jackpot-strip em,
+  .gold-rush .header-jackpot-strip b {
+    font-size: 0.42rem;
+  }
+
+  .gold-rush .slot-board {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "state"
+      "reels"
+      "controls";
+    gap: 7px;
+  }
+
+  .gold-rush .frontier-reel-stage {
+    width: min(100%, 360px);
+    aspect-ratio: 5 / 7;
+    max-height: 55dvh;
+    min-height: 0;
+    padding: 7px;
+  }
+
+  .gold-rush .symbol-tile::before {
+    width: 82%;
+    font-size: clamp(0.55rem, 3vw, 0.9rem);
+  }
+
+  .gold-rush .slot-controls {
+    gap: 7px;
+    padding: 7px;
+  }
+
+  .gold-rush .slot-control-bar {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 70px;
+    gap: 6px;
+  }
+
+  .gold-rush .control-readout,
+  .gold-rush .bet-readout {
+    padding: 7px 6px;
+  }
+
+  .gold-rush .slot-main-action {
+    width: 70px;
+    height: 70px;
+    border-width: 5px;
+  }
+
+  .gold-rush > .card:not(.slot-controls) {
+    display: none;
+  }
+
+  .expansion-bonus-stage {
+    width: calc(100% - 16px);
+    min-height: calc(100% - 18px);
+    padding: 12px;
+  }
+
+  .expansion-trigger-map span {
+    width: min(76%, 54px);
+  }
+}
+
+@media (max-width: 340px) {
+  .gold-rush {
+    padding-inline: 5px;
+  }
+
+  .gold-rush .slot-control-bar {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 64px;
+    gap: 5px;
+  }
+
+  .gold-rush .slot-main-action {
+    width: 64px;
+    height: 64px;
+  }
+
+  .gold-rush .round-control {
+    width: 26px;
+    height: 26px;
+    min-height: 26px;
+  }
+
+  .gold-rush .bet-readout > div {
+    grid-template-columns: 26px minmax(30px, 1fr) 26px;
+  }
+
+  .gold-rush .premium-control-icons .icon-only {
+    height: 34px;
+    min-height: 34px;
+  }
+
+  .expansion-bonus-copy h2 {
+    font-size: 1.28rem;
+  }
+
+  .expansion-bonus-copy strong {
+    font-size: 2.35rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .expansion-trigger-map span,
+  .expansion-train-scene::before,
+  .expansion-train-scene span,
+  .expansion-bonus-overlay.phase-escape .expansion-bonus-stage,
+  .expansion-bonus-overlay.complete .expansion-bonus-stage,
+  .gold-rush .symbol-tile.sticky-wild {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* Gold Rush Mine Clash migration: 6x4 visual shell, 5x3 math core. */
+.premium-slot-shell.gold-rush {
+  background:
+    radial-gradient(circle at 18% 12%, rgba(251, 191, 36, 0.18), transparent 11rem),
+    radial-gradient(circle at 82% 22%, rgba(56, 189, 248, 0.22), transparent 12rem),
+    linear-gradient(180deg, #070504 0%, #160d09 42%, #030303 100%);
+}
+
+.premium-slot-shell.gold-rush::before {
+  background:
+    radial-gradient(ellipse at 50% 8%, rgba(254, 243, 199, 0.12), transparent 32%),
+    linear-gradient(110deg, transparent 0 16%, rgba(146, 64, 14, 0.44) 17% 19%, transparent 20%),
+    linear-gradient(68deg, transparent 0 74%, rgba(14, 116, 144, 0.36) 75% 78%, transparent 79%),
+    repeating-linear-gradient(92deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 28px),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.82));
+}
+
+.premium-slot-shell.gold-rush::after {
+  inset: auto -8% 8dvh -8%;
+  height: 22dvh;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(245, 158, 11, 0.18), transparent 46%),
+    repeating-linear-gradient(90deg, transparent 0 56px, rgba(120, 53, 15, 0.55) 57px 62px),
+    linear-gradient(180deg, transparent 0 42%, #171717 43% 49%, transparent 50%),
+    linear-gradient(90deg, transparent 0 9%, #292524 10% 14%, transparent 15% 85%, #292524 86% 90%, transparent 91%);
+  border-top-color: rgba(125, 211, 252, 0.18);
+  transform: none;
+}
+
+.gold-rush .slot-header,
+.gold-rush .slot-controls,
+.gold-rush .slot-state-pill {
+  background:
+    linear-gradient(135deg, rgba(17, 12, 8, 0.94), rgba(46, 24, 12, 0.88)),
+    repeating-linear-gradient(90deg, rgba(251, 191, 36, 0.08) 0 1px, transparent 1px 22px);
+}
+
+.gold-rush .game-logo,
+.gold-rush .symbol-tile[data-symbol-id="wild"],
+.gold-rush .symbol-tile[data-symbol-id="vs_mine_clash"] {
+  background:
+    radial-gradient(circle at 50% 24%, rgba(255, 255, 255, 0.72), transparent 21%),
+    linear-gradient(145deg, #fde68a, #f59e0b 46%, #164e63);
+}
+
+.gold-rush .frontier-reel-stage {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  aspect-ratio: 6 / 4;
+  max-height: min(58dvh, 520px);
+  background:
+    radial-gradient(circle at 16% 16%, rgba(250, 204, 21, 0.18), transparent 18%),
+    radial-gradient(circle at 84% 20%, rgba(56, 189, 248, 0.2), transparent 18%),
+    repeating-linear-gradient(90deg, transparent 0 calc(16.666% - 1px), rgba(251, 191, 36, 0.16) calc(16.666% - 1px) 16.666%),
+    repeating-linear-gradient(0deg, transparent 0 calc(25% - 1px), rgba(254, 243, 199, 0.08) calc(25% - 1px) 25%),
+    linear-gradient(180deg, #24120b, #050403);
+  border-color: rgba(202, 138, 4, 0.72);
+  box-shadow:
+    0 0 0 1px rgba(12, 74, 110, 0.42),
+    inset 0 0 0 3px rgba(68, 32, 12, 0.82),
+    inset 0 0 58px rgba(0, 0, 0, 0.78),
+    0 24px 58px rgba(0, 0, 0, 0.52);
+}
+
+.gold-rush .frontier-reel-stage::before {
+  inset: 7px;
+  background:
+    linear-gradient(90deg, transparent 0 16.1%, rgba(120, 53, 15, 0.34) 16.2% 17%, transparent 17.1% 33%, rgba(120, 53, 15, 0.34) 33.1% 34%, transparent 34.1% 49.8%, rgba(120, 53, 15, 0.34) 49.9% 50.8%, transparent 50.9% 66.4%, rgba(120, 53, 15, 0.34) 66.5% 67.4%, transparent 67.5% 83%, rgba(120, 53, 15, 0.34) 83.1% 84%, transparent 84.1%),
+    linear-gradient(180deg, transparent 0 74.2%, rgba(15, 23, 42, 0.5) 74.3% 75.4%, transparent 75.5%);
+}
+
+.gold-rush .gold-rush-frame-cell {
+  opacity: 0.62;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(56, 189, 248, 0.13), transparent 26%),
+    linear-gradient(145deg, rgba(41, 37, 36, 0.46), rgba(5, 5, 4, 0.88)),
+    repeating-linear-gradient(135deg, transparent 0 8px, rgba(251, 191, 36, 0.06) 9px 10px);
+}
+
+.gold-rush .symbol-tile {
+  border-color: rgba(251, 191, 36, 0.44);
+  background:
+    radial-gradient(circle at 35% 22%, rgba(255, 255, 255, 0.68), transparent 22%),
+    linear-gradient(145deg, color-mix(in srgb, var(--symbol) 45%, #fef3c7), #2c160b);
+}
+
+.gold-rush .symbol-tile::before {
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 36% 24%, rgba(255, 255, 255, 0.82), transparent 23%),
+    linear-gradient(145deg, color-mix(in srgb, var(--symbol) 82%, #fff), #1c1917 78%);
+}
+
+.gold-rush .symbol-tile:has(> img)::before {
+  content: none;
+}
+
+.gold-rush .symbol-tile > img {
+  grid-area: 1 / 1;
+  position: relative;
+  z-index: 2;
+  width: 96%;
+  height: 96%;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 2px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 8px color-mix(in srgb, var(--symbol) 38%, transparent));
+  pointer-events: none;
+}
+
+.gold-rush .symbol-tile[data-symbol-id="treasure_chest"]::before { content: "CHEST"; font-size: clamp(0.42rem, 1.8vw, 0.8rem); }
+.gold-rush .symbol-tile[data-symbol-id="blue_diamond"]::before { content: "DIA"; color: #e0f2fe; }
+.gold-rush .symbol-tile[data-symbol-id="gold_nugget"]::before { content: "NUG"; }
+.gold-rush .symbol-tile[data-symbol-id="dynamite"]::before { content: "DYN"; }
+.gold-rush .symbol-tile[data-symbol-id="mine_cart"]::before { content: "CART"; font-size: clamp(0.42rem, 1.8vw, 0.78rem); }
+.gold-rush .symbol-tile[data-symbol-id="lantern"]::before { content: "LAMP"; font-size: clamp(0.42rem, 1.8vw, 0.78rem); }
+.gold-rush .symbol-tile[data-symbol-id="pickaxe"]::before { content: "PICK"; font-size: clamp(0.42rem, 1.8vw, 0.78rem); }
+.gold-rush .symbol-tile[data-symbol-id="mine_scatter"]::before { content: "BONUS"; font-size: clamp(0.38rem, 1.7vw, 0.72rem); }
+.gold-rush .symbol-tile[data-symbol-id="vs_mine_clash"]::before {
+  content: "VS";
+  border-radius: 50%;
+  color: #fff7ed;
+  font-size: clamp(0.86rem, 3.8vw, 1.8rem);
+  background:
+    radial-gradient(circle at 50% 50%, #fef3c7 0 12%, #f97316 13% 42%, #164e63 43% 76%);
+  box-shadow: 0 0 22px rgba(251, 191, 36, 0.6), inset 0 -8px 14px rgba(0, 0, 0, 0.34);
+}
+
+.gold-rush .symbol-tile[data-symbol-id="vs_mine_clash"]::after {
+  content: "";
+  position: absolute;
+  inset: 7%;
+  border: 1px solid rgba(125, 211, 252, 0.68);
+  border-radius: 50%;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.42), 0 0 24px rgba(250, 204, 21, 0.36);
+}
+
+.gold-rush .symbol-tile:has(> img)::before {
+  content: none;
+  display: none;
+}
+
+.gold-rush .symbol-tile:has(> img)::after {
+  content: none;
+  display: none;
+}
+
+.gold-rush .slot-header {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.gold-rush .game-heading {
+  grid-template-columns: 42px minmax(0, 1fr);
+}
+
+.gold-rush .game-heading .game-logo {
+  display: none;
+}
+
+.gold-rush .frontier-title-logo {
+  display: block;
+  width: min(100%, 292px);
+  max-height: clamp(68px, 17vw, 116px);
+  margin: 0;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.62)) drop-shadow(0 0 16px rgba(250, 204, 21, 0.22));
+}
+
+.gold-rush .slot-header h1.asset-backed {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.gold-rush .slot-header .eyebrow,
+.gold-rush .slot-header .muted,
+.gold-rush .slot-header-actions {
+  display: none;
+}
+
+.gold-rush-loading-screen {
+  position: relative;
+  z-index: 2;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+}
+
+.gold-rush-loading-panel {
+  width: min(100%, 420px);
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  padding: 20px;
+  border-radius: 18px;
+  border: 1px solid rgba(250, 204, 21, 0.42);
+  background:
+    radial-gradient(circle at 50% 20%, rgba(250, 204, 21, 0.2), transparent 46%),
+    linear-gradient(180deg, rgba(17, 12, 8, 0.96), rgba(3, 2, 1, 0.96));
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+
+.gold-rush-loading-logo {
+  width: min(100%, 360px);
+  max-height: 170px;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.68));
+}
+
+.gold-rush-loading-orb {
+  width: 58px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(255, 255, 255, 0.9), transparent 18%),
+    radial-gradient(circle at 50% 50%, #facc15 0 40%, #38bdf8 42% 48%, #451a03 52%);
+  box-shadow: 0 0 26px rgba(250, 204, 21, 0.5);
+  animation: reelPulse 900ms ease-in-out infinite alternate;
+}
+
+.gold-rush-loading-panel b {
+  color: #fef3c7;
+  text-transform: uppercase;
+  font-size: 0.88rem;
+}
+
+.gold-rush-loading-panel small {
+  color: #fed7aa;
+  font-weight: 900;
+}
+
+.gold-rush .slot-controls.card {
+  width: min(100%, 760px);
+  justify-self: center;
+  background:
+    radial-gradient(circle at 82% 22%, rgba(56, 189, 248, 0.12), transparent 9rem),
+    linear-gradient(180deg, rgba(17, 12, 8, 0.94), rgba(3, 2, 1, 0.98));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07), 0 -12px 36px rgba(0, 0, 0, 0.44);
+}
+
+.gold-rush .control-readout,
+.gold-rush .bet-readout {
+  min-height: 78px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(12, 7, 5, 0.9));
+  border: 1px solid rgba(250, 204, 21, 0.24);
+}
+
+.gold-rush .slot-main-action {
+  overflow: hidden;
+}
+
+.gold-rush .slot-main-action svg {
+  grid-area: 1 / 1;
+}
+
+.gold-rush .slot-main-action span {
+  grid-area: 1 / 1;
+  align-self: end;
+  margin: 0 0 14%;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(254, 240, 138, 0.76);
+  color: #4a1206;
+  line-height: 1.1;
+}
+
+@media (max-width: 720px) {
+  .flagship-game-page .gold-rush.premium-slot-shell {
+    padding-bottom: clamp(166px, 28dvh, 218px);
+  }
+
+  .gold-rush .slot-controls.card {
+    position: fixed;
+    left: 7px;
+    right: 7px;
+    bottom: max(7px, env(safe-area-inset-bottom));
+    z-index: 30;
+    width: auto;
+    max-width: 520px;
+    margin: 0 auto;
+    gap: 7px;
+    padding: 7px;
+    border-radius: 16px;
+    border-color: rgba(250, 204, 21, 0.62);
+  }
+
+  .gold-rush .slot-control-bar {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.18fr) 76px;
+    gap: 6px;
+  }
+
+  .gold-rush .control-readout,
+  .gold-rush .bet-readout {
+    min-height: 76px;
+  }
+
+  .gold-rush .premium-control-icons {
+    gap: 6px;
+  }
+}
+
+/* Gold Rush footer alignment: mirror the compact Frontier control tray. */
+.gold-rush .slot-state-pill {
+  display: none !important;
+}
+
+.gold-rush .slot-board {
+  grid-template-areas:
+    "reels"
+    "controls" !important;
+  gap: 6px;
+}
+
+.gold-rush .slot-controls.card {
+  width: min(100%, 440px);
+  padding: 10px;
+  border-radius: 20px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  background:
+    linear-gradient(180deg, rgba(8, 18, 24, 0.96), rgba(4, 10, 18, 0.97)) !important;
+  border-color: rgba(246, 196, 83, 0.72);
+}
+
+.gold-rush .slot-control-bar {
+  grid-column: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 78px minmax(138px, 1fr);
+  grid-template-areas:
+    "balance balance balance"
+    "bet spin empty";
+  gap: 8px;
+  align-items: center;
+}
+
+.gold-rush .control-readout {
+  grid-area: balance;
+  min-height: 62px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "label last currency"
+    "amount last currency";
+  grid-template-rows: auto 1fr;
+  align-items: center;
+  column-gap: 10px;
+  padding: 8px 10px;
+  border-radius: 16px;
+}
+
+.gold-rush .control-readout > span {
+  grid-area: label;
+}
+
+.gold-rush .control-readout .balance-amount {
+  grid-area: amount;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.gold-rush .control-readout .currency-mini {
+  grid-area: currency;
+}
+
+.gold-rush .last-win-readout {
+  grid-area: last;
+  min-width: 76px;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 2px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  color: #f8fafc;
+  background: linear-gradient(180deg, rgba(2, 6, 23, 0.56), rgba(12, 7, 5, 0.46));
+  border: 1px solid rgba(125, 211, 252, 0.14);
+}
+
+.gold-rush .last-win-readout span {
+  color: #bae6fd;
+  font-size: 0.54rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.gold-rush .last-win-readout strong {
+  color: #fde68a;
+  font-size: clamp(0.78rem, 2.7vw, 1rem);
+  line-height: 1;
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.34);
+}
+
+.gold-rush .bet-readout {
+  grid-area: bet;
+  min-height: 58px;
+  padding: 7px;
+  border-radius: 16px;
+}
+
+.gold-rush .bet-readout > div:first-of-type {
+  grid-template-columns: 32px minmax(42px, 1fr) 32px;
+  gap: 6px;
+}
+
+.gold-rush .slot-main-action {
+  grid-area: spin;
+  width: 78px;
+  height: 78px;
+  justify-self: center;
+  align-self: center;
+}
+
+.gold-rush .premium-control-icons {
+  position: absolute;
+  right: 12px;
+  bottom: 20px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+  width: auto;
+  min-width: 0;
+  padding: 0;
+  margin: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  transform: none;
+}
+
+.gold-rush .premium-control-icons .icon-only {
+  width: 30px !important;
+  height: 30px !important;
+  min-height: 30px;
+  flex: 0 0 30px !important;
+  border-radius: 50%;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.58) !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 720px) {
+  .flagship-game-page .gold-rush.premium-slot-shell {
+    padding-bottom: calc(184px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .gold-rush .slot-controls.card {
+    position: fixed !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: max(8px, env(safe-area-inset-bottom)) !important;
+    z-index: 45;
+    width: min(calc(100vw - 16px), 440px) !important;
+    transform: translateX(-50%);
+  }
+
+  .gold-rush .slot-control-bar {
+    grid-template-columns: minmax(0, 1fr) 72px minmax(128px, 1fr);
+  }
+
+  .gold-rush .slot-main-action {
+    width: 72px;
+    height: 72px;
+  }
+
+  .gold-rush .premium-control-icons {
+    right: 11px;
+    bottom: 20px;
+  }
+
+  .gold-rush .premium-control-icons .icon-only {
+    width: 27px !important;
+    height: 27px !important;
+    min-height: 27px;
+    flex-basis: 27px !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .gold-rush .slot-control-bar {
+    grid-template-columns: minmax(0, 0.88fr) 64px minmax(130px, 1fr);
+    gap: 6px;
+  }
+
+  .gold-rush .slot-main-action {
+    width: 64px;
+    height: 64px;
+  }
+
+  .gold-rush .premium-control-icons {
+    right: 9px;
+    bottom: 21px;
+    gap: 3px;
+  }
+
+  .gold-rush .premium-control-icons .icon-only {
+    width: 26px !important;
+    height: 26px !important;
+    min-height: 26px;
+    flex-basis: 26px !important;
+  }
+}
+
+/* Gold Rush final art pass: richer mine backdrop and custom compact controls. */
+.premium-slot-shell.gold-rush {
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255, 236, 179, 0.16), transparent 10rem),
+    radial-gradient(circle at 16% 42%, rgba(245, 158, 11, 0.2), transparent 11rem),
+    radial-gradient(circle at 84% 38%, rgba(56, 189, 248, 0.22), transparent 12rem),
+    linear-gradient(180deg, #080503 0%, #130b07 34%, #030303 100%) !important;
+}
+
+.premium-slot-shell.gold-rush::before {
+  background:
+    radial-gradient(ellipse at 50% 20%, rgba(251, 191, 36, 0.2), transparent 22%),
+    linear-gradient(116deg, transparent 0 10%, rgba(69, 26, 3, 0.96) 11% 18%, rgba(146, 64, 14, 0.56) 19%, transparent 28%),
+    linear-gradient(64deg, transparent 0 70%, rgba(8, 47, 73, 0.82) 72% 78%, rgba(56, 189, 248, 0.22) 79%, transparent 87%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 34px),
+    radial-gradient(ellipse at 50% 58%, transparent 0 34%, rgba(0, 0, 0, 0.72) 66%, rgba(0, 0, 0, 0.94) 100%);
+  opacity: 1;
+}
+
+.premium-slot-shell.gold-rush::after {
+  inset: auto -10% 7dvh -10%;
+  height: 29dvh;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(245, 158, 11, 0.2), transparent 45%),
+    repeating-linear-gradient(90deg, transparent 0 48px, rgba(120, 53, 15, 0.64) 49px 55px),
+    linear-gradient(180deg, transparent 0 42%, rgba(38, 38, 38, 0.88) 43% 49%, transparent 50%),
+    linear-gradient(90deg, transparent 0 9%, rgba(39, 39, 42, 0.9) 10% 14%, transparent 15% 85%, rgba(39, 39, 42, 0.9) 86% 90%, transparent 91%),
+    linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.78));
+  border-top: 1px solid rgba(125, 211, 252, 0.18);
+  opacity: 0.96;
+}
+
+.gold-rush .screen-shake {
+  position: relative;
+  isolation: isolate;
+}
+
+.gold-rush .screen-shake::before {
+  content: "";
+  position: absolute;
+  inset: 0 -8px 118px;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(250, 204, 21, 0.14), transparent 7rem),
+    radial-gradient(circle at 82% 20%, rgba(56, 189, 248, 0.14), transparent 7rem),
+    linear-gradient(180deg, rgba(8, 5, 3, 0.18), rgba(4, 3, 2, 0.76));
+  mask-image: linear-gradient(180deg, #000 0 62%, transparent 100%);
+}
+
+.gold-rush .slot-board {
+  position: relative;
+  z-index: 1;
+}
+
+.gold-rush .currency-mini {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+  min-width: 76px;
+  padding: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(2, 6, 23, 0.86), rgba(12, 7, 5, 0.92));
+  border: 1px solid rgba(250, 204, 21, 0.2);
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.45);
+}
+
+.gold-rush .currency-mini button {
+  min-width: 0;
+  min-height: 25px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  color: #cbd5e1;
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.62rem;
+  font-weight: 1000;
+}
+
+.gold-rush .currency-mini button.gold.active {
+  color: #351904;
+  background: linear-gradient(180deg, #fff7ad, #f59e0b 70%, #b45309);
+  box-shadow: 0 0 16px rgba(250, 204, 21, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.58);
+}
+
+.gold-rush .currency-mini button.sweeps.active {
+  color: #042f2e;
+  background: linear-gradient(180deg, #ccfbf1, #38bdf8 70%, #0e7490);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.58);
+}
+
+.gold-rush .slot-main-action {
+  position: relative;
+  overflow: hidden;
+  color: #2b1204;
+  border: 0;
+  background:
+    radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.92), transparent 18%),
+    radial-gradient(circle at 50% 52%, #fff3b0 0 28%, #f59e0b 35% 58%, #7c2d12 61% 67%, #38bdf8 69% 73%, #111827 78%) !important;
+  box-shadow:
+    0 0 0 3px rgba(254, 243, 199, 0.68),
+    0 0 0 6px rgba(245, 158, 11, 0.36),
+    0 0 28px rgba(245, 158, 11, 0.42),
+    inset 0 -12px 20px rgba(124, 45, 18, 0.42);
+}
+
+.gold-rush .slot-main-action::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: inset 0 5px 11px rgba(255, 255, 255, 0.36);
+}
+
+.gold-rush .slot-main-action svg {
+  width: 54%;
+  height: 54%;
+  color: #271006;
+  filter: drop-shadow(0 3px 3px rgba(255, 247, 237, 0.4));
+}
+
+.gold-rush .slot-main-action span {
+  display: none !important;
+}
+
+.gold-rush .slot-main-action:disabled {
+  filter: saturate(0.82) brightness(0.88);
+}
+
+.gold-rush .speed-control,
+.gold-rush .speed-control.speed-fast,
+.gold-rush .speed-control.speed-turbo {
+  color: #dbeafe !important;
+  background: rgba(15, 23, 42, 0.58) !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+}
+
+.gold-rush .speed-control svg,
+.gold-rush .speed-control.speed-fast svg,
+.gold-rush .speed-control.speed-turbo svg {
+  fill: transparent !important;
+  color: #dbeafe !important;
+  filter: none !important;
+}
+
+/* Gold Rush premium generated environment layers. */
+.premium-slot-shell.gold-rush {
+  background-color: #050302 !important;
+  background-image:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.32)),
+    url("./assets/gold-rush-showdown/background/bg_diamond_glow.png"),
+    url("./assets/gold-rush-showdown/background/bg_gold_glow.png"),
+    url("./assets/gold-rush-showdown/background/bg_mine_base.png") !important;
+  background-size: cover, cover, cover, cover !important;
+  background-position: center, center, center, center top !important;
+  background-repeat: no-repeat !important;
+}
+
+.premium-slot-shell.gold-rush::before {
+  background-image:
+    linear-gradient(90deg, rgba(245, 158, 11, 0.12), transparent 32%, rgba(0, 0, 0, 0.28) 46%, rgba(0, 0, 0, 0.28) 54%, transparent 68%, rgba(56, 189, 248, 0.12)),
+    radial-gradient(ellipse at 50% 23%, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.72) 58%, rgba(0, 0, 0, 0.9) 100%) !important;
+  background-size: cover !important;
+  background-position: center !important;
+  opacity: 0.76;
+  animation: goldRushAmbientPulse 9s ease-in-out infinite alternate;
+}
+
+.premium-slot-shell.gold-rush::after {
+  inset: 0 !important;
+  height: auto !important;
+  background-image:
+    url("./assets/gold-rush-showdown/background/bg_particles.png"),
+    linear-gradient(180deg, transparent 0 67%, rgba(0, 0, 0, 0.2) 68%, rgba(0, 0, 0, 0.72) 100%) !important;
+  background-size: cover, cover !important;
+  background-position: center, center !important;
+  background-repeat: no-repeat !important;
+  border: 0 !important;
+  opacity: 0.44;
+  animation: goldRushParticleDrift 16s linear infinite;
+}
+
+.gold-rush .screen-shake::before {
+  inset: -14px -12px 105px;
+  background-image:
+    url("./assets/gold-rush-showdown/background/bg_reel_shadow.png"),
+    radial-gradient(ellipse at 50% 24%, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.1) 44%, transparent 72%) !important;
+  background-size: cover, cover !important;
+  background-position: center top, center !important;
+  opacity: 0.9;
+  mask-image: linear-gradient(180deg, #000 0 72%, transparent 100%);
+}
+
+.gold-rush .frontier-reel-stage {
+  box-shadow:
+    0 0 0 1px rgba(125, 211, 252, 0.28),
+    0 0 0 4px rgba(202, 138, 4, 0.66),
+    0 18px 46px rgba(0, 0, 0, 0.72),
+    0 0 34px rgba(245, 158, 11, 0.2),
+    inset 0 0 0 3px rgba(68, 32, 12, 0.82),
+    inset 0 0 58px rgba(0, 0, 0, 0.78) !important;
+}
+
+.gold-rush .frontier-reel-stage::after {
+  content: "";
+  position: absolute;
+  inset: -16px;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: 22px;
+  background:
+    radial-gradient(ellipse at 10% 50%, rgba(245, 158, 11, 0.2), transparent 34%),
+    radial-gradient(ellipse at 90% 50%, rgba(56, 189, 248, 0.2), transparent 34%);
+  filter: blur(10px);
+  opacity: 0.78;
+}
+
+@keyframes goldRushAmbientPulse {
+  from { opacity: 0.62; transform: scale(1); }
+  to { opacity: 0.82; transform: scale(1.015); }
+}
+
+@keyframes goldRushParticleDrift {
+  from { background-position: center 0, center; }
+  to { background-position: center 36px, center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .premium-slot-shell.gold-rush::before,
+  .premium-slot-shell.gold-rush::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* Gold Rush transparent chrome pass. */
+.gold-rush .slot-header {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.gold-rush .frontier-reel-stage {
+  border-color: transparent !important;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0.18) 58%, transparent 76%) !important;
+  box-shadow:
+    0 18px 46px rgba(0, 0, 0, 0.58),
+    inset 0 0 46px rgba(0, 0, 0, 0.62) !important;
+}
+
+.gold-rush .frontier-reel-stage::before,
+.gold-rush .frontier-reel-stage::after {
+  opacity: 0 !important;
+}
+
+.gold-rush .slot-controls.card {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.gold-rush .control-readout,
+.gold-rush .bet-readout {
+  background: rgba(5, 10, 18, 0.5) !important;
+  border: 1px solid rgba(125, 211, 252, 0.16);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 10px 24px rgba(0, 0, 0, 0.26) !important;
+}
+
+.gold-rush .premium-control-icons .icon-only {
+  background: rgba(6, 12, 22, 0.36) !important;
+  border-color: rgba(226, 232, 240, 0.22) !important;
+}
+
+.gold-rush .slot-board {
+  grid-template-areas:
+    "reels"
+    "bonus"
+    "controls" !important;
+}
+
+.gold-rush .reel-bonus-action {
+  grid-area: bonus;
+  display: flex !important;
+  justify-content: center;
+  align-items: center;
+  min-height: 38px;
+  margin-top: -2px;
+  position: relative;
+  z-index: 3;
+}
+
+.gold-rush .gold-rush-bonus-entry {
+  width: 42px;
+  min-width: 42px;
+  min-height: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(250, 204, 21, 0.52);
+  color: #fff7ed;
+  background:
+    radial-gradient(circle at 35% 20%, rgba(255, 255, 255, 0.26), transparent 24%),
+    linear-gradient(180deg, rgba(45, 22, 6, 0.74), rgba(4, 10, 18, 0.5));
+  box-shadow:
+    0 0 18px rgba(245, 158, 11, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  font-size: 0.74rem;
+  font-weight: 1000;
+  text-transform: uppercase;
+}
+
+.gold-rush .gold-rush-bonus-entry .money-lightning-button-art {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+}
+
+.gold-rush .gold-rush-bonus-entry .money-lightning-icon {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.gold-rush .gold-rush-bonus-entry .money-lightning-icon.primary {
+  opacity: 1;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.48));
+}
+
+.gold-rush .gold-rush-bonus-entry .money-lightning-icon.neon {
+  opacity: 0;
+  transform: scale(1.06);
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.52));
+}
+
+.gold-rush .gold-rush-bonus-entry:hover .money-lightning-icon.primary,
+.gold-rush .gold-rush-bonus-entry:focus-visible .money-lightning-icon.primary {
+  opacity: 0;
+}
+
+.gold-rush .gold-rush-bonus-entry:hover .money-lightning-icon.neon,
+.gold-rush .gold-rush-bonus-entry:focus-visible .money-lightning-icon.neon {
+  opacity: 1;
+}
+
+.gold-rush .gold-rush-bonus-entry:disabled {
+  opacity: 0.48;
+}
+
+.gold-rush .speed-control {
+  position: relative;
+  overflow: visible;
+}
+
+.gold-rush .speed-control-track {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 3px;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.28);
+}
+
+.gold-rush .speed-control-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #dbeafe, #67e8f9);
+  transition: width 180ms ease, opacity 180ms ease;
+}
+
+.gold-rush .speed-control svg {
+  transition: color 180ms ease, fill 180ms ease, filter 180ms ease;
+}
+
+.gold-rush .speed-control.speed-normal svg {
+  color: #cbd5e1 !important;
+  fill: transparent !important;
+  filter: none !important;
+}
+
+.gold-rush .speed-control.speed-fast svg {
+  color: #fde047 !important;
+  fill: rgba(253, 224, 71, 0.64) !important;
+  filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.5)) !important;
+}
+
+.gold-rush .speed-control.speed-turbo svg {
+  color: #ef4444 !important;
+  fill: rgba(239, 68, 68, 0.68) !important;
+  filter: drop-shadow(0 0 9px rgba(239, 68, 68, 0.58)) !important;
+}
+
+.gold-rush .speed-control.speed-normal .speed-control-track i { width: 34%; opacity: 0.72; }
+.gold-rush .speed-control.speed-fast .speed-control-track i { width: 67%; opacity: 0.86; }
+.gold-rush .speed-control.speed-turbo .speed-control-track i { width: 100%; opacity: 1; }
+
+.gold-rush .payline-overlay {
+  position: absolute;
+  inset: 7px;
+  z-index: 30;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.gold-rush .payline-overlay polyline {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 11;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.gold-rush .payline-overlay polyline.active {
+  stroke: #fde047;
+  filter:
+    drop-shadow(0 0 8px rgba(253, 224, 71, 0.95))
+    drop-shadow(0 0 16px rgba(56, 189, 248, 0.7))
+    drop-shadow(0 0 24px rgba(245, 158, 11, 0.55));
+  animation: paylineDraw 700ms ease both;
+}
+
+.gold-rush .gold-rush-interior-frame {
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  left: calc(7px + ((100% - 14px) / var(--interior-total-columns)) * var(--interior-start));
+  width: calc(((100% - 14px) / var(--interior-total-columns)) * var(--interior-columns));
+  z-index: 3;
+  pointer-events: none;
+  border-radius: 10px;
+  border: 2px solid rgba(250, 204, 21, 0.78);
+  background:
+    radial-gradient(circle at 18% 28%, rgba(250, 204, 21, 0.18), transparent 34%),
+    radial-gradient(circle at 82% 30%, rgba(56, 189, 248, 0.16), transparent 35%),
+    linear-gradient(180deg, rgba(8, 13, 20, 0.18), rgba(8, 13, 20, 0.04));
+  box-shadow:
+    inset 0 0 0 1px rgba(125, 211, 252, 0.28),
+    inset 0 0 34px rgba(0, 0, 0, 0.34),
+    0 0 18px rgba(250, 204, 21, 0.34);
+}
+
+.gold-rush .gold-rush-interior-frame.active {
+  border-color: rgba(125, 211, 252, 0.92);
+  box-shadow:
+    inset 0 0 0 2px rgba(250, 204, 21, 0.42),
+    inset 0 0 42px rgba(56, 189, 248, 0.26),
+    0 0 24px rgba(56, 189, 248, 0.56),
+    0 0 30px rgba(250, 204, 21, 0.38);
+  animation: goldRushInteriorPulse 900ms cubic-bezier(.2,.9,.2,1) both;
+}
+
+.gold-rush .gold-rush-grid-clash-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 18;
+  pointer-events: none;
+  overflow: visible;
+  --clash-left: calc(7px + ((100% - 14px) / var(--clash-reel-count)) * var(--clash-start));
+  --clash-top: calc(7px + ((100% - 14px) / var(--clash-row-count)) * var(--clash-row-start));
+  --clash-area-width: calc(((100% - 14px) / var(--clash-reel-count)) * var(--clash-width));
+  --clash-area-height: calc(((100% - 14px) / var(--clash-row-count)) * var(--clash-row-span));
+}
+
+.gold-rush .gold-rush-grid-clash-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  z-index: 18;
+  pointer-events: none;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 24% 18%, rgba(250, 204, 21, 0.2), transparent 24%),
+    radial-gradient(circle at 76% 82%, rgba(56, 189, 248, 0.2), transparent 25%),
+    linear-gradient(90deg, rgba(250, 204, 21, 0.08), transparent 38%, rgba(56, 189, 248, 0.08));
+  mix-blend-mode: screen;
+  animation: goldRushClashAtmosphere 1.8s ease-in-out infinite alternate;
+}
+
+.gold-rush .gold-rush-grid-dim {
+  position: absolute;
+  inset: 7px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.28);
+  animation: goldRushGridDim 260ms ease-out both;
+}
+
+.gold-rush .gold-rush-clash-active-area,
+.gold-rush .gold-rush-clash-content {
+  position: absolute;
+  left: var(--clash-left);
+  top: var(--clash-top);
+  width: var(--clash-area-width);
+  height: var(--clash-area-height);
+}
+
+.gold-rush .gold-rush-clash-active-area {
+  z-index: 19;
+  overflow: hidden;
+  border-radius: 10px;
+  border: 2px solid rgba(250, 204, 21, 0.96);
+  background:
+    linear-gradient(90deg, rgba(250, 204, 21, 0.2), transparent 37%, rgba(56, 189, 248, 0.2)),
+    radial-gradient(circle at 22% 18%, rgba(250, 204, 21, 0.38), transparent 28%),
+    radial-gradient(circle at 78% 82%, rgba(56, 189, 248, 0.36), transparent 30%),
+    repeating-linear-gradient(118deg, transparent 0 18px, rgba(255, 255, 255, 0.07) 19px 20px),
+    linear-gradient(180deg, rgba(25, 14, 5, 0.82), rgba(3, 7, 18, 0.88));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+    inset 0 0 40px rgba(0, 0, 0, 0.5),
+    0 0 28px rgba(250, 204, 21, 0.44),
+    0 0 40px rgba(56, 189, 248, 0.18);
+  transform-origin: 50% 50%;
+  animation: goldRushClashExpand 760ms cubic-bezier(.2,.9,.2,1) both;
+}
+
+.gold-rush .gold-rush-grid-clash-overlay.area-column .gold-rush-clash-active-area {
+  transform-origin: 50% 50%;
+}
+
+.gold-rush .gold-rush-grid-clash-overlay.phase-flash .gold-rush-clash-active-area {
+  animation: goldRushVsFlash 420ms ease-out both;
+}
+
+.gold-rush .gold-rush-grid-clash-overlay.phase-clash .gold-rush-clash-active-area {
+  animation: goldRushClashShake 160ms ease-in-out 8 alternate;
+}
+
+.gold-rush .gold-rush-grid-clash-overlay.winner-diamond .gold-rush-clash-active-area {
+  border-color: rgba(125, 211, 252, 0.95);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    inset 0 0 42px rgba(56, 189, 248, 0.28),
+    0 0 28px rgba(56, 189, 248, 0.48);
+}
+
+.gold-rush .ore-line,
+.gold-rush .clash-spark {
+  position: absolute;
+  pointer-events: none;
+}
+
+.gold-rush .ore-line {
+  width: 46%;
+  height: 120%;
+  top: -10%;
+  opacity: 0.72;
+}
+
+.gold-rush .ore-line.gold {
+  left: -18%;
+  background:
+    radial-gradient(circle at 40% 20%, rgba(255, 255, 255, 0.32), transparent 15%),
+    repeating-linear-gradient(122deg, transparent 0 16px, rgba(250, 204, 21, 0.58) 17px 20px);
+}
+
+.gold-rush .ore-line.diamond {
+  right: -18%;
+  background:
+    radial-gradient(circle at 60% 78%, rgba(255, 255, 255, 0.32), transparent 15%),
+    repeating-linear-gradient(58deg, transparent 0 16px, rgba(125, 211, 252, 0.52) 17px 20px);
+}
+
+.gold-rush .clash-spark {
+  width: 7px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #fff7ed;
+  box-shadow: 0 0 12px currentColor;
+  animation: goldRushClashSpark 760ms ease-in-out infinite alternate;
+}
+
+.gold-rush .clash-spark.one { left: 24%; top: 36%; color: #facc15; }
+.gold-rush .clash-spark.two { left: 56%; top: 52%; color: #67e8f9; animation-delay: 180ms; }
+.gold-rush .clash-spark.three { left: 42%; top: 68%; color: #fb923c; animation-delay: 320ms; }
+
+.gold-rush .gold-rush-clash-content {
+  z-index: 20;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  justify-items: center;
+  align-items: center;
+  overflow: visible;
+  padding: 4px;
+}
+
+.gold-rush .gold-rush-grid-clash-overlay.area-column .gold-rush-clash-content {
+  width: min(184px, calc(100% - 14px));
+  left: clamp(7px, calc(var(--clash-left) - 58px), calc(100% - 191px));
+}
+
+.gold-rush .gold-rush-grid-clash-overlay.area-column .gold-rush-clash-active-area {
+  border-radius: 15px;
+}
+
+.gold-rush .grid-miner-card {
+  width: min(100%, 168px);
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  grid-template-areas:
+    "portrait label"
+    "portrait mult"
+    "portrait meter";
+  align-items: center;
+  gap: 2px 8px;
+  padding: 7px 9px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  color: #fff7ed;
+  background:
+    radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.34), transparent 23%),
+    radial-gradient(circle at 86% 82%, rgba(250, 204, 21, 0.18), transparent 33%),
+    linear-gradient(180deg, rgba(92, 39, 8, 0.98), rgba(10, 10, 12, 0.9));
+  box-shadow:
+    0 10px 20px rgba(0, 0, 0, 0.52),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 -12px 20px rgba(0, 0, 0, 0.28);
+  transform-origin: 50% 50%;
+  backdrop-filter: blur(4px);
+}
+
+.gold-rush .grid-miner-card.diamond {
+  background:
+    radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.34), transparent 23%),
+    radial-gradient(circle at 86% 82%, rgba(56, 189, 248, 0.22), transparent 33%),
+    linear-gradient(180deg, rgba(8, 74, 101, 0.98), rgba(8, 13, 20, 0.9));
+}
+
+.gold-rush .grid-miner-card.winner {
+  border-color: currentColor;
+  box-shadow:
+    0 0 24px color-mix(in srgb, currentColor 52%, transparent),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+
+.gold-rush .phase-winner .grid-miner-card.loser,
+.gold-rush .phase-final .grid-miner-card.loser {
+  opacity: 0.32;
+  transform: scale(0.92);
+}
+
+.gold-rush .grid-miner-avatar,
+.gold-rush .final-miner-avatar {
+  grid-area: portrait;
+  position: relative;
+  width: 48px;
+  aspect-ratio: 1;
+  display: block;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 22%, rgba(255, 255, 255, 0.26), transparent 18%),
+    radial-gradient(circle at 50% 52%, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.72));
+  box-shadow:
+    inset 0 -5px 10px rgba(0, 0, 0, 0.48),
+    0 0 14px color-mix(in srgb, currentColor 52%, transparent),
+    0 0 0 1px color-mix(in srgb, currentColor 28%, transparent);
+  overflow: visible;
+}
+
+.gold-rush .grid-miner-avatar span,
+.gold-rush .final-miner-avatar span {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+}
+
+.gold-rush .miner-helmet {
+  left: 21%;
+  top: 4%;
+  width: 58%;
+  height: 28%;
+  border-radius: 50% 50% 36% 36%;
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.75), transparent 18%),
+    linear-gradient(180deg, color-mix(in srgb, currentColor 92%, #fff), color-mix(in srgb, currentColor 64%, #111827));
+  box-shadow: 0 0 9px color-mix(in srgb, currentColor 44%, transparent);
+}
+
+.gold-rush .miner-helmet::after {
+  content: "";
+  position: absolute;
+  left: 33%;
+  top: 20%;
+  width: 34%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #fff7ed;
+  box-shadow: 0 0 8px #fff7ed;
+}
+
+.gold-rush .miner-face {
+  left: 30%;
+  top: 25%;
+  width: 40%;
+  height: 30%;
+  border-radius: 42% 42% 46% 46%;
+  background: linear-gradient(180deg, #fed7aa, #92400e);
+  box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.gold-rush .miner-face::before,
+.gold-rush .miner-face::after {
+  content: "";
+  position: absolute;
+  top: 38%;
+  width: 9%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #111827;
+}
+
+.gold-rush .miner-face::before { left: 28%; }
+.gold-rush .miner-face::after { right: 28%; }
+
+.gold-rush .miner-body {
+  left: 25%;
+  bottom: 9%;
+  width: 50%;
+  height: 35%;
+  border-radius: 42% 42% 24% 24%;
+  background:
+    linear-gradient(90deg, transparent 45%, rgba(255, 255, 255, 0.28) 46% 53%, transparent 54%),
+    linear-gradient(180deg, color-mix(in srgb, currentColor 76%, #111827), #111827);
+}
+
+.gold-rush .miner-pickaxe {
+  right: -18%;
+  top: 0;
+  width: 9%;
+  height: 80%;
+  border-radius: 999px;
+  background: #78350f;
+  transform: rotate(42deg);
+  transform-origin: 50% 82%;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.54);
+}
+
+.gold-rush .miner-pickaxe::before {
+  content: "";
+  position: absolute;
+  left: -230%;
+  top: -8%;
+  width: 560%;
+  height: 18%;
+  border-radius: 999px 999px 55% 55%;
+  background: linear-gradient(90deg, #e5e7eb, #64748b 55%, #e5e7eb);
+}
+
+.gold-rush .miner-ore {
+  right: -7%;
+  bottom: 6%;
+  width: 23%;
+  aspect-ratio: 1;
+  border-radius: 35% 45% 42% 35%;
+  background: currentColor;
+  box-shadow: 0 0 12px currentColor;
+}
+
+.gold-rush .phase-clash .grid-miner-avatar .miner-pickaxe {
+  animation: goldRushPickaxeStrike 360ms ease-in-out infinite alternate;
+}
+
+.gold-rush .phase-clash .grid-miner-avatar .miner-ore {
+  animation: goldRushOrePop 360ms ease-in-out infinite alternate;
+}
+
+.gold-rush .grid-miner-card span {
+  grid-area: label;
+  min-width: 0;
+  color: #f8fafc;
+  font-size: clamp(0.48rem, 1.65vw, 0.72rem);
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.gold-rush .grid-miner-card strong {
+  grid-area: mult;
+  color: currentColor;
+  font-size: clamp(1rem, 4.3vw, 1.62rem);
+  font-weight: 1000;
+  line-height: 1;
+}
+
+.gold-rush .grid-miner-card .miner-meter {
+  grid-area: meter;
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.4);
+}
+
+.gold-rush .grid-miner-card .miner-meter i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  border-radius: inherit;
+  background: currentColor;
+  transform-origin: left center;
+  animation: goldRushMeterRace 1.35s ease-in-out infinite alternate;
+}
+
+.gold-rush .grid-miner-card.loser .miner-meter i {
+  animation-duration: 1.7s;
+  opacity: 0.6;
+}
+
+.gold-rush .grid-miner-card.gold { color: #facc15; }
+.gold-rush .grid-miner-card.diamond { color: #67e8f9; }
+
+.gold-rush .grid-vs-core {
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  min-width: 62px;
+  min-height: 62px;
+  padding: 5px;
+  border-radius: 999px;
+  color: #fff7ed;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.34), transparent 22%),
+    linear-gradient(135deg, #f59e0b 0 44%, #0e7490 45% 100%);
+  border: 2px solid rgba(255, 255, 255, 0.46);
+  box-shadow:
+    0 0 24px rgba(250, 204, 21, 0.52),
+    0 0 28px rgba(56, 189, 248, 0.26),
+    inset 0 -9px 14px rgba(0, 0, 0, 0.38);
+  animation: goldRushVsCorePulse 820ms ease-in-out infinite alternate;
+}
+
+.gold-rush .grid-vs-core b {
+  font-size: clamp(0.92rem, 4vw, 1.45rem);
+  line-height: 0.9;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.44);
+}
+
+.gold-rush .grid-vs-core strong {
+  font-size: clamp(0.45rem, 1.9vw, 0.72rem);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.gold-rush .phase-winner .grid-vs-core,
+.gold-rush .phase-final .grid-vs-core {
+  animation: goldRushWinnerPop 620ms ease-out both;
+}
+
+.gold-rush .grid-clash-final-label {
+  display: none;
+  color: #f8fafc;
+  font-size: 0.62rem;
+  font-style: normal;
+  font-weight: 900;
+  text-align: center;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.72);
+}
+
+.gold-rush .phase-final .grid-clash-final-label {
+  display: block;
+}
+
+.gold-rush .gold-rush-final-clash-panel {
+  position: absolute;
+  z-index: 24;
+  left: calc(7px + ((100% - 14px) / var(--clash-reel-count)) * var(--clash-start));
+  top: calc(7px + ((100% - 14px) / var(--clash-row-count)) * var(--clash-row-start));
+  width: calc(((100% - 14px) / var(--clash-reel-count)) * var(--clash-width));
+  height: calc(((100% - 14px) / var(--clash-row-count)) * var(--clash-row-span));
+  pointer-events: none;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  place-items: center;
+  align-content: stretch;
+  gap: clamp(4px, 1.4vw, 10px);
+  overflow: hidden;
+  padding: clamp(7px, 1.6vw, 13px) 5px;
+  border-radius: 15px;
+  border: 2px solid rgba(250, 204, 21, 0.96);
+  color: #facc15;
+  background:
+    radial-gradient(circle at 50% 16%, rgba(255, 255, 255, 0.28), transparent 20%),
+    radial-gradient(circle at 28% 34%, rgba(250, 204, 21, 0.44), transparent 36%),
+    repeating-linear-gradient(120deg, transparent 0 15px, rgba(255, 255, 255, 0.08) 16px 18px),
+    linear-gradient(180deg, rgba(146, 64, 14, 0.98), rgba(12, 7, 5, 0.98));
+  box-shadow:
+    0 0 22px rgba(250, 204, 21, 0.46),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.2),
+    inset 0 -22px 40px rgba(0, 0, 0, 0.38);
+  animation: goldRushFinalPanelSettle 480ms cubic-bezier(.2,.9,.2,1) both;
+}
+
+.gold-rush .gold-rush-final-clash-panel.winner-diamond {
+  color: #67e8f9;
+  border-color: rgba(125, 211, 252, 0.95);
+  background:
+    radial-gradient(circle at 50% 16%, rgba(255, 255, 255, 0.28), transparent 20%),
+    radial-gradient(circle at 72% 34%, rgba(56, 189, 248, 0.46), transparent 36%),
+    repeating-linear-gradient(60deg, transparent 0 15px, rgba(255, 255, 255, 0.09) 16px 18px),
+    linear-gradient(180deg, rgba(8, 74, 101, 0.98), rgba(8, 13, 20, 0.98));
+  box-shadow:
+    0 0 24px rgba(56, 189, 248, 0.5),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.2),
+    inset 0 -22px 40px rgba(0, 0, 0, 0.38);
+}
+
+.gold-rush .gold-rush-final-clash-panel::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, currentColor 56%, transparent);
+  background:
+    repeating-linear-gradient(120deg, transparent 0 13px, color-mix(in srgb, currentColor 18%, transparent) 14px 16px),
+    radial-gradient(ellipse at 50% 50%, transparent 0 45%, rgba(0, 0, 0, 0.34) 100%);
+}
+
+.gold-rush .gold-rush-final-clash-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, transparent 0 42%, rgba(255, 255, 255, 0.28) 48% 51%, transparent 57%),
+    radial-gradient(circle at 50% 48%, color-mix(in srgb, currentColor 34%, transparent), transparent 42%);
+  mix-blend-mode: screen;
+  opacity: 0.66;
+  animation: goldRushFinalPanelGleam 2.4s ease-in-out infinite alternate;
+}
+
+.gold-rush .gold-rush-final-clash-panel.area-column .final-miner-avatar {
+  width: min(86%, 70px);
+}
+
+.gold-rush .gold-rush-final-clash-panel.area-interior {
+  grid-template-columns: minmax(46px, 0.7fr) minmax(0, 1fr);
+  grid-template-rows: 1fr;
+  padding-inline: clamp(8px, 2vw, 18px);
+}
+
+.gold-rush .final-miner-avatar {
+  z-index: 2;
+  grid-area: auto;
+  width: clamp(52px, 12vw, 94px);
+  color: inherit;
+  transform: translateY(1px);
+}
+
+.gold-rush .final-miner-copy {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  text-align: center;
+  text-shadow: 0 2px 7px rgba(0, 0, 0, 0.78);
+}
+
+.gold-rush .final-miner-copy span {
+  color: #fff7ed;
+  font-size: clamp(0.5rem, 1.8vw, 0.82rem);
+  font-weight: 1000;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.gold-rush .final-miner-copy strong {
+  color: currentColor;
+  font-size: clamp(1.54rem, 7vw, 3.9rem);
+  font-weight: 1000;
+  line-height: 0.9;
+}
+
+.gold-rush .final-miner-copy b {
+  min-width: 44px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: #07111d;
+  font-size: clamp(0.52rem, 1.8vw, 0.76rem);
+  font-weight: 1000;
+  line-height: 1;
+  background: linear-gradient(180deg, #fff7ed, currentColor);
+  box-shadow: 0 0 10px color-mix(in srgb, currentColor 70%, transparent);
+}
+
+.gold-rush .gold-rush-final-clash-panel.area-column .final-miner-copy span {
+  font-size: clamp(0.44rem, 1.65vw, 0.62rem);
+}
+
+.gold-rush .gold-rush-final-clash-panel.area-column .final-miner-copy strong {
+  font-size: clamp(1.2rem, 6.2vw, 2.15rem);
+}
+
+.gold-rush .gold-rush-final-clash-panel.area-column .final-miner-copy b {
+  min-width: 36px;
+  padding-inline: 5px;
+  font-size: clamp(0.48rem, 1.7vw, 0.62rem);
+}
+
+.gold-rush .symbol-tile[data-multiplier-wild="true"] {
+  border-color: rgba(250, 204, 21, 0.88);
+  background:
+    radial-gradient(circle at 50% 24%, rgba(255, 255, 255, 0.75), transparent 20%),
+    linear-gradient(145deg, #f59e0b 0%, #78350f 48%, #0e7490 100%) !important;
+  box-shadow:
+    0 0 18px rgba(250, 204, 21, 0.58),
+    inset 0 -12px 20px rgba(0, 0, 0, 0.36);
+}
+
+.gold-rush .symbol-tile[data-multiplier-wild="true"][data-winner-side="diamond"] {
+  border-color: rgba(125, 211, 252, 0.92);
+  background:
+    radial-gradient(circle at 50% 24%, rgba(255, 255, 255, 0.75), transparent 20%),
+    linear-gradient(145deg, #38bdf8 0%, #0e7490 45%, #78350f 100%) !important;
+  box-shadow:
+    0 0 18px rgba(56, 189, 248, 0.62),
+    inset 0 -12px 20px rgba(0, 0, 0, 0.36);
+}
+
+.gold-rush .symbol-tile .multiplier-wild-badge {
+  position: absolute;
+  right: 4px;
+  bottom: 3px;
+  z-index: 5;
+  min-width: 25px;
+  padding: 2px 4px;
+  border-radius: 999px;
+  color: #07111d;
+  font-size: clamp(0.62rem, 2.35vw, 0.9rem);
+  font-weight: 1000;
+  line-height: 1;
+  text-align: center;
+  background: linear-gradient(180deg, #fff7ed, #facc15 46%, #38bdf8);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow: 0 0 9px rgba(250, 204, 21, 0.82), 0 2px 6px rgba(0, 0, 0, 0.55);
+}
+
+.gold-rush .symbol-tile[data-winner-side="diamond"] .multiplier-wild-badge {
+  background: linear-gradient(180deg, #f0f9ff, #67e8f9 46%, #facc15);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.86), 0 2px 6px rgba(0, 0, 0, 0.55);
+}
+
+@keyframes goldRushInteriorPulse {
+  0% {
+    opacity: 0;
+    transform: scaleX(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes goldRushGridDim {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes goldRushClashAtmosphere {
+  from { opacity: 0.48; transform: scale(1); }
+  to { opacity: 0.78; transform: scale(1.012); }
+}
+
+@keyframes goldRushVsFlash {
+  0% { opacity: 0.4; transform: scale(0.72); }
+  55% { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes goldRushClashExpand {
+  from { opacity: 0.2; transform: scaleY(0.18) scaleX(0.86); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes goldRushClashShake {
+  from { transform: translateX(-1px); }
+  to { transform: translateX(1px); }
+}
+
+@keyframes goldRushClashSpark {
+  from { transform: translate3d(-4px, 3px, 0) scale(0.7); opacity: 0.38; }
+  to { transform: translate3d(5px, -5px, 0) scale(1.1); opacity: 1; }
+}
+
+@keyframes goldRushPickaxeStrike {
+  from { transform: rotate(34deg) translateY(0); }
+  to { transform: rotate(70deg) translateY(2px); }
+}
+
+@keyframes goldRushOrePop {
+  from { transform: scale(0.88); filter: brightness(0.9); }
+  to { transform: scale(1.16); filter: brightness(1.35); }
+}
+
+@keyframes goldRushMeterRace {
+  from { transform: scaleX(0.28); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes goldRushVsCorePulse {
+  from { transform: scale(0.96) rotate(-1deg); filter: brightness(0.96); }
+  to { transform: scale(1.06) rotate(1deg); filter: brightness(1.16); }
+}
+
+@keyframes goldRushWinnerPop {
+  0% { transform: scale(0.88); }
+  58% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+@keyframes goldRushFinalPanelSettle {
+  from { opacity: 0; transform: scaleY(0.72) scaleX(0.94); filter: brightness(1.35); }
+  to { opacity: 1; transform: scale(1); filter: brightness(1); }
+}
+
+@keyframes goldRushFinalPanelGleam {
+  from { opacity: 0.36; transform: translateX(-6%); }
+  to { opacity: 0.76; transform: translateX(6%); }
+}
+
+.gold-rush-bonus-modal .muted {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 0.86rem;
+}
+
+.gold-rush-bonus-options {
+  display: grid;
+  gap: 10px;
+}
+
+.gold-rush-bonus-options .bonus-cost-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "icon title"
+    "icon cost"
+    "icon detail";
+  align-items: center;
+  justify-items: start;
+  column-gap: 12px;
+  row-gap: 3px;
+  min-height: 82px;
+  padding: 12px;
+  text-align: left;
+}
+
+.gold-rush-bonus-options .bonus-card-icon {
+  grid-area: icon;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #f8fafc;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(125, 211, 252, 0.26);
+}
+
+.gold-rush-bonus-options .bonus-card-heading {
+  grid-area: title;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  color: #e0f2fe;
+  font-weight: 900;
+}
+
+.gold-rush-bonus-options .bonus-cost-card strong {
+  grid-area: cost;
+  color: #fde68a;
+  line-height: 1.15;
+}
+
+.gold-rush-bonus-options .bonus-cost-card small {
+  grid-area: detail;
+  color: #cbd5e1;
+  line-height: 1.25;
+}
+
+.mine-clash-overlay .expansion-reel-dim {
+  background:
+    radial-gradient(circle at 28% 46%, rgba(250, 204, 21, 0.22), transparent 34%),
+    radial-gradient(circle at 72% 44%, rgba(56, 189, 248, 0.24), transparent 34%),
+    rgba(0, 0, 0, 0.68);
+}
+
+.expansion-frame-shell {
+  position: absolute;
+  z-index: 2;
+  left: calc((var(--frame-start) / var(--frame-reel-count)) * 100% + 8px);
+  top: calc((var(--frame-row-start) / 4) * 100% + 8px);
+  width: calc((var(--frame-width) / var(--frame-reel-count)) * 100% - 16px);
+  height: calc((var(--frame-row-count) / 4) * 100% - 16px);
+  min-width: 34%;
+  border: 4px solid rgba(180, 83, 9, 0.95);
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 2px rgba(250, 204, 21, 0.58),
+    0 0 34px rgba(250, 204, 21, 0.35),
+    inset 0 0 32px rgba(0, 0, 0, 0.54);
+  animation: mineFrameExpand 820ms cubic-bezier(.2,.9,.2,1) both;
+}
+
+.expansion-frame-shell .ore-corner {
+  position: absolute;
+  width: 14px;
+  aspect-ratio: 1;
+  border-radius: 4px;
+  box-shadow: 0 0 16px currentColor;
+}
+
+.expansion-frame-shell .gold { left: -8px; top: -8px; color: #facc15; background: #facc15; }
+.expansion-frame-shell .diamond { right: -8px; top: -8px; color: #67e8f9; background: #67e8f9; }
+.expansion-frame-shell .ember { left: -8px; bottom: -8px; color: #fb923c; background: #fb923c; }
+.expansion-frame-shell .quartz { right: -8px; bottom: -8px; color: #bfdbfe; background: #bfdbfe; }
+
+.mine-clash-overlay .expansion-bonus-stage {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(6px, 1.8vw, 10px);
+  left: calc((var(--frame-start) / var(--frame-reel-count)) * 100% + 14px);
+  top: 14px;
+  width: calc((var(--frame-width) / var(--frame-reel-count)) * 100% - 28px);
+  min-width: min(92%, 240px);
+  max-width: calc(100% - 28px);
+  min-height: calc(75% - 28px);
+  padding: clamp(9px, 2vw, 16px);
+  overflow: hidden;
+  border-radius: 10px;
+  border-color: rgba(250, 204, 21, 0.48);
+  background:
+    linear-gradient(180deg, rgba(8, 5, 4, 0.18), rgba(8, 5, 4, 0.94)),
+    linear-gradient(110deg, rgba(120, 53, 15, 0.94), rgba(8, 47, 73, 0.92));
+}
+
+.mine-clash-overlay .expansion-complete-button {
+  width: min(70%, 220px);
+  min-height: 34px;
+  margin: 0 auto;
+  font-size: 0.78rem;
+}
+
+.mine-clash-overlay .expansion-complete-button:disabled {
+  display: none;
+}
+
+.expansion-mine-scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 18% 36%, rgba(250, 204, 21, 0.25), transparent 24%),
+    radial-gradient(circle at 82% 36%, rgba(56, 189, 248, 0.28), transparent 24%),
+    linear-gradient(180deg, #0c0a09, #1c1917);
+}
+
+.expansion-mine-scene::before,
+.expansion-mine-scene::after {
+  content: "";
+  position: absolute;
+  top: 16%;
+  bottom: 12%;
+  width: 28%;
+  opacity: 0.82;
+}
+
+.expansion-mine-scene::before {
+  left: 0;
+  background: repeating-linear-gradient(125deg, transparent 0 16px, rgba(250, 204, 21, 0.34) 17px 20px);
+}
+
+.expansion-mine-scene::after {
+  right: 0;
+  background: repeating-linear-gradient(55deg, transparent 0 16px, rgba(125, 211, 252, 0.34) 17px 20px);
+}
+
+.mine-clash-copy {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  gap: 7px;
+  justify-items: center;
+  text-align: center;
+}
+
+.mine-clash-copy > span {
+  color: #fde68a;
+  font-size: clamp(0.58rem, 2vw, 0.82rem);
+  font-weight: 1000;
+  text-transform: uppercase;
+}
+
+.mine-clash-copy h2 {
+  margin: 0;
+  color: #fff7ed;
+  font-size: clamp(1rem, 4.6vw, 2.2rem);
+  line-height: 1;
+  text-shadow: 0 0 18px rgba(250, 204, 21, 0.44);
+}
+
+.miner-duel {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 6px;
+}
+
+.miner-card {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  justify-items: center;
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.34);
+}
+
+.miner-card.gold { color: #fde68a; }
+.miner-card.diamond { color: #bae6fd; }
+.miner-card.winner {
+  border-color: currentColor;
+  box-shadow: 0 0 20px color-mix(in srgb, currentColor 45%, transparent);
+}
+
+.miner-silhouette {
+  width: min(50px, 70%);
+  aspect-ratio: 0.72;
+  border-radius: 40% 40% 28% 28%;
+  background:
+    radial-gradient(circle at 50% 14%, currentColor 0 18%, transparent 19%),
+    linear-gradient(160deg, currentColor 0 42%, #1c1917 43%);
+  transform-origin: 50% 100%;
+  animation: minerSwing 680ms ease-in-out infinite alternate;
+}
+
+.miner-card span {
+  font-size: clamp(0.52rem, 1.8vw, 0.72rem);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.miner-card strong {
+  color: #fff;
+  font-size: clamp(0.9rem, 3.2vw, 1.45rem);
+}
+
+.miner-card em {
+  width: 100%;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+
+.miner-card em::before {
+  content: "";
+  display: block;
+  width: var(--meter);
+  height: 100%;
+  border-radius: inherit;
+  background: currentColor;
+  animation: mineMeterFill 1.8s ease-out both;
+}
+
+.mine-vs-badge {
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: clamp(32px, 8vw, 48px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  color: #fff7ed;
+  font-weight: 1000;
+  background: radial-gradient(circle, #f97316 0 42%, #082f49 43%);
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.42);
+}
+
+.mine-clash-multiplier {
+  color: #fff7ed;
+  font-size: clamp(1.8rem, 9vw, 4.6rem);
+  line-height: 0.9;
+  text-shadow: 0 0 24px rgba(250, 204, 21, 0.58);
+}
+
+.mine-clash-overlay.winner-diamond .mine-clash-multiplier {
+  color: #e0f2fe;
+  text-shadow: 0 0 26px rgba(56, 189, 248, 0.72);
+}
+
+.mine-clash-copy p {
+  margin: 0;
+  color: #fed7aa;
+  font-size: clamp(0.68rem, 2.2vw, 0.94rem);
+  font-weight: 800;
+}
+
+@keyframes mineFrameExpand {
+  from { transform: scaleX(0.22) scaleY(0.78); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes minerSwing {
+  from { transform: rotate(-4deg) translateY(0); }
+  to { transform: rotate(5deg) translateY(-2px); }
+}
+
+@keyframes mineMeterFill {
+  from { width: 8%; }
+  to { width: var(--meter); }
+}
+
+@media (max-width: 480px) {
+  .gold-rush .frontier-reel-stage {
+    width: min(100%, 380px);
+    aspect-ratio: 6 / 4;
+    max-height: 44dvh;
+  }
+
+  .mine-clash-overlay .expansion-bonus-stage {
+    left: 10px;
+    right: 10px;
+    top: 10px;
+    width: auto;
+    min-width: 0;
+    min-height: calc(75% - 20px);
+  }
+
+  .expansion-frame-shell {
+    left: 8px;
+    width: calc(100% - 16px);
+    min-width: 0;
+  }
+
+  .miner-duel {
+    gap: 4px;
+  }
+
+  .mine-clash-copy {
+    gap: 4px;
+  }
+
+  .mine-clash-copy h2 {
+    font-size: clamp(0.95rem, 5vw, 1.18rem);
+  }
+
+  .mine-clash-copy p {
+    display: none;
+  }
+
+  .miner-card {
+    padding: 5px;
+  }
+
+  .miner-silhouette {
+    width: min(42px, 66%);
+  }
+
+  .mine-clash-multiplier {
+    font-size: clamp(1.35rem, 8vw, 2.25rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .expansion-frame-shell,
+  .miner-silhouette,
+  .miner-card em::before {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
 /* Frontier Charged Relic collector replaces the old bowl-fill visual. */
 .frontier .charged-relic-collector {
   width: 124px;
