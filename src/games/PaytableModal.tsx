@@ -11,7 +11,7 @@ export function PaytableModal({ game, onClose }: { game: SlotConfig; onClose: ()
           {COMPLIANCE_COPY} Demo math only; release math is inspected in Admin.
         </p>
         <div className="rules-grid">
-          <div><span>RTP target</span><strong>{(game.targetRtp * 100).toFixed(1)}%</strong></div>
+          <div><span>Profile</span><strong>{game.volatility} Volatility</strong></div>
           <div><span>Volatility</span><strong>{game.volatility}</strong></div>
           <div><span>Bet range</span><strong>{game.minBet}-{game.maxBet}</strong></div>
           <div><span>Max payout</span><strong>{game.maxPayoutMultiplier}x</strong></div>

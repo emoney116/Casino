@@ -20,6 +20,10 @@ const goldRushSymbolAssets = {
 
 const goldRushUiAssets = {
   titleLogo: new URL("../assets/gold-rush-showdown/ui/title-logo.png", import.meta.url).href,
+  bonusPlus: new URL("../assets/gold-rush-showdown/ui/bonus-buy/bonus-plus.png", import.meta.url).href,
+  showdownSpin: new URL("../assets/gold-rush-showdown/ui/bonus-buy/showdown-spin.png", import.meta.url).href,
+  buyBonus: new URL("../assets/gold-rush-showdown/ui/bonus-buy/buy-bonus-3.png", import.meta.url).href,
+  buySuperBonus: new URL("../assets/gold-rush-showdown/ui/bonus-buy/buy-super-bonus-4.png", import.meta.url).href,
 } as const;
 
 const featureSymbols = {
@@ -40,13 +44,13 @@ export const slotConfigs: SlotConfig[] = [
     maxBet: 100000,
     volatility: "High",
     targetRtp: 0.94,
-    maxPayoutMultiplier: 250,
+    maxPayoutMultiplier: 1000,
     currencyBetOptions: {
       GOLD: [10, 50, 100, 250, 500, 1000, 5000, 10000, 25000, 50000, 100000],
       BONUS: [0.1, 0.2, 0.4, 0.8, 1, 1.5, 2, 3, 5, 10],
     },
     featureTypes: ["FREE_SPINS", "EXPANSION_BONUS"],
-    specialSymbols: { wild: "wild", scatter: "mine_scatter", bonus: "vs_mine_clash" },
+    specialSymbols: { wild: "wild", scatter: "mine_scatter", bonus: "mine_scatter" },
     symbols: [
       { id: "J", label: "J", icon: "J", image: goldRushSymbolAssets.jack, weight: 13, color: "#22c55e" },
       { id: "Q", label: "Q", icon: "Q", image: goldRushSymbolAssets.queen, weight: 12, color: "#38bdf8" },
@@ -60,11 +64,12 @@ export const slotConfigs: SlotConfig[] = [
       { id: "blue_diamond", label: "Diamond Nugget", icon: "DIAM", image: goldRushSymbolAssets.blueDiamond, weight: 3, color: "#67e8f9" },
       { id: "treasure_chest", label: "Treasure Chest", icon: "CHEST", image: goldRushSymbolAssets.treasureChest, weight: 2, color: "#facc15" },
       { id: "10", label: "10", icon: "10", image: goldRushSymbolAssets.ten, weight: 13, color: "#fb923c" },
-      { id: "mine_scatter", label: "Mine Scatter", icon: "BONUS", image: goldRushSymbolAssets.mineScatter, weight: 2, kind: "scatter", color: "#f97316" },
-      { id: "vs_mine_clash", label: "VS Mine Clash", icon: "VS", image: goldRushSymbolAssets.vsMineClash, weight: 2, kind: "bonus", color: "#fbbf24" },
+      { id: "mine_scatter", label: "Mine Scatter", icon: "BONUS", image: goldRushSymbolAssets.mineScatter, weight: 0.7, kind: "scatter", color: "#f97316" },
+      { id: "vs_mine_clash", label: "VS Mine Clash", icon: "VS", image: goldRushSymbolAssets.vsMineClash, weight: 1.18, kind: "bonus", color: "#fbbf24" },
     ],
     waysToWin: "8 mine paylines across 6 reels",
     payoutTable: [
+      { symbol: "10", count: 6, multiplier: 1.2 }, { symbol: "10", count: 5, multiplier: 0.6 }, { symbol: "10", count: 4, multiplier: 0.2 }, { symbol: "10", count: 3, multiplier: 0.08 },
       { symbol: "J", count: 6, multiplier: 1.5 }, { symbol: "J", count: 5, multiplier: 0.75 }, { symbol: "J", count: 4, multiplier: 0.25 }, { symbol: "J", count: 3, multiplier: 0.1 },
       { symbol: "Q", count: 6, multiplier: 1.8 }, { symbol: "Q", count: 5, multiplier: 0.9 }, { symbol: "Q", count: 4, multiplier: 0.3 }, { symbol: "Q", count: 3, multiplier: 0.12 },
       { symbol: "K", count: 6, multiplier: 2 }, { symbol: "K", count: 5, multiplier: 1 }, { symbol: "K", count: 4, multiplier: 0.35 }, { symbol: "K", count: 3, multiplier: 0.15 },
@@ -80,17 +85,55 @@ export const slotConfigs: SlotConfig[] = [
     paytableBasis: "totalBet",
     twoMatchMultiplier: 0,
     scatterSymbol: "mine_scatter",
-    bonusSymbol: "vs_mine_clash",
+    bonusSymbol: "mine_scatter",
     bonusFeature: { meterPerSpin: 8 },
     freeSpins: {
       triggerCount: 3,
       awarded: [10, 10],
-      awardsByScatter: { 3: 10, 4: 15, 5: 20 },
-      winMultiplier: 1.45,
+      awardsByScatter: { 3: 10, 4: 10, 5: 10 },
+      winMultiplier: 1.09,
       retrigger: true,
-      retriggerAward: 5,
+      retriggerAward: 0,
       maxSpins: 30,
       stickyWilds: false,
+    },
+    buyBonus: { enabled: true, costMultiplier: 100, featureType: "FREE_SPINS" },
+    bonusBuys: [
+      {
+        id: "gold-rush-buy-bonus",
+        label: "Buy Bonus",
+        featureType: "FREE_SPINS",
+        costMultiplier: 100,
+        currencyCostMultipliers: { GOLD: 100, BONUS: 100 },
+      },
+      {
+        id: "gold-rush-buy-super-bonus",
+        label: "Buy Super Bonus",
+        featureType: "FREE_SPINS",
+        costMultiplier: 300,
+        currencyCostMultipliers: { GOLD: 300, BONUS: 300 },
+      },
+    ],
+    boostSpins: {
+      GOLD_RUSH_BONUS_BOOST: { label: "Bonus + Spins", costMultiplier: 3, scatterWeightMultiplier: 3.3 },
+      GOLD_RUSH_SHOWDOWN: { label: "Showdown Spin", costMultiplier: 50 },
+    },
+    goldRushBonusBuys: {
+      options: [
+        { type: "bonus-plus-spins", label: "Bonus+", costMultiplier: 3, mode: "boost", spinMode: "GOLD_RUSH_BONUS_BOOST", image: goldRushUiAssets.bonusPlus },
+        { type: "showdown-spin", label: "Showdown Spin", costMultiplier: 50, mode: "boost", spinMode: "GOLD_RUSH_SHOWDOWN", image: goldRushUiAssets.showdownSpin },
+        { type: "buy-bonus", label: "Buy Bonus", costMultiplier: 100, mode: "immediate", forcedBonusSymbols: 3, initialFreeSpins: 10, initialInteriorColumns: 2, image: goldRushUiAssets.buyBonus },
+        { type: "buy-super-bonus", label: "Super Bonus", costMultiplier: 300, mode: "immediate", forcedBonusSymbols: 4, initialFreeSpins: 10, initialInteriorColumns: 3, image: goldRushUiAssets.buySuperBonus },
+      ],
+      freeSpins: {
+        initialSpins: 10,
+        normalInitialInteriorColumns: 2,
+        superInitialInteriorColumns: 3,
+        collectThreshold: 4,
+        addedSpins: 2,
+        growColumns: 1,
+        maxInteriorColumns: 6,
+      },
     },
     pickBonus: { triggerCount: 99, picks: 0, awards: [] },
     expansionBonus: {
@@ -128,7 +171,7 @@ export const slotConfigs: SlotConfig[] = [
     },
     goldRushVs: {
       triggerSymbol: "vs_mine_clash",
-      maxActiveNormalVs: 1,
+      maxActiveNormalVs: 2,
       duelTiers: [
         {
           id: "gold-gold",
@@ -171,9 +214,9 @@ export const slotConfigs: SlotConfig[] = [
       ],
     },
     goldRushInterior: {
-      appearanceChance: 0.09,
+      appearanceChance: 0.07,
       maxInteriorColumns: 6,
-      freeSpinsInteriorAlwaysActive: false,
+      freeSpinsInteriorAlwaysActive: true,
       freeSpinsInitialInteriorColumns: 2,
       scatterGrowInteriorColumns: 1,
       sizes: [

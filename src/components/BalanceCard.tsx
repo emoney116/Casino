@@ -1,6 +1,6 @@
 import { formatCoins } from "../lib/format";
 import type { Currency } from "../types";
-import { getCurrencyDisplayName, getCurrencyMeta, getCurrencyShortName } from "../config/currencyConfig";
+import { getCurrencyBrandedDisplayName, getCurrencyMeta, getCurrencyShortName } from "../config/currencyConfig";
 
 export function BalanceCard({
   label,
@@ -82,7 +82,7 @@ export function BalanceToggle({
         <button
           type="button"
           className={selected === "GOLD" ? "active gold" : "gold"}
-          title={`${getCurrencyDisplayName("GOLD")}: ${formatCoins(balances.GOLD)}`}
+          title={`${getCurrencyBrandedDisplayName("GOLD")}: ${formatCoins(balances.GOLD)}`}
           aria-pressed={selected === "GOLD"}
           onClick={() => clickCurrency("GOLD")}
         >
@@ -91,7 +91,7 @@ export function BalanceToggle({
         <button
           type="button"
           className={selected === "BONUS" ? "active bonus" : "bonus"}
-          title={`${getCurrencyDisplayName("BONUS")}: ${formatCoins(balances.BONUS)}`}
+          title={`${getCurrencyBrandedDisplayName("BONUS")}: ${formatCoins(balances.BONUS)}`}
           aria-pressed={selected === "BONUS"}
           onClick={() => clickCurrency("BONUS")}
         >

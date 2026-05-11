@@ -16,8 +16,15 @@ export function TableGameCard({ game, onPlay }: { game: TableGameConfig; onPlay:
   const Icon = icons[game.id];
   return (
     <button type="button" className={`table-game-card title-card ${game.id}`} onClick={() => onPlay(game.id)}>
+      <div className="game-card-badges table-badges" aria-label={`${game.name} tags`}>
+        <span>Max {game.maxPayout}</span>
+      </div>
       <div className="table-game-art">
-        <GamePreview gameId={game.id} Icon={Icon} />
+        {game.artwork ? (
+          <img className="table-game-raster-art" src={game.artwork} alt={`${game.name} game art`} />
+        ) : (
+          <GamePreview gameId={game.id} Icon={Icon} />
+        )}
       </div>
       <strong>{game.name}</strong>
     </button>

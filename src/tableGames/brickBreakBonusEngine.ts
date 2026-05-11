@@ -6,7 +6,7 @@ export type BrickBreakState = "idle" | "betting" | "playing" | "revealing" | "ga
 
 export interface BrickBreakBonusConfig {
   id: "brickBreakBonus";
-  name: "Brick Break Bonus";
+  name: "Brick Break";
   theme: string;
   targetRtp: number;
   minBet: number;
@@ -91,7 +91,7 @@ export interface BrickBreakSimulationResult {
 
 export const brickBreakBonusConfig: BrickBreakBonusConfig = {
   id: "brickBreakBonus",
-  name: "Brick Break Bonus",
+  name: "Brick Break",
   theme: "CPU autoplay brick breaker",
   targetRtp: 0.91,
   minBet: 10,
@@ -125,7 +125,7 @@ export const brickBreakBonusConfig: BrickBreakBonusConfig = {
 function assertBrickBreakBet(userId: string, currency: Currency, amount: number, config = brickBreakBonusConfig) {
   if (!Number.isFinite(amount) || amount < config.minBet) throw new Error(`Minimum bet is ${config.minBet} coins.`);
   if (amount > config.maxBet) throw new Error(`Maximum bet is ${config.maxBet} coins.`);
-  if (getBalance(userId, currency) < amount) throw new Error("Insufficient balance for Brick Break Bonus.");
+  if (getBalance(userId, currency) < amount) throw new Error("Insufficient balance for Brick Break.");
 }
 
 export function pickBrickBreakOutcome(random = Math.random, config = brickBreakBonusConfig) {

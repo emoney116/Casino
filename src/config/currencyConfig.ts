@@ -4,6 +4,8 @@ export interface CurrencyMetadata {
   code: Currency;
   displayName: string;
   shortName: string;
+  brandedDisplayName: string;
+  brandedShortName: string;
   legacyName?: string;
   role: "ENTERTAINMENT" | "PROMOTIONAL";
   canPurchaseDirectly: boolean;
@@ -19,6 +21,8 @@ export const currencyConfig: Record<Currency, CurrencyMetadata> = {
     code: "GOLD",
     displayName: "Gold Coins",
     shortName: "GC",
+    brandedDisplayName: "Heater Coins (GC)",
+    brandedShortName: "Heater GC",
     role: "ENTERTAINMENT",
     canPurchaseDirectly: true,
     canBeGrantedAsBonus: true,
@@ -31,6 +35,8 @@ export const currencyConfig: Record<Currency, CurrencyMetadata> = {
     code: "BONUS",
     displayName: "Sweeps Coins",
     shortName: "SC",
+    brandedDisplayName: "Heater Cash (SC)",
+    brandedShortName: "Heater SC",
     legacyName: "Bonus Coins",
     role: "PROMOTIONAL",
     canPurchaseDirectly: false,
@@ -50,6 +56,14 @@ export function getCurrencyMeta(currency: Currency) {
 
 export function getCurrencyDisplayName(currency: Currency) {
   return getCurrencyMeta(currency).displayName;
+}
+
+export function getCurrencyBrandedDisplayName(currency: Currency) {
+  return getCurrencyMeta(currency).brandedDisplayName;
+}
+
+export function getCurrencyBrandedShortName(currency: Currency) {
+  return getCurrencyMeta(currency).brandedShortName;
 }
 
 export function getCurrencyShortName(currency: Currency) {

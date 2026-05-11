@@ -967,7 +967,7 @@ try {
   if (!(error instanceof Error) || !error.message.includes("Insufficient")) throw error;
 }
 if (
-  brickBreakBonusUiMarkers.gameName !== "Brick Break Bonus" ||
+  brickBreakBonusUiMarkers.gameName !== "Brick Break" ||
   !brickBreakBonusUiMarkers.goldBonusToggle ||
   !brickBreakBonusUiMarkers.noSkillAutoplay ||
   !brickBreakBonusUiMarkers.cpuPaddle ||

@@ -15,7 +15,7 @@ const quickBets = [10, 25, 50, 100, 500];
 const brickCount = 30;
 
 export const brickBreakBonusUiMarkers = {
-  gameName: "Brick Break Bonus",
+  gameName: "Brick Break",
   goldBonusToggle: true,
   noSkillAutoplay: true,
   cpuPaddle: true,
@@ -209,7 +209,7 @@ export function BrickBreakBonusPage({ onExit }: { onExit?: () => void }) {
       }, cursor + 760);
       timersRef.current.push(ending, settleTimer);
     } catch (caught) {
-      notify(caught instanceof Error ? caught.message : "Unable to play Brick Break Bonus.", "error");
+      notify(caught instanceof Error ? caught.message : "Unable to play Brick Break.", "error");
       playError();
     }
   }
@@ -219,7 +219,7 @@ export function BrickBreakBonusPage({ onExit }: { onExit?: () => void }) {
       <header className="brick-break-header">
         <button className="brick-break-back" onClick={onExit} aria-label="Back to games">&lt;</button>
         <div className="brick-break-title">
-          <h1>Brick Break Bonus <span aria-hidden="true"><Gamepad2 size={14} /></span></h1>
+          <h1>Brick Break <span aria-hidden="true"><Gamepad2 size={14} /></span></h1>
         </div>
         <div className="brick-break-currency-tabs" role="tablist" aria-label="Currency">
           <button type="button" className={currency === "GOLD" ? "active" : ""} disabled={running} onClick={() => setCurrency("GOLD")}>Gold</button>
@@ -339,7 +339,7 @@ export function BrickBreakBonusPage({ onExit }: { onExit?: () => void }) {
         </button>
         <div className="demo-copy game-compliance-copy">{COMPLIANCE_COPY}</div>
         {recentRounds.length > 0 && (
-          <div className="brick-break-recent" aria-label="Recent Brick Break Bonus rounds">
+          <div className="brick-break-recent" aria-label="Recent Brick Break rounds">
             {recentRounds.map((round, index) => <strong key={`${round.paid}-${round.net}-${index}`} className={round.net >= 0 ? "win" : "loss"}>{round.net >= 0 ? "+" : ""}{formatCoins(round.net)}</strong>)}
           </div>
         )}

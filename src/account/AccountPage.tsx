@@ -42,7 +42,7 @@ export function AccountPage() {
           </div>
         </article>
         <article className="card detail-card">
-          <h2>Mock Settings</h2>
+          <h2>Profile Settings</h2>
           <label>
             Display Name
             <input defaultValue={user.username} />
@@ -51,28 +51,28 @@ export function AccountPage() {
             Email
             <input defaultValue={user.email} />
           </label>
-          <button className="ghost-button" disabled>Save Placeholder</button>
+          <button className="ghost-button" disabled>Save Disabled</button>
         </article>
       </div>
 
       <article className="card">
-        <h2>KYC / Identity Prep</h2>
-        <p className="muted">KYC not enabled in prototype. Future states: NOT_STARTED, REQUIRED, PENDING, APPROVED, REJECTED.</p>
-        <button className="ghost-button" disabled>KYC not enabled in prototype</button>
+        <h2>Identity Status</h2>
+        <p className="muted">Identity review is not enabled in this prototype. Future states: NOT_STARTED, REQUIRED, PENDING, APPROVED, REJECTED.</p>
+        <button className="ghost-button" disabled>Review Disabled</button>
       </article>
 
       <article className="card">
-        <h2>Responsible Play Demo Controls</h2>
+        <h2>Responsible Play Controls</h2>
         <p className="muted">Prototype-only controls. These do not enforce real compliance rules yet.</p>
         <div className="settings-grid">
-          <label><input type="checkbox" /> Session reminder placeholder</label>
-          <label><input type="checkbox" /> Spending limit placeholder</label>
-          <label><input type="checkbox" /> Self-exclusion placeholder</label>
+          <label><input type="checkbox" /> Session reminder</label>
+          <label><input type="checkbox" /> Spending limit</label>
+          <label><input type="checkbox" /> Self-exclusion</label>
         </div>
       </article>
 
       <article className="card">
-        <h2>Compliance Placeholder Pages</h2>
+        <h2>Compliance Pages</h2>
         <p className="muted">{DRAFT_LEGAL_PLACEHOLDER}</p>
         <div className="legal-link-grid">
           <a className="ghost-button" href="/terms">Terms</a>

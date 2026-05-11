@@ -18,6 +18,7 @@ export interface TableGameConfig {
   currency: Currency;
   demoOnlyCopy: string;
   rules: string[];
+  artwork?: string;
 }
 
 export interface TableSettlement {

@@ -12,7 +12,7 @@ import { PurchaseCoinsModal } from "../wallet/PurchaseCoinsModal";
 import { getBalance } from "../wallet/walletService";
 import type { Currency } from "../types";
 import type { AppView } from "./navigation";
-import { BrandIcon, visibleNavItems } from "./navigation";
+import { visibleNavItems } from "./navigation";
 import { MobileTabBar } from "./MobileTabBar";
 import { Modal } from "../components/Modal";
 import { dismissOnboarding, hasDismissedOnboarding } from "./onboarding";
@@ -21,6 +21,7 @@ import type { TableGameId } from "../tableGames/types";
 import { RewardsPage } from "../retention/RewardsPage";
 import { COMPLIANCE_COPY } from "../lib/compliance";
 import { LegalPage } from "../legal/LegalPage";
+import { PLAYHEATER_BRAND, PlayheaterBrandLockup, PlayheaterMark } from "../branding/playheater";
 
 const tableRouteIds: Record<string, TableGameId> = {
   blackjack: "blackjack",
@@ -132,11 +133,7 @@ export function AppShell() {
     <div className={`shell ${hideMobileNav ? "game-mode" : ""}`}>
       <aside className="sidebar">
         <div className="shell-brand">
-          <BrandIcon />
-          <div>
-            <strong>Casino</strong>
-            <span>Prototype</span>
-          </div>
+          <PlayheaterBrandLockup />
         </div>
         <nav className="side-nav" aria-label="Primary navigation">
           {nav.map((item) => {
@@ -159,11 +156,7 @@ export function AppShell() {
       <main className="main-panel">
         <header className="mobile-header">
           <div className="shell-brand">
-            <BrandIcon />
-            <div>
-              <strong>Casino</strong>
-              <span>Prototype</span>
-            </div>
+            <PlayheaterMark className="mobile-header-mark" />
           </div>
           <div className="header-wallet-tools">
             <BalanceToggle
@@ -176,7 +169,7 @@ export function AppShell() {
               }}
               onToggleExpanded={() => setBalanceExpanded((value) => !value)}
             />
-            <button className="wallet-plus-button" type="button" aria-label="Purchase coin packs" onClick={openPurchasePacks}>+</button>
+            <button className={`wallet-plus-button ${selectedBalance === "BONUS" ? "sweeps" : "gold"}`} type="button" aria-label="Purchase coin packs" onClick={openPurchasePacks}>+</button>
           </div>
         </header>
         <div className="balance-strip desktop-balance-strip">
@@ -191,7 +184,7 @@ export function AppShell() {
               }}
               onToggleExpanded={() => setBalanceExpanded((value) => !value)}
             />
-            <button className="wallet-plus-button" type="button" aria-label="Purchase coin packs" onClick={openPurchasePacks}>+</button>
+            <button className={`wallet-plus-button ${selectedBalance === "BONUS" ? "sweeps" : "gold"}`} type="button" aria-label="Purchase coin packs" onClick={openPurchasePacks}>+</button>
           </div>
         </div>
 
@@ -246,11 +239,11 @@ export function AppShell() {
 
       {!hideMobileNav && <MobileTabBar activeView={activeView} roles={user.roles} onChange={setView} />}
       {showOnboarding && (
-        <Modal title="Welcome to the Demo Casino" onClose={() => undefined}>
+        <Modal title={`Welcome to ${PLAYHEATER_BRAND.name}`} onClose={() => undefined}>
           <div className="modal-stack">
             <p>{COMPLIANCE_COPY}</p>
             <div className="notice-card">
-              Claim your daily bonus, pick a slot in the lobby, and test the ledger-backed demo economy.
+              Claim your daily bonus, pick a HEATER game, and keep the streak alive.
             </div>
             <button
               className="primary-button"
@@ -259,7 +252,7 @@ export function AppShell() {
                 setShowOnboarding(false);
               }}
             >
-              Start Playing Demo Games
+              Stay Hot
             </button>
           </div>
         </Modal>

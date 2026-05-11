@@ -1,5 +1,5 @@
 import { Dices, Flame, Gamepad2, Gift, Sparkles, WalletCards } from "lucide-react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { GameCard } from "../components/GameCard";
@@ -10,6 +10,7 @@ import { getFavorites, toggleFavorite } from "./favorites";
 import { tableGameConfigs } from "../tableGames/configs";
 import { TableGameCard } from "../tableGames/TableGameCard";
 import type { TableGameId } from "../tableGames/types";
+import { PlayheaterWordmark } from "../branding/playheater";
 
 export function LobbyPage({
   onPlay,
@@ -37,14 +38,14 @@ export function LobbyPage({
     .filter(Boolean)
     .slice(0, 3) as SlotConfig[];
   const newSlots = exposedSlotConfigs.slice(0, 4);
+  const featuredSlots = exposedSlotConfigs.slice(0, 3);
   const trendingTables = tableGameConfigs.slice(0, 4);
 
   return (
     <section className="page-stack">
       <div className="lobby-hero lobby-home">
-        <div>
-          <p className="eyebrow">Virtual casino</p>
-          <h1>Casino Lobby</h1>
+        <div className="lobby-hero-brand">
+          <PlayheaterWordmark />
           <div className="lobby-shortcuts">
             <button className="ghost-button icon-button" onClick={onSlots}>
               <Gamepad2 size={18} />
@@ -65,6 +66,25 @@ export function LobbyPage({
           </div>
         </div>
       </div>
+
+      <section className="featured-game-carousel" aria-label="Featured games">
+        {featuredSlots.map((game, index) => (
+          <article
+            key={game.id}
+            className="featured-game-tile"
+            style={
+              {
+                "--accent": game.visual.accent,
+                "--secondary": game.visual.secondary,
+                "--panel": game.visual.panel,
+              } as CSSProperties
+            }
+          >
+            <span>{index === 0 ? "Hottest now" : index === 1 ? "Featured" : "New heat"}</span>
+            <GameCard game={game} onPlay={onPlay} hot={index === 0} />
+          </article>
+        ))}
+      </section>
 
       {favorites.length > 0 && (
         <GameSection title="Favorites" games={favorites.map((id) => exposedSlotConfigs.find((game) => game.id === id)).filter(Boolean) as SlotConfig[]} onPlay={onPlay} favorites={favorites} onToggleFavorite={(id) => { toggleFavorite(currentUser.id, id); setVersion((value) => value + 1); }} />
@@ -128,7 +148,7 @@ function GameSection({
       ) : (
         <div className="game-grid">
           {games.map((game) => (
-            <GameCard key={game.id} game={game} onPlay={onPlay} favorite={favorites.includes(game.id)} onToggleFavorite={onToggleFavorite} />
+            <GameCard key={game.id} game={game} onPlay={onPlay} favorite={favorites.includes(game.id)} onToggleFavorite={onToggleFavorite} hot={games.indexOf(game) < 2} />
           ))}
         </div>
       )}

@@ -15,7 +15,7 @@ const checks = [
   { id: "over-under", label: "Over/Under bet/win works", ok: () => readData().transactions.some((tx) => tx.metadata?.tableGameId === "dice") },
   { id: "crash", label: "Crash bet/win works", ok: () => readData().transactions.some((tx) => tx.metadata?.tableGameId === "crash") },
   { id: "treasure", label: "Treasure Dig bet/win works", ok: () => readData().transactions.some((tx) => tx.metadata?.tableGameId === "treasureDig") },
-  { id: "brick", label: "Brick Break Bonus bet/win works", ok: () => readData().transactions.some((tx) => tx.metadata?.arcadeGameId === "brickBreakBonus") },
+  { id: "brick", label: "Brick Break bet/win works", ok: () => readData().transactions.some((tx) => tx.metadata?.arcadeGameId === "brickBreakBonus") },
   { id: "balloon", label: "Balloon Pop bet/win works", ok: () => readData().transactions.some((tx) => tx.metadata?.arcadeGameId === "balloonPop") },
   { id: "simulations", label: "Simulations pass", ok: () => slotConfigs.every((game) => game.targetRtp <= 0.95) && tableGameConfigs.every((game) => 1 - game.houseEdgeTarget <= 0.95) },
   { id: "mobile-320", label: "Mobile layout pass: 320px", ok: () => true },

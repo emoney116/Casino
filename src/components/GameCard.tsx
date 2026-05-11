@@ -1,17 +1,20 @@
 import type { SlotConfig } from "../games/types";
 import { GameLogo } from "../games/GameLogo";
-import { Star } from "lucide-react";
+import { Flame, Star } from "lucide-react";
+import type { CSSProperties } from "react";
 
 export function GameCard({
   game,
   onPlay,
   favorite = false,
   onToggleFavorite,
+  hot = false,
 }: {
   game: SlotConfig;
   onPlay: (gameId: string) => void;
   favorite?: boolean;
   onToggleFavorite?: (gameId: string) => void;
+  hot?: boolean;
 }) {
   return (
     <article
@@ -21,9 +24,14 @@ export function GameCard({
           "--accent": game.visual.accent,
           "--secondary": game.visual.secondary,
           "--panel": game.visual.panel,
-        } as React.CSSProperties
+        } as CSSProperties
       }
     >
+      <div className="game-card-badges" aria-label={`${game.name} tags`}>
+        {hot && <span className="hot-badge"><Flame size={12} /> HOT</span>}
+        <span>{game.volatility}</span>
+        <span>{game.maxPayoutMultiplier}x</span>
+      </div>
       {onToggleFavorite && (
         <button className={`favorite-button ${favorite ? "active" : ""}`} onClick={() => onToggleFavorite(game.id)} title="Favorite" aria-label={`${favorite ? "Remove" : "Add"} ${game.name} favorite`}>
           <Star size={17} />

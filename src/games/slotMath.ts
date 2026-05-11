@@ -1,5 +1,5 @@
 import type { SimulationResult, SlotConfig } from "./types";
-import { calculateDirectFeature, calculateFreeSpinsBonus, calculateHoldAndWinBonus, calculateNeonCascadeResult, calculateSlotResult, getBonusBuyCost, getBonusBuyPayoutBetAmount, getSpinCost } from "./slotEngine";
+import { calculateDirectFeature, calculateFreeSpinsBonus, calculateHoldAndWinBonus, calculateNeonCascadeResult, calculateSlotResult, createGoldRushBonusTriggerGrid, createGoldRushShowdownBoostGrid, getBonusBuyCost, getBonusBuyPayoutBetAmount, getGoldRushBonusBuyCost, getSpinCost } from "./slotEngine";
 import { capDemoPayout } from "../economy/limits";
 import type { Currency } from "../types";
 import type { BonusFeatureType, SpinMode } from "./types";
@@ -32,6 +32,11 @@ export function simulateSlot(game: SlotConfig, spins = 100000, betAmount = game.
   let vsInsideInteriorCount = 0;
   let activeInteriorVsCount = 0;
   let activeInteriorVsPaid = 0;
+  let naturalThreeBonusTriggers = 0;
+  let naturalFourBonusTriggers = 0;
+  let freeSpinsPlayedTotal = 0;
+  let freeSpinsFinalInteriorTotal = 0;
+  let freeSpinsVsInsideTotal = 0;
   const interiorSizeDistribution: Record<string, number> = {};
   const vsDuelTierDistribution: Record<string, number> = {};
   const vsMultiplierDistribution: Record<string, number> = {};
@@ -42,7 +47,7 @@ export function simulateSlot(game: SlotConfig, spins = 100000, betAmount = game.
   for (let index = 0; index < spins; index += 1) {
     const result = game.id === "neon-fortune" ? calculateNeonCascadeResult(game, betAmount) : calculateSlotResult(game, betAmount);
     totalWagered += betAmount;
-    const freeSpinBonus = result.freeSpinsAwarded > 0 ? calculateFreeSpinsBonus(game, betAmount, result.freeSpinsAwarded) : undefined;
+    const freeSpinBonus = result.freeSpinsAwarded > 0 ? calculateFreeSpinsBonus(game, betAmount, result.freeSpinsAwarded, result.goldRush?.freeSpinsTrigger?.initialInteriorColumns) : undefined;
     const freeSpinPaid = freeSpinBonus?.total ?? 0;
     freeSpinPaidTotal += freeSpinPaid;
     const pickAward = result.pickBonusAwards?.[0] ?? 0;
@@ -54,6 +59,14 @@ export function simulateSlot(game: SlotConfig, spins = 100000, betAmount = game.
     if (totalResultPaid > 0) hits += 1;
     if (result.triggeredBonus) bonusTriggers += 1;
     if (result.triggeredFreeSpins) freeSpinTriggers += 1;
+    if (game.id === "gold-rush-showdown" && result.triggeredFreeSpins) {
+      const count = result.goldRush?.freeSpinsTrigger?.triggerCount ?? 0;
+      if (count === 3) naturalThreeBonusTriggers += 1;
+      if (count >= 4) naturalFourBonusTriggers += 1;
+      freeSpinsPlayedTotal += freeSpinBonus?.spinsPlayed ?? 0;
+      freeSpinsFinalInteriorTotal += freeSpinBonus?.finalInteriorColumns ?? 0;
+      freeSpinsVsInsideTotal += freeSpinBonus?.vsInsideFreeSpinsCount ?? 0;
+    }
     if (result.triggeredPickBonus) pickBonusTriggers += 1;
     if (result.triggeredHoldAndWin) holdAndWinTriggers += 1;
     if (result.triggeredWheelBonus) wheelBonusTriggers += 1;
@@ -92,11 +105,17 @@ export function simulateSlot(game: SlotConfig, spins = 100000, betAmount = game.
   };
   if (game.boostSpins?.GOLD_BOOST) modeResults.GOLD_BOOST = simulateSpinMode(game, spins, betAmount, "GOLD_BOOST");
   if (game.boostSpins?.SCATTER_BOOST) modeResults.SCATTER_BOOST = simulateSpinMode(game, spins, betAmount, "SCATTER_BOOST");
+  if (game.boostSpins?.GOLD_RUSH_BONUS_BOOST) modeResults.GOLD_RUSH_BONUS_BOOST = simulateSpinMode(game, spins, betAmount, "GOLD_RUSH_BONUS_BOOST");
+  if (game.boostSpins?.GOLD_RUSH_SHOWDOWN) modeResults.GOLD_RUSH_SHOWDOWN = simulateGoldRushShowdownMode(game, spins, betAmount);
   if (game.bonusBuys?.some((buy) => buy.featureType === "HOLD_AND_WIN")) {
     modeResults.BUY_HOLD_AND_WIN = simulateBonusBuyMode(game, spins, betAmount, "HOLD_AND_WIN", "GOLD");
   }
   if (game.bonusBuys?.some((buy) => buy.featureType === "WHEEL_BONUS")) {
     modeResults.BUY_WHEEL_BONUS = simulateBonusBuyMode(game, spins, betAmount, "WHEEL_BONUS", "GOLD");
+  }
+  if (game.id === "gold-rush-showdown") {
+    modeResults.GOLD_RUSH_BUY_BONUS = simulateGoldRushFreeSpinsBuyMode(game, spins, betAmount, 3, "buy-bonus");
+    modeResults.GOLD_RUSH_BUY_SUPER_BONUS = simulateGoldRushFreeSpinsBuyMode(game, spins, betAmount, 4, "buy-super-bonus");
   }
 
   let buyBonusRtp: number | undefined;
@@ -158,6 +177,15 @@ export function simulateSlot(game: SlotConfig, spins = 100000, betAmount = game.
     interiorSizeDistribution,
     vsDuelTierDistribution,
     vsMultiplierDistribution,
+    naturalThreeBonusTriggerRate: naturalThreeBonusTriggers / spins,
+    naturalFourBonusTriggerRate: naturalFourBonusTriggers / spins,
+    buyBonusRtp3: modeResults.GOLD_RUSH_BUY_BONUS?.observedRtp,
+    buyBonusRtp4: modeResults.GOLD_RUSH_BUY_SUPER_BONUS?.observedRtp,
+    bonusPlusSpinsRtp: modeResults.GOLD_RUSH_BONUS_BOOST?.observedRtp,
+    showdownSpinRtp: modeResults.GOLD_RUSH_SHOWDOWN?.observedRtp,
+    buyBonusAverageFreeSpins: freeSpinTriggers > 0 ? freeSpinsPlayedTotal / freeSpinTriggers : 0,
+    buyBonusAverageFinalInteriorSize: freeSpinTriggers > 0 ? freeSpinsFinalInteriorTotal / freeSpinTriggers : 0,
+    vsInsideFreeSpinsRate: freeSpinsPlayedTotal > 0 ? freeSpinsVsInsideTotal / freeSpinsPlayedTotal : 0,
   };
 }
 
@@ -171,7 +199,7 @@ function simulateSpinMode(game: SlotConfig, spins: number, betAmount: number, sp
       ? calculateNeonCascadeResult(game, betAmount)
       : calculateSlotResult(game, betAmount, false, undefined, spinMode);
     const holdAward = result.triggeredHoldAndWin ? calculateHoldAndWinBonus(game, betAmount).total : 0;
-    const freeSpinAward = result.freeSpinsAwarded > 0 ? calculateFreeSpinsBonus(game, betAmount, result.freeSpinsAwarded).total : 0;
+    const freeSpinAward = result.freeSpinsAwarded > 0 ? calculateFreeSpinsBonus(game, betAmount, result.freeSpinsAwarded, result.goldRush?.freeSpinsTrigger?.initialInteriorColumns).total : 0;
     const totalResultPaid = result.payout + (result.pickBonusAwards?.[0] ?? 0) + holdAward + freeSpinAward;
     const wager = getSpinCost(game, betAmount, spinMode);
     totalWagered += wager;
@@ -197,6 +225,46 @@ function simulateBonusBuyMode(game: SlotConfig, spins: number, betAmount: number
     totalPaid += payout;
     biggestWin = Math.max(biggestWin, payout);
     if (feature.bonusPayout > payout) capHits += 1;
+  }
+  const observedRtp = totalPaid / totalWagered;
+  return { totalWagered, totalPaid, observedRtp, biggestWin, capHitRate: capHits / buySpins, warning: observedRtp > 0.95 };
+}
+
+function simulateGoldRushShowdownMode(game: SlotConfig, spins: number, betAmount: number) {
+  let totalWagered = 0;
+  let totalPaid = 0;
+  let biggestWin = 0;
+  let capHits = 0;
+  const boostSpins = Math.max(1, Math.min(5000, spins));
+  for (let index = 0; index < boostSpins; index += 1) {
+    const forced = createGoldRushShowdownBoostGrid(game);
+    const result = calculateSlotResult(game, betAmount, false, forced.grid, "GOLD_RUSH_SHOWDOWN", [], forced.interior);
+    const freeSpinAward = result.freeSpinsAwarded > 0 ? calculateFreeSpinsBonus(game, betAmount, result.freeSpinsAwarded, result.goldRush?.freeSpinsTrigger?.initialInteriorColumns).total : 0;
+    const totalResultPaid = result.payout + freeSpinAward;
+    const wager = getGoldRushBonusBuyCost(game, betAmount, "showdown-spin");
+    totalWagered += wager;
+    totalPaid += totalResultPaid;
+    biggestWin = Math.max(biggestWin, totalResultPaid);
+    if (result.capped) capHits += 1;
+  }
+  const observedRtp = totalPaid / totalWagered;
+  return { totalWagered, totalPaid, observedRtp, biggestWin, capHitRate: capHits / boostSpins, warning: observedRtp > 0.95 };
+}
+
+function simulateGoldRushFreeSpinsBuyMode(game: SlotConfig, spins: number, betAmount: number, bonusSymbols: 3 | 4, buyType: "buy-bonus" | "buy-super-bonus") {
+  let totalWagered = 0;
+  let totalPaid = 0;
+  let biggestWin = 0;
+  let capHits = 0;
+  const buySpins = Math.max(1, Math.min(5000, spins));
+  for (let index = 0; index < buySpins; index += 1) {
+    const trigger = calculateSlotResult(game, betAmount, false, createGoldRushBonusTriggerGrid(game, bonusSymbols));
+    const freeSpinAward = calculateFreeSpinsBonus(game, betAmount, game.goldRushBonusBuys?.freeSpins.initialSpins ?? 10, bonusSymbols >= 4 ? game.goldRushBonusBuys?.freeSpins.superInitialInteriorColumns : game.goldRushBonusBuys?.freeSpins.normalInitialInteriorColumns);
+    const totalResultPaid = trigger.payout + freeSpinAward.total;
+    totalWagered += getGoldRushBonusBuyCost(game, betAmount, buyType);
+    totalPaid += totalResultPaid;
+    biggestWin = Math.max(biggestWin, totalResultPaid);
+    if (trigger.capped || freeSpinAward.total >= capDemoPayout(Math.round(betAmount * game.maxPayoutMultiplier))) capHits += 1;
   }
   const observedRtp = totalPaid / totalWagered;
   return { totalWagered, totalPaid, observedRtp, biggestWin, capHitRate: capHits / buySpins, warning: observedRtp > 0.95 };

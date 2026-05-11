@@ -1,6 +1,6 @@
 import { exposedSlotConfigs, slotConfigs } from "./slotConfigs";
 import { getMathWarnings, simulateSlot } from "./slotMath";
-import { buyBonusDebit, buyBonusFeature, calculateDirectFeature, calculateFreeSpinsBonus, calculateHoldAndWinBonus, calculateNeonCascadeResult, calculateSlotResult, calculateWheelBonus, createHoldAndWinState, creditHoldAndWinBonus, creditPickBonus, generateGrid, getBonusBuyCost, getBonusBuyPayoutBetAmount, getSpinCost, spinSlot, stepHoldAndWinBonus } from "./slotEngine";
+import { buyBonusDebit, buyBonusFeature, calculateDirectFeature, calculateFreeSpinsBonus, calculateHoldAndWinBonus, calculateNeonCascadeResult, calculateSlotResult, calculateWheelBonus, createGoldRushBonusTriggerGrid, createGoldRushShowdownBoostGrid, createHoldAndWinState, creditHoldAndWinBonus, creditPickBonus, debitGoldRushBonusBuy, generateGrid, getBonusBuyCost, getBonusBuyPayoutBetAmount, getGoldRushBonusBuyCost, getGoldRushFreeSpinInitialInteriorColumns, getSpinCost, spinSlot, stepHoldAndWinBonus } from "./slotEngine";
 import { creditCurrency, getBalance, getTransactions } from "../wallet/walletService";
 import type { User } from "../types";
 import { createElement } from "react";
@@ -8,10 +8,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { clearRecentGames, getRecentGames, recordRecentGame } from "./recentGames";
 import { dismissOnboarding, hasDismissedOnboarding } from "../app/onboarding";
 import { frontierUiAssets, requiredFrontierUiAssetKeys } from "./frontierAssets";
-import { GoldRushMineClashFinalPanel, GoldRushMineClashGridOverlay, chargedRelicCrackEvent, frontierEntryLoadingMessages, frontierFeatureIntroCards, frontierIntroAssets, frontierTurboBypassesAnimation, frontierWheelSpinMs, getBetOptions, getBonusBoostMenuOptions, getBonusChanceTier, getBuyBonusCost, getCoinDisplayLabels, getDefaultBetAmount, getFrontierAnticipationState, getFrontierBetModalLayout, getFrontierCollectorPlacement, getFrontierEBoostIconAsset, getFrontierEntryPhase, getFrontierFeatureIntroPreference, getFrontierLoadingMessage, getFrontierMainControlActions, getFrontierReelAction, getFrontierSpinAnimationMode, getFrontierWheelDrama, getFrontierWheelPrizeClass, getFrontierWheelResultAction, getFrontierWheelSegmentDisplayLabel, getGoldRushMineClashArea, getGoldRushMineClashDisplayMultipliers, getJackpotBadgeLabels, getNextFrontierSpinSpeed, getNextFrontierStickyWildPositions, getTreasurePotChargeLevel, getTreasurePotVisualState, getWheelLandingDegrees, getWheelSectionLabels, setFrontierFeatureIntroPreference } from "./SlotMachine";
+import { GoldRushMineClashFinalPanel, GoldRushMineClashGridOverlay, chargedRelicCrackEvent, frontierEntryLoadingMessages, frontierFeatureIntroCards, frontierIntroAssets, frontierTurboBypassesAnimation, frontierWheelSpinMs, getBetOptions, getBonusBoostMenuOptions, getBonusChanceTier, getBuyBonusCost, getCoinDisplayLabels, getDefaultBetAmount, getFrontierAnticipationState, getFrontierBetModalLayout, getFrontierCollectorPlacement, getFrontierEBoostIconAsset, getFrontierEntryPhase, getFrontierFeatureIntroPreference, getFrontierLoadingMessage, getFrontierMainControlActions, getFrontierReelAction, getFrontierSpinAnimationMode, getFrontierWheelDrama, getFrontierWheelPrizeClass, getFrontierWheelResultAction, getFrontierWheelSegmentDisplayLabel, getGoldRushFreeSpinDisplayInterior, getGoldRushMineClashArea, getGoldRushMineClashDisplayMultipliers, getGoldRushMineClashSegments, getJackpotBadgeLabels, getNextFrontierSpinSpeed, getNextFrontierStickyWildPositions, getPaylineOverlayPoints, getTreasurePotChargeLevel, getTreasurePotVisualState, getWheelLandingDegrees, getWheelSectionLabels, goldRushFxAssets, setFrontierFeatureIntroPreference } from "./SlotMachine";
 import { getReelStopSchedule, getSpinDuration, slotAnimation } from "./slotAnimation";
 import { nextFreeSpinTotal } from "./slotSession";
 import { feedbackUiMarkers } from "../feedback/components";
+import { setSoundEnabled } from "../feedback/feedbackService";
 import { getProgression, recordSpinProgress } from "../progression/progressionService";
 import { claimStreak, getStreak, resetStreak } from "../streaks/streakService";
 import { claimMission, getMissions, recordMissionEvent } from "../missions/missionService";
@@ -21,6 +22,7 @@ import { canClaimLowBalanceOffer, claimLowBalanceOffer, claimPromotion, getMostP
 import type { SlotSpinResult } from "./types";
 import { ExpansionBonusOverlay } from "./ExpansionBonusOverlay";
 import { calculateExpansionBonus, getExpansionFramePositions, getExpansionTriggerPositions, selectExpansionFrame } from "./expansionBonus";
+import { GoldRushFeatureToast, GoldRushWinOverlay, getGoldRushAudioDebugCount, getGoldRushWinOverlayDuration, getGoldRushWinTier, goldRushAudioManifest, goldRushSoundEventConfig, playGoldRushSound, resetGoldRushAudioDebugCounts } from "./goldRushFeedback";
 
 const memory: Record<string, string> = {};
 globalThis.localStorage = {
@@ -233,6 +235,17 @@ const generatedGoldGrid = generateGrid(goldRush);
 if (generatedGoldGrid.length !== 6 || generatedGoldGrid.some((reel) => reel.length !== 4)) {
   throw new Error("Expected Gold Rush generated spins to fill all 6 columns and 4 rows.");
 }
+const forcedVsRandom = Math.random;
+Math.random = () => 0.999999;
+let forcedVsGrid: string[][];
+try {
+  forcedVsGrid = generateGrid(goldRush);
+} finally {
+  Math.random = forcedVsRandom;
+}
+if (forcedVsGrid.some((reel) => reel.filter((symbol) => symbol === "vs_mine_clash").length > 1)) {
+  throw new Error("Expected Gold Rush generated reels to cap VS symbols at one per reel.");
+}
 const goldStopSchedule = getReelStopSchedule("normal", goldRush.reelCount);
 if (goldStopSchedule.length !== 6 || goldStopSchedule[5] <= goldStopSchedule[4]) {
   throw new Error("Expected Gold Rush sixth reel to receive a Frontier-style staggered stop time.");
@@ -276,9 +289,41 @@ const threeJackTopWin = threeJackResult.lineWins.find((win) => win.paylineId ===
 if (!threeJackTopWin || Math.abs(threeJackTopWin.payout - 0.01) > 0.0001) {
   throw new Error(`Expected 0.10 bet with 3 J symbols to pay 0.01, got ${threeJackTopWin?.payout}.`);
 }
+const threeTenGrid = [
+  ["Q", "Q", "10", "10"],
+  ["mine_cart", "Q", "10", "A"],
+  ["lantern", "lantern", "10", "K"],
+  ["Q", "mine_cart", "blue_diamond", "pickaxe"],
+  ["10", "dynamite", "10", "mine_cart"],
+  ["mine_cart", "J", "10", "10"],
+];
+const threeTenResult = calculateSlotResult(goldRush, 100, false, threeTenGrid);
+const threeTenMiddleLowWin = threeTenResult.lineWins.find((win) => win.paylineId === "middle-low" && win.symbol === "10");
+if (!threeTenMiddleLowWin || threeTenMiddleLowWin.count !== 3 || threeTenMiddleLowWin.payout !== 8) {
+  throw new Error(`Expected screenshot-style 3x 10s on the lower mine run to pay 8, got ${JSON.stringify(threeTenMiddleLowWin)}.`);
+}
 const sixTreasureWin = goldLineResult.lineWins.find((win) => win.paylineId === "middle-low" && win.symbol === "treasure_chest");
 if (!sixTreasureWin || sixTreasureWin.payout !== 2500) {
   throw new Error(`Expected 6 treasure chests to pay 25x total bet, got ${sixTreasureWin?.payout}.`);
+}
+const goldBottomLineGrid = [
+  ["10", "K", "treasure_chest", "blue_diamond"],
+  ["K", "Q", "treasure_chest", "blue_diamond"],
+  ["Q", "10", "treasure_chest", "blue_diamond"],
+  ["J", "Q", "treasure_chest", "blue_diamond"],
+  ["10", "K", "treasure_chest", "blue_diamond"],
+  ["A", "J", "treasure_chest", "blue_diamond"],
+];
+const goldBottomLineResult = calculateSlotResult(goldRush, 100, false, goldBottomLineGrid);
+const sixDiamondBottomWin = goldBottomLineResult.lineWins.find((win) => win.paylineId === "bottom" && win.symbol === "blue_diamond");
+if (!sixDiamondBottomWin || sixDiamondBottomWin.count !== 6 || sixDiamondBottomWin.payout !== 1600 || !sixDiamondBottomWin.positions.some((position) => position.reel === 5 && position.row === 3)) {
+  throw new Error(`Expected bottom-row Diamond win to pay through reel 6, got ${JSON.stringify(sixDiamondBottomWin)}.`);
+}
+const bottomPayline = goldRush.paylines.find((payline) => payline.id === "bottom");
+if (!bottomPayline) throw new Error("Expected Gold Rush bottom payline config.");
+const bottomOverlayPoints = getPaylineOverlayPoints(bottomPayline, sixDiamondBottomWin.positions);
+if (!bottomOverlayPoints.startsWith("50,350") || !bottomOverlayPoints.endsWith("550,350")) {
+  throw new Error(`Expected bottom payline overlay to draw from reel 1 bottom to reel 6 bottom, got ${bottomOverlayPoints}.`);
 }
 const goldThreeScatterGrid = [
   ["mine_scatter", "10", "J", "A"],
@@ -305,14 +350,115 @@ const goldFiveScatterGrid = [
   ["J", "Q", "K", "10"],
 ];
 if (calculateSlotResult(goldRush, 100, false, goldThreeScatterGrid).freeSpinsAwarded !== 10) throw new Error("Expected 3 Gold Rush scatters to award 10 free spins.");
-if (calculateSlotResult(goldRush, 100, false, goldFourScatterGrid).freeSpinsAwarded !== 15) throw new Error("Expected 4 Gold Rush scatters to award 15 free spins.");
-if (calculateSlotResult(goldRush, 100, false, goldFiveScatterGrid).freeSpinsAwarded !== 20) throw new Error("Expected 5 Gold Rush scatters to award 20 free spins.");
-if (calculateSlotResult(goldRush, 100, true, goldThreeScatterGrid).freeSpinsAwarded !== 5) {
-  throw new Error("Expected 3 Gold Rush scatters during free spins to retrigger +5 spins.");
+const fourScatterTrigger = calculateSlotResult(goldRush, 100, false, goldFourScatterGrid);
+if (fourScatterTrigger.freeSpinsAwarded !== 10 || fourScatterTrigger.goldRush?.freeSpinsTrigger?.initialInteriorColumns !== 3) {
+  throw new Error("Expected 4 Gold Rush Bonus symbols to award 10 free spins with a 3x4 starting interior.");
+}
+const fiveScatterTrigger = calculateSlotResult(goldRush, 100, false, goldFiveScatterGrid);
+if (fiveScatterTrigger.freeSpinsAwarded !== 10 || fiveScatterTrigger.goldRush?.freeSpinsTrigger?.initialInteriorColumns !== 3) {
+  throw new Error("Expected 5 Gold Rush Bonus symbols to use Super Free Spins start rules.");
+}
+if (calculateSlotResult(goldRush, 100, true, goldThreeScatterGrid).freeSpinsAwarded !== 0) {
+  throw new Error("Expected Gold Rush Bonus symbols during free spins to collect into the meter instead of nested retriggering.");
 }
 const cappedGoldFreeSpins = calculateFreeSpinsBonus(goldRush, 100, 30);
 if (cappedGoldFreeSpins.spinsAwarded > 30 || cappedGoldFreeSpins.spinsPlayed > 30) {
   throw new Error("Expected Gold Rush free spin retriggers to respect the 30-spin cap.");
+}
+if (getGoldRushBonusBuyCost(goldRush, 0.1, "bonus-plus-spins") !== 0.3 || getGoldRushBonusBuyCost(goldRush, 0.1, "showdown-spin") !== 5 || getGoldRushBonusBuyCost(goldRush, 0.1, "buy-bonus") !== 10 || getGoldRushBonusBuyCost(goldRush, 0.1, "buy-super-bonus") !== 30) {
+  throw new Error("Expected Gold Rush bonus buy costs to scale as 3x, 50x, 100x, and 300x bet.");
+}
+if (goldRush.goldRushBonusBuys?.options.some((option) => !option.image)) {
+  throw new Error("Expected Gold Rush bonus buy options to provide image assets.");
+}
+if (
+  getGoldRushWinTier(100, 100) !== "small" ||
+  getGoldRushWinTier(500, 100) !== "nice" ||
+  getGoldRushWinTier(1500, 100) !== "big" ||
+  getGoldRushWinTier(5000, 100) !== "mega" ||
+  getGoldRushWinTier(15000, 100) !== "epic" ||
+  getGoldRushWinOverlayDuration("epic") !== 3500
+) {
+  throw new Error("Expected Gold Rush win overlays to classify win tiers from bet multipliers.");
+}
+const goldRushSmallWinOverlayMarkup = renderToStaticMarkup(createElement(GoldRushWinOverlay, {
+  result: { ...goldLineResult, payout: 120, winTier: "SMALL" },
+  betAmount: 100,
+  currencyLabel: "GC",
+  onDismiss: () => undefined,
+}));
+if (!goldRushSmallWinOverlayMarkup.includes("Small Win")) {
+  throw new Error("Expected Gold Rush small win overlay to render at 1x+ bet.");
+}
+const goldRushWinOverlayMarkup = renderToStaticMarkup(createElement(GoldRushWinOverlay, {
+  result: { ...goldLineResult, payout: 1500, winTier: "BIG" },
+  betAmount: 100,
+  currencyLabel: "GC",
+  onDismiss: () => undefined,
+}));
+if (!goldRushWinOverlayMarkup.includes("gold-rush-win-overlay") || !goldRushWinOverlayMarkup.includes("Big Win")) {
+  throw new Error("Expected Gold Rush to render a premium slot-specific win overlay.");
+}
+const goldRushFeatureToastMarkup = renderToStaticMarkup(createElement(GoldRushFeatureToast, {
+  title: "Bonus Boost",
+  primary: "+2 Spins",
+  secondary: "Interior 3x4",
+}));
+if (!goldRushFeatureToastMarkup.includes("gold-rush-feature-toast") || !goldRushFeatureToastMarkup.includes("Interior 3x4")) {
+  throw new Error("Expected Gold Rush feature toasts for interior growth and meter hits.");
+}
+const displayInterior = getGoldRushFreeSpinDisplayInterior(goldRush, 4, 5);
+if (displayInterior.startColumn !== 2 || displayInterior.columns !== 4 || displayInterior.rowCount !== 4) {
+  throw new Error("Expected Gold Rush free-spin display interior to clamp start without pre-selecting the next spin frame.");
+}
+if (!goldRushAudioManifest.music_loop.includes("gold-rush-showdown/audio") || !goldRushSoundEventConfig.vs_expand.duckMusic) {
+  throw new Error("Expected Gold Rush audio manifest and feature sound metadata.");
+}
+resetGoldRushAudioDebugCounts();
+setSoundEnabled(false);
+if (playGoldRushSound("spin_start")) {
+  throw new Error("Expected muted Gold Rush audio helper to skip playback.");
+}
+if (getGoldRushAudioDebugCount("spin_start") !== 1) {
+  throw new Error("Expected Gold Rush audio helper to track missing-safe sound hooks.");
+}
+setSoundEnabled(false);
+if (getGoldRushFreeSpinInitialInteriorColumns(goldRush, 3) !== 2 || getGoldRushFreeSpinInitialInteriorColumns(goldRush, 4) !== 3) {
+  throw new Error("Expected Gold Rush Free Spins to start at 2x4 for 3 Bonus and 3x4 for 4 Bonus.");
+}
+const forcedBuyGrid = createGoldRushBonusTriggerGrid(goldRush, 3);
+if (forcedBuyGrid.flat().filter((symbol) => symbol === "mine_scatter").length !== 3) {
+  throw new Error("Expected Buy Bonus forced spin to land exactly 3 Bonus symbols.");
+}
+const forcedSuperGrid = createGoldRushBonusTriggerGrid(goldRush, 4);
+if (forcedSuperGrid.flat().filter((symbol) => symbol === "mine_scatter").length !== 4) {
+  throw new Error("Expected Buy Super Bonus forced spin to land exactly 4 Bonus symbols.");
+}
+const showdownForced = createGoldRushShowdownBoostGrid(goldRush);
+if (!showdownForced.interior || showdownForced.interior.columns < 2 || showdownForced.grid.flat().filter((symbol) => symbol === "vs_mine_clash").length < 1) {
+  throw new Error("Expected Showdown Spin to force at least one VS and a 2x4 interior.");
+}
+const goldRushBuyUser: User = { ...user, id: "gold-rush-buy-test-user", email: "gold-rush-buy@test.local" };
+creditCurrency({ userId: goldRushBuyUser.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 1000 });
+const goldRushBuyBalance = getBalance(goldRushBuyUser.id, "GOLD");
+debitGoldRushBonusBuy({ user: goldRushBuyUser, game: goldRush, currency: "GOLD", betAmount: 10, bonusType: "bonus-plus-spins" });
+const goldRushBoostDebit = getTransactions(goldRushBuyUser.id).find((tx) => tx.type === "BUY_BONUS" && tx.metadata.bonusType === "bonus-plus-spins");
+if (!goldRushBoostDebit || goldRushBoostDebit.metadata.action !== "boost-buy" || Math.abs(goldRushBuyBalance - getBalance(goldRushBuyUser.id, "GOLD") - 30) > 0.001) {
+  throw new Error("Expected Gold Rush boost buy to debit through BUY_BONUS ledger metadata.");
+}
+const prepaidBoostResult = spinSlot({ user: goldRushBuyUser, game: goldRush, currency: "GOLD", betAmount: 10, spinMode: "GOLD_RUSH_BONUS_BOOST", prepaidWager: 30 });
+if (prepaidBoostResult.wager !== 30) {
+  throw new Error("Expected armed Gold Rush boost spin to consume the prepaid wager without another displayed cost.");
+}
+try {
+  debitGoldRushBonusBuy({ user, game: goldRush, currency: "BONUS", betAmount: 0.1, bonusType: "buy-bonus" });
+  throw new Error("Expected Gold Rush bonus buy insufficient balance.");
+} catch (error) {
+  if (!(error instanceof Error) || error.message !== "Insufficient balance.") throw error;
+}
+const growthFreeSpins = calculateFreeSpinsBonus(goldRush, 100, 10, 2);
+if (growthFreeSpins.finalInteriorColumns < 2 || growthFreeSpins.finalInteriorColumns > 6 || growthFreeSpins.spinsAwarded < 10) {
+  throw new Error("Expected Gold Rush Free Spins to track interior growth and awarded spins safely.");
 }
 if (goldRush.expansionBonus?.mechanic !== "mine-clash") {
   throw new Error("Expected Gold Rush expansion bonus to use Mine Clash.");
@@ -424,23 +570,255 @@ const normalGridOverlayMarkup = renderToStaticMarkup(createElement(GoldRushMineC
 if (!normalGridOverlayMarkup.includes("gold-rush-grid-clash-overlay") || normalGridOverlayMarkup.includes("expansion-bonus-overlay") || normalGridOverlayMarkup.includes("aria-modal")) {
   throw new Error("Expected Mine Clash to render as a grid-local overlay, not a full-screen modal.");
 }
+if (
+  !goldRushFxAssets.mineClashImpactPop.includes("mine-clash-impact-pop") ||
+  !goldRushFxAssets.mineClashChamber.includes("mine-clash-chamber") ||
+  !goldRushFxAssets.goldMinerPortrait.includes("gold-miner-portrait") ||
+  !goldRushFxAssets.diamondMinerPortrait.includes("diamond-miner-portrait") ||
+  !normalGridOverlayMarkup.includes("mine-clash-impact-pop") ||
+  !normalGridOverlayMarkup.includes("mine-clash-chamber") ||
+  !normalGridOverlayMarkup.includes("gold-miner-portrait")
+) {
+  throw new Error("Expected Mine Clash grid overlay to use raster chamber, impact, and tier-appropriate miner portrait FX assets.");
+}
+if ((normalGridOverlayMarkup.match(/Gold Miner/g) ?? []).length < 2 || normalGridOverlayMarkup.includes("Diamond Miner")) {
+  throw new Error("Expected Gold vs Gold Mine Clash display to show two gold miners, not a weak diamond opponent.");
+}
 if (!normalGridOverlayMarkup.includes("--clash-width:1") || !normalGridOverlayMarkup.includes("--clash-row-span:4")) {
   throw new Error("Expected normal VS overlay style variables to match one column and four rows.");
 }
 const normalDisplayMultipliers = getGoldRushMineClashDisplayMultipliers(mineClashResult);
-if (normalDisplayMultipliers.gold === normalDisplayMultipliers.diamond || normalDisplayMultipliers.gold !== mineClashResult.goldRush?.vsWinningMultiplier) {
+if (normalDisplayMultipliers.gold === normalDisplayMultipliers.diamond || normalDisplayMultipliers.gold !== mineClashResult.goldRush?.vsWinningMultiplier || normalDisplayMultipliers.diamondLabel !== "Gold Miner") {
   throw new Error("Expected Mine Clash duel display to show distinct visual multipliers while preserving the winning multiplier.");
+}
+const goldDiamondMineClashResult: SlotSpinResult = {
+  ...mineClashResult,
+  goldRush: {
+    ...mineClashResult.goldRush!,
+    vsTier: "gold-diamond",
+    vsWinnerSide: "diamond",
+    vsWinningMultiplier: 6,
+    vsCandidateMultipliers: { gold: 3, diamond: 6 },
+    mineClashColumns: mineClashResult.goldRush!.mineClashColumns?.map((column) => ({
+      ...column,
+      tier: "gold-diamond" as const,
+      winner: "diamond" as const,
+      multiplier: 6,
+      goldMultiplier: 3,
+      diamondMultiplier: 6,
+    })),
+    activeSegments: mineClashResult.goldRush!.activeSegments?.map((segment) => ({
+      ...segment,
+      tier: "gold-diamond" as const,
+      winner: "diamond" as const,
+      multiplier: 6,
+      goldMultiplier: 3,
+      diamondMultiplier: 6,
+    })),
+  },
+  expansionBonus: mineClashResult.expansionBonus
+    ? {
+      ...mineClashResult.expansionBonus,
+      vsTier: "gold-diamond",
+      vsWinnerSide: "diamond",
+      vsWinningMultiplier: 6,
+      vsCandidateMultipliers: { gold: 3, diamond: 6 },
+      mineClashColumns: mineClashResult.expansionBonus.mineClashColumns?.map((column) => ({
+        ...column,
+        tier: "gold-diamond" as const,
+        winner: "diamond" as const,
+        multiplier: 6,
+        goldMultiplier: 3,
+        diamondMultiplier: 6,
+      })),
+      activeSegments: mineClashResult.expansionBonus.activeSegments?.map((segment) => ({
+        ...segment,
+        tier: "gold-diamond" as const,
+        winner: "diamond" as const,
+        multiplier: 6,
+        goldMultiplier: 3,
+        diamondMultiplier: 6,
+      })),
+      mineClash: {
+        ...mineClashResult.expansionBonus.mineClash!,
+        winner: "diamond",
+        goldMultiplier: 3,
+        diamondMultiplier: 6,
+      },
+    }
+    : undefined,
+};
+const goldDiamondDisplay = getGoldRushMineClashDisplayMultipliers(goldDiamondMineClashResult);
+const goldDiamondOverlayMarkup = renderToStaticMarkup(createElement(GoldRushMineClashGridOverlay, {
+  result: goldDiamondMineClashResult,
+  reelCount: goldRush.reelCount,
+  rowCount: goldRush.rowCount,
+  onComplete: () => undefined,
+}));
+if (goldDiamondDisplay.diamond <= goldDiamondDisplay.gold || goldDiamondDisplay.diamondLabel !== "Diamond Miner" || !goldDiamondOverlayMarkup.includes("diamond-miner-portrait")) {
+  throw new Error("Expected Gold vs Diamond Mine Clash display to show a stronger diamond miner candidate.");
 }
 const finalColumnPanelMarkup = renderToStaticMarkup(createElement(GoldRushMineClashFinalPanel, {
   result: mineClashResult,
   reelCount: goldRush.reelCount,
   rowCount: goldRush.rowCount,
 }));
-if (!finalColumnPanelMarkup.includes("gold-rush-final-clash-panel") || !finalColumnPanelMarkup.includes("area-column") || !finalColumnPanelMarkup.includes("--clash-width:1")) {
-  throw new Error("Expected completed normal Mine Clash to render one connected winner column.");
+if (!finalColumnPanelMarkup.includes("gold-rush-final-clash-panel") || !finalColumnPanelMarkup.includes("area-column") || !finalColumnPanelMarkup.includes("width-1") || !finalColumnPanelMarkup.includes("--clash-width:1") || !finalColumnPanelMarkup.includes("mine-clash-chamber")) {
+  throw new Error("Expected completed normal Mine Clash to render one connected winner column with chamber background.");
 }
 if ((finalColumnPanelMarkup.match(/vs-mine-clash/g) ?? []).length > 0) {
   throw new Error("Expected completed normal Mine Clash to avoid repeating VS symbols in every transformed cell.");
+}
+[1, 2, 3, 4, 5, 6].forEach((width) => {
+  const areaResult = {
+    ...mineClashResult,
+    goldRush: {
+      ...mineClashResult.goldRush!,
+      activeColumns: { start: 0, count: width },
+      activeAreaType: width === 1 ? "column" as const : "interior" as const,
+      vsType: width === 1 ? "normal-column" as const : "interior" as const,
+      activeSegments: [{
+        type: width === 1 ? "column" as const : "interior" as const,
+        startReel: 0,
+        width,
+        rowStart: 0,
+        rowCount: 4,
+        winner: "gold" as const,
+        multiplier: 2,
+        tier: "gold-gold" as const,
+        goldMultiplier: 2,
+        diamondMultiplier: 4,
+        transformedPositions: Array.from({ length: width * 4 }, (_, index) => ({ reel: Math.floor(index / 4), row: index % 4 })),
+      }],
+    },
+    expansionBonus: {
+      ...mineClashResult.expansionBonus!,
+      frame: { startReel: 0, width, rowStart: 0, rowCount: 4, reelCount: 6 },
+      activeSegments: [{
+        type: width === 1 ? "column" as const : "interior" as const,
+        startReel: 0,
+        width,
+        rowStart: 0,
+        rowCount: 4,
+        winner: "gold" as const,
+        multiplier: 2,
+        tier: "gold-gold" as const,
+        goldMultiplier: 2,
+        diamondMultiplier: 4,
+        transformedPositions: Array.from({ length: width * 4 }, (_, index) => ({ reel: Math.floor(index / 4), row: index % 4 })),
+      }],
+    },
+  };
+  const overlayForWidth = renderToStaticMarkup(createElement(GoldRushMineClashGridOverlay, {
+    result: areaResult,
+    reelCount: goldRush.reelCount,
+    rowCount: goldRush.rowCount,
+    onComplete: () => undefined,
+  }));
+  const finalForWidth = renderToStaticMarkup(createElement(GoldRushMineClashFinalPanel, {
+    result: areaResult,
+    reelCount: goldRush.reelCount,
+    rowCount: goldRush.rowCount,
+  }));
+  if (!overlayForWidth.includes(`width-${width}`) || !overlayForWidth.includes(`--clash-width:${width}`) || !overlayForWidth.includes("mine-clash-chamber")) {
+    throw new Error(`Expected Mine Clash grid overlay to expose width-${width} chamber sizing.`);
+  }
+  if (!finalForWidth.includes(`width-${width}`) || !finalForWidth.includes(`--clash-width:${width}`) || !finalForWidth.includes("mine-clash-chamber")) {
+    throw new Error(`Expected Mine Clash final panel to expose width-${width} chamber sizing.`);
+  }
+  if (!finalForWidth.includes('class="final-miner-avatar"') || !finalForWidth.includes('data-center-anchor="true"')) {
+    throw new Error(`Expected Mine Clash final panel width-${width} to render a centered winner miner anchor.`);
+  }
+});
+const adjacentVsGrid = [
+  ["vs_mine_clash", "Q", "K", "A"],
+  ["vs_mine_clash", "K", "A", "Q"],
+  ["J", "A", "Q", "K"],
+  ["J", "10", "J", "A"],
+  ["A", "Q", "10", "K"],
+  ["K", "A", "Q", "10"],
+];
+const adjacentVsResult = calculateSlotResult(mineClashTestGame, 100, false, adjacentVsGrid);
+if (adjacentVsResult.goldRush?.vsType !== "normal-column" || (adjacentVsResult.goldRush.activeVsPositions?.length ?? 0) !== 2) {
+  throw new Error("Expected adjacent VS reels to activate together when both are needed for the left-to-right connection.");
+}
+if ((adjacentVsResult.goldRush?.mineClashColumns?.length ?? 0) !== 2 || new Set(adjacentVsResult.goldRush.transformedPositions?.map((position) => position.reel)).size !== 2) {
+  throw new Error("Expected each active adjacent VS reel to get its own Mine Clash column result.");
+}
+if (adjacentVsResult.goldRush?.mineClashColumns?.some((column) => column.goldMultiplier === column.diamondMultiplier)) {
+  throw new Error("Expected each Mine Clash column to expose distinct gold and diamond visual multipliers.");
+}
+if (!adjacentVsResult.lineWins.some((win) => win.paylineId === "top" && win.symbol === "J" && win.count === 4 && Math.abs(win.multiplier - 1) < 0.0001)) {
+  throw new Error("Expected adjacent VS column multipliers to add safely on the line they complete.");
+}
+const adjacentVsArea = getGoldRushMineClashArea(adjacentVsResult, goldRush.reelCount, goldRush.rowCount);
+const adjacentVsSegments = getGoldRushMineClashSegments(adjacentVsResult, goldRush.reelCount, goldRush.rowCount);
+if (adjacentVsArea.startReel !== 0 || adjacentVsArea.width !== 1 || adjacentVsArea.rowSpan !== 4 || adjacentVsSegments.length !== 2 || adjacentVsSegments.some((segment) => segment.width !== 1 || segment.areaType !== "column")) {
+  throw new Error(`Expected adjacent VS overlay to keep two separate active column segments, got ${JSON.stringify(adjacentVsSegments)}.`);
+}
+const adjacentFinalMarkup = renderToStaticMarkup(createElement(GoldRushMineClashFinalPanel, {
+  result: adjacentVsResult,
+  reelCount: goldRush.reelCount,
+  rowCount: goldRush.rowCount,
+}));
+if ((adjacentFinalMarkup.match(/gold-rush-final-clash-panel/g)?.length ?? 0) !== 2 || adjacentFinalMarkup.includes("--clash-width:2")) {
+  throw new Error("Expected multi-column Mine Clash final panel to render separate winner columns instead of one connected frame.");
+}
+const gappedVsGrid = [
+  ["vs_mine_clash", "Q", "K", "A"],
+  ["J", "K", "A", "Q"],
+  ["vs_mine_clash", "A", "Q", "K"],
+  ["J", "10", "J", "A"],
+  ["A", "Q", "10", "K"],
+  ["K", "A", "Q", "10"],
+];
+const gappedVsResult = calculateSlotResult(mineClashTestGame, 100, false, gappedVsGrid);
+const gappedVsSegments = getGoldRushMineClashSegments(gappedVsResult, goldRush.reelCount, goldRush.rowCount);
+if (
+  gappedVsResult.goldRush?.vsType !== "normal-column" ||
+  gappedVsSegments.length !== 2 ||
+  gappedVsSegments[0].startReel !== 0 ||
+  gappedVsSegments[1].startReel !== 2 ||
+  gappedVsSegments.some((segment) => segment.width !== 1)
+) {
+  throw new Error(`Expected gapped VS reels to run separate 1x4 Mine Clash segments without filling reel 2, got ${JSON.stringify(gappedVsSegments)}.`);
+}
+if (!gappedVsResult.lineWins.some((win) => win.paylineId === "top" && win.symbol === "J" && win.count === 4)) {
+  throw new Error("Expected separated gapped VS columns to still evaluate as wilds for the completed top line.");
+}
+const screenshotVsGrid = [
+  ["pickaxe", "gold_nugget", "K", "blue_diamond"],
+  ["J", "vs_mine_clash", "Q", "Q"],
+  ["lantern", "lantern", "A", "vs_mine_clash"],
+  ["K", "10", "blue_diamond", "gold_nugget"],
+  ["Q", "J", "J", "K"],
+  ["10", "10", "Q", "J"],
+];
+const screenshotVsResult = calculateSlotResult(mineClashTestGame, 100, false, screenshotVsGrid);
+if (screenshotVsResult.goldRush?.vsType !== "normal-column" || (screenshotVsResult.goldRush.activeVsPositions?.length ?? 0) !== 2) {
+  throw new Error("Expected offset VS reels in columns 2 and 3 to activate when both full columns create left-to-right pays.");
+}
+if (
+  !screenshotVsResult.lineWins.some((win) => win.paylineId === "bottom" && win.symbol === "blue_diamond" && win.count === 3) ||
+  !screenshotVsResult.lineWins.some((win) => win.paylineId === "diag-down" && win.symbol === "pickaxe" && win.count === 3)
+) {
+  throw new Error("Expected the offset VS screenshot board to produce payline wins after both columns become multiplier wilds.");
+}
+const existingBottomLineVsGrid = [
+  ["gold_nugget", "lantern", "Q", "Q"],
+  ["Q", "A", "A", "Q"],
+  ["Q", "dynamite", "vs_mine_clash", "Q"],
+  ["dynamite", "Q", "K", "A"],
+  ["10", "mine_cart", "treasure_chest", "lantern"],
+  ["Q", "gold_nugget", "lantern", "10"],
+];
+const existingBottomLineVsResult = calculateSlotResult(mineClashTestGame, 100, false, existingBottomLineVsGrid);
+if (existingBottomLineVsResult.goldRush?.vsType !== "normal-column" || existingBottomLineVsResult.goldRush.activeVsPosition?.reel !== 2) {
+  throw new Error("Expected a VS column to activate when it turns an existing bottom-row line into a multiplier-wild line.");
+}
+const boostedBottomQ = existingBottomLineVsResult.lineWins.find((win) => win.paylineId === "bottom" && win.symbol === "Q");
+if (!boostedBottomQ || boostedBottomQ.count !== 3 || Math.abs(boostedBottomQ.multiplier - 0.24) > 0.0001 || boostedBottomQ.payout !== 24) {
+  throw new Error(`Expected bottom-row Q line to use the activated VS multiplier wild, got ${JSON.stringify(boostedBottomQ)}.`);
 }
 const multiVsGrid = [
   ["J", "Q", "K", "A"],
@@ -451,8 +829,8 @@ const multiVsGrid = [
   ["K", "A", "Q", "10"],
 ];
 const multiVsResult = calculateSlotResult(mineClashTestGame, 100, false, multiVsGrid);
-if (multiVsResult.goldRush?.vsType !== "normal-column" || new Set(multiVsResult.goldRush.transformedPositions?.map((position) => position.reel)).size !== 1) {
-  throw new Error("Expected Gold Rush normal VS cap to activate only one column per base spin.");
+if (multiVsResult.goldRush?.vsType !== "normal-column" || (multiVsResult.goldRush.mineClashColumns?.length ?? 0) !== 1) {
+  throw new Error("Expected Gold Rush to leave non-contributing VS reels inactive even when another VS column pays.");
 }
 const fullInteriorGame = {
   ...mineClashTestGame,
@@ -479,6 +857,124 @@ if (interiorVsResult.goldRush?.vsType !== "interior" || (interiorVsResult.goldRu
 }
 if (interiorVsResult.goldRush.activeVsPosition?.reel !== 2 || interiorVsResult.goldRush.activeVsPosition?.row !== 0) {
   throw new Error("Expected multiple interior VS symbols to resolve deterministically by reel then row.");
+}
+const focusedInteriorGame = {
+  ...mineClashTestGame,
+  goldRushInterior: {
+    ...goldRush.goldRushInterior!,
+    appearanceChance: 1,
+    sizes: [{ columns: 3, weight: 1 }],
+  },
+};
+const focusedInteriorGrid = [
+  ["vs_mine_clash", "Q", "K", "A"],
+  ["Q", "K", "A", "Q"],
+  ["K", "A", "Q", "K"],
+  ["J", "10", "J", "A"],
+  ["A", "Q", "10", "K"],
+  ["K", "A", "Q", "10"],
+];
+const focusedInteriorRandom = Math.random;
+let focusedInteriorRoll = 0;
+Math.random = () => [0.99, 0, 0.1, 0.1][focusedInteriorRoll++] ?? 0.1;
+let focusedInteriorResult: ReturnType<typeof calculateSlotResult>;
+try {
+  focusedInteriorResult = calculateSlotResult(focusedInteriorGame, 100, false, focusedInteriorGrid);
+} finally {
+  Math.random = focusedInteriorRandom;
+}
+if (focusedInteriorResult.goldRush?.vsType !== "interior" || focusedInteriorResult.goldRush.activeColumns?.start !== 0 || focusedInteriorResult.goldRush.activeColumns.count !== 3 || (focusedInteriorResult.goldRush.transformedPositions?.length ?? 0) !== 12) {
+  throw new Error("Expected focused interior VS to transform all positions in reels 1-3.");
+}
+if (!focusedInteriorResult.lineWins.some((win) => win.paylineId === "top" && win.symbol === "J" && win.count === 4 && win.positions.some((position) => position.reel === 3))) {
+  throw new Error("Expected reels 1-3 interior wilds to connect through reel 4 on a left-to-right payline.");
+}
+const interiorPlusOutsideGame = {
+  ...mineClashTestGame,
+  goldRushInterior: {
+    ...goldRush.goldRushInterior!,
+    appearanceChance: 1,
+    sizes: [{ columns: 2, weight: 1 }],
+  },
+};
+const interiorPlusOutsideGrid = [
+  ["vs_mine_clash", "Q", "K", "A"],
+  ["Q", "K", "A", "Q"],
+  ["J", "A", "Q", "K"],
+  ["vs_mine_clash", "10", "J", "A"],
+  ["J", "Q", "10", "K"],
+  ["J", "A", "Q", "10"],
+];
+const interiorPlusOutsideRandom = Math.random;
+let interiorPlusOutsideRoll = 0;
+Math.random = () => [0.99, 0, 0, 0.1, 0.1, 0.1, 0.1][interiorPlusOutsideRoll++] ?? 0.1;
+let interiorPlusOutsideResult: ReturnType<typeof calculateSlotResult>;
+try {
+  interiorPlusOutsideResult = calculateSlotResult(interiorPlusOutsideGame, 100, false, interiorPlusOutsideGrid);
+} finally {
+  Math.random = interiorPlusOutsideRandom;
+}
+if (
+  interiorPlusOutsideResult.goldRush?.vsType !== "interior" ||
+  (interiorPlusOutsideResult.goldRush.activeVsPositions?.length ?? 0) !== 2
+) {
+  throw new Error("Expected an active interior VS to include a contributing outside VS column as a separate Mine Clash segment.");
+}
+const interiorPlusOutsideSegments = getGoldRushMineClashSegments(interiorPlusOutsideResult, goldRush.reelCount, goldRush.rowCount);
+if (
+  interiorPlusOutsideSegments.length !== 2 ||
+  !interiorPlusOutsideSegments.some((segment) => segment.areaType === "interior" && segment.startReel === 0 && segment.width === 2) ||
+  !interiorPlusOutsideSegments.some((segment) => segment.areaType === "column" && segment.startReel === 3 && segment.width === 1)
+) {
+  throw new Error(`Expected interior plus outside VS to render as separate 2x4 and 1x4 segments, got ${JSON.stringify(interiorPlusOutsideSegments)}.`);
+}
+if (!interiorPlusOutsideResult.goldRush.mineClashColumns?.some((column) => column.reel === 3) || (interiorPlusOutsideResult.goldRush.transformedPositions?.filter((position) => position.reel === 3).length ?? 0) !== 4) {
+  throw new Error("Expected the outside VS reel to receive its own column multiplier while the interior remains active.");
+}
+if (!interiorPlusOutsideResult.lineWins.some((win) => win.paylineId === "top" && win.symbol === "J" && win.count === 6)) {
+  throw new Error("Expected interior wilds plus the outside VS column to connect the full top payline.");
+}
+const interiorPlusColumnFiveGame = {
+  ...mineClashTestGame,
+  goldRushInterior: {
+    ...goldRush.goldRushInterior!,
+    appearanceChance: 1,
+    sizes: [{ columns: 4, weight: 1 }],
+  },
+};
+const interiorPlusColumnFiveGrid = [
+  ["vs_mine_clash", "Q", "K", "A"],
+  ["Q", "K", "A", "Q"],
+  ["K", "A", "Q", "K"],
+  ["A", "10", "J", "A"],
+  ["vs_mine_clash", "Q", "10", "K"],
+  ["J", "A", "Q", "10"],
+];
+const interiorPlusColumnFiveRandom = Math.random;
+let interiorPlusColumnFiveRoll = 0;
+Math.random = () => [0.99, 0, 0, 0.1, 0.1, 0.1, 0.1][interiorPlusColumnFiveRoll++] ?? 0.1;
+let interiorPlusColumnFiveResult: ReturnType<typeof calculateSlotResult>;
+try {
+  interiorPlusColumnFiveResult = calculateSlotResult(interiorPlusColumnFiveGame, 100, false, interiorPlusColumnFiveGrid);
+} finally {
+  Math.random = interiorPlusColumnFiveRandom;
+}
+if (
+  interiorPlusColumnFiveResult.goldRush?.vsType !== "interior" ||
+  !interiorPlusColumnFiveResult.goldRush.mineClashColumns?.some((column) => column.reel === 4) ||
+  !interiorPlusColumnFiveResult.goldRush.activeVsPositions?.some((position) => position.reel === 4)
+) {
+  throw new Error("Expected a VS on column 5 to activate when it participates in the interior-transformed payline.");
+}
+const interiorPlusColumnFiveSegments = getGoldRushMineClashSegments(interiorPlusColumnFiveResult, goldRush.reelCount, goldRush.rowCount);
+if (
+  !interiorPlusColumnFiveSegments.some((segment) => segment.areaType === "interior" && segment.width === 4) ||
+  !interiorPlusColumnFiveSegments.some((segment) => segment.areaType === "column" && segment.startReel === 4 && segment.width === 1)
+) {
+  throw new Error(`Expected column 5 VS to stay visually separate from the 4x4 interior, got ${JSON.stringify(interiorPlusColumnFiveSegments)}.`);
+}
+if (!interiorPlusColumnFiveResult.lineWins.some((win) => win.paylineId === "top" && win.symbol === "J" && win.count === 6)) {
+  throw new Error("Expected column 5 VS to extend the interior Mine Clash payline through reel 6.");
 }
 const interiorVsArea = getGoldRushMineClashArea(interiorVsResult, goldRush.reelCount, goldRush.rowCount);
 if (interiorVsArea.areaType !== "interior" || interiorVsArea.startReel !== 0 || interiorVsArea.width !== 6 || interiorVsArea.rowSpan !== 4) {
@@ -545,6 +1041,15 @@ if (goldSim.observedRtp < 0.75) {
 }
 if (!Number.isFinite(goldSim.mineClashTriggerRate ?? NaN) || !Number.isFinite(goldSim.averageMineClashPayout ?? NaN) || !Number.isFinite(goldSim.multiplierWildEv ?? NaN) || !Number.isFinite(goldSim.freeSpinsAveragePayout ?? NaN)) {
   throw new Error("Expected Gold Rush simulation to report Mine Clash, multiplier wild, and free spins EV.");
+}
+const goldRushBuyRtps = [
+  goldSim.bonusPlusSpinsRtp,
+  goldSim.showdownSpinRtp,
+  goldSim.buyBonusRtp3,
+  goldSim.buyBonusRtp4,
+].filter((value): value is number => Number.isFinite(value));
+if (goldRushBuyRtps.some((value) => value >= goldSim.observedRtp)) {
+  throw new Error(`Expected Gold Rush base RTP to sit above buy/boost RTPs, got base ${goldSim.observedRtp} modes ${goldRushBuyRtps.join(", ")}.`);
 }
 
 const frontier = slotConfigs.find((candidate) => candidate.id === "frontier-fortune");

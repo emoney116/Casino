@@ -4,7 +4,7 @@ import { useAuth } from "../auth/AuthContext";
 import { Modal } from "../components/Modal";
 import { TransactionTable } from "../components/TransactionTable";
 import { redemptionConfig } from "../config/complianceConfig";
-import { getCurrencyDisplayName, getCurrencyMeta, getCurrencyShortName, redeemableCurrency } from "../config/currencyConfig";
+import { getCurrencyBrandedDisplayName, getCurrencyDisplayName, getCurrencyMeta, getCurrencyShortName, redeemableCurrency } from "../config/currencyConfig";
 import { COMPLIANCE_COPY } from "../lib/compliance";
 import { formatCoins, formatDateTime } from "../lib/format";
 import { getEligibilityFlags, getKycStatus, getRedemptionRequests } from "../redemption/redemptionService";
@@ -80,12 +80,12 @@ export function WalletPage({ initialPanel = null }: { initialPanel?: WalletPanel
       <section className="wallet-command-center">
         <div className="wallet-balance-panel">
           <article className="wallet-balance-tile gold">
-            <span>{getCurrencyDisplayName("GOLD")}</span>
+            <span>{getCurrencyBrandedDisplayName("GOLD")}</span>
             <strong>{formatCoins(balances.GOLD)}</strong>
             <small>Entertainment balance. Gold Coins have no cash value.</small>
           </article>
           <article className="wallet-balance-tile sweeps">
-            <span>{getCurrencyDisplayName("BONUS")}</span>
+            <span>{getCurrencyBrandedDisplayName("BONUS")}</span>
             <strong>{formatCoins(balances.BONUS)}</strong>
             <small>{getCurrencyDisplayName("BONUS")} promotional balance. Prototype mode. Redemptions are not currently enabled.</small>
           </article>

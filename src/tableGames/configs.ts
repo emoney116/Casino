@@ -6,6 +6,16 @@ import { DEMO_MAX_PAYOUT, DEMO_MAX_SINGLE_BET, DEMO_MAX_TOTAL_BET } from "../eco
 
 const demoOnlyCopy = COMPLIANCE_COPY;
 
+const tableGameArtwork = {
+  blackjack: new URL("../assets/branding/game-logos/blackjack_logo.png", import.meta.url).href,
+  roulette: new URL("../assets/branding/game-logos/roulette_logo.png", import.meta.url).href,
+  dice: new URL("../assets/branding/game-logos/over_under_logo.png", import.meta.url).href,
+  crash: new URL("../assets/branding/game-logos/crash_logo.png", import.meta.url).href,
+  treasureDig: new URL("../assets/branding/game-logos/treasure_dig_logo.png", import.meta.url).href,
+  brickBreakBonus: new URL("../assets/branding/game-logos/brickbreak_logo.png", import.meta.url).href,
+  balloonPop: new URL("../assets/branding/game-logos/balloon_pop_logo.png", import.meta.url).href,
+} as const;
+
 export const blackjackConfig: BlackjackConfig = {
   id: "blackjack",
   name: "Blackjack",
@@ -20,6 +30,7 @@ export const blackjackConfig: BlackjackConfig = {
   houseEdgeTarget: 0.07,
   currency: "GOLD",
   demoOnlyCopy,
+  artwork: tableGameArtwork.blackjack,
   rules: ["Dealer hits soft 17", "Blackjack pays 3:2", "8-deck shoe", "Same-value splits and resplits up to 8 hands"],
   dealerHitsSoft17: true,
   blackjackPayout: 1.5,
@@ -52,6 +63,7 @@ export const rouletteConfig: RouletteConfig = {
   houseEdgeTarget: 0.0526,
   currency: "GOLD",
   demoOnlyCopy,
+  artwork: tableGameArtwork.roulette,
   rules: ["American roulette with 0 and 00", "Outside bets pay 1:1", "Inside bets include straight, split, street, corner, and six-line"],
   payouts: {
     color: 1,
@@ -85,6 +97,7 @@ export const diceConfig: DiceConfig = {
   houseEdgeTarget: 0.07,
   currency: "GOLD",
   demoOnlyCopy,
+  artwork: tableGameArtwork.dice,
   rules: ["Pick over or under the target", "Payout is based on probability minus a configurable demo house edge"],
   edge: 0.07,
   minTarget: 2,
@@ -105,6 +118,7 @@ export const crashConfig: CrashConfig = {
   houseEdgeTarget: 0.06,
   currency: "GOLD",
   demoOnlyCopy,
+  artwork: tableGameArtwork.crash,
   rules: ["Multiplier rises from 1.00x", "Collect before the crash to win virtual coins", "Crash point uses a demo exponential distribution with house edge"],
   edge: 0.06,
   minCrashPoint: 1,
@@ -125,6 +139,7 @@ export const treasureDigConfig: TreasureDigConfig = {
   houseEdgeTarget: 0.08,
   currency: "GOLD",
   demoOnlyCopy,
+  artwork: tableGameArtwork.treasureDig,
   rules: ["Pick safe treasure tiles on a 5x5 grid", "Collect before uncovering a trap", "Multiplier gems can boost the collected virtual coins"],
   gridSize: 5,
   minTraps: 1,
@@ -149,6 +164,7 @@ export const brickBreakBonusTableConfig: TableGameConfig = {
   houseEdgeTarget: 1 - brickBreakBonusConfig.targetRtp,
   currency: "GOLD",
   demoOnlyCopy,
+  artwork: tableGameArtwork.brickBreakBonus,
   rules: ["Place a wager and press Play", "CPU autoplay controls the paddle and ball", "RNG result is generated before animation starts"],
 };
 
@@ -166,6 +182,7 @@ export const balloonPopTableConfig: TableGameConfig = {
   houseEdgeTarget: 1 - balloonPopConfig.targetRtp,
   currency: "GOLD",
   demoOnlyCopy,
+  artwork: tableGameArtwork.balloonPop,
   rules: ["Choose 3 balloons", "Prize map is generated before darts are thrown", "Multipliers apply to current round winnings"],
 };
 

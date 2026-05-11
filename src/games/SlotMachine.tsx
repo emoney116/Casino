@@ -8,7 +8,7 @@ import type { Currency } from "../types";
 import { creditCurrency, getBalance } from "../wallet/walletService";
 import { nextSessionStats, emptySessionStats } from "../economy/sessionStats";
 import { recordRetentionRound } from "../retention/retentionService";
-import { playBigWin, playBonus, playClick, playError, playExpansionHit, playLose, playMultiplierTick, playSpin, playWin } from "../feedback/feedbackService";
+import { isSoundEnabled, playBigWin, playBonus, playClick, playError, playExpansionHit, playLose, playMultiplierTick, playSpin, playWin } from "../feedback/feedbackService";
 import { GameResultBanner, ScreenShake, SoundToggle, WinOverlay } from "../feedback/components";
 import { BonusModal } from "./BonusModal";
 import { GameLogo } from "./GameLogo";
@@ -20,10 +20,11 @@ import { COMPLIANCE_COPY } from "../lib/compliance";
 import { recordRecentGame } from "./recentGames";
 import { getReelStopSchedule, getSpinDuration, slotAnimation } from "./slotAnimation";
 import { nextFreeSpinTotal } from "./slotSession";
-import { buyBonusDebit, buyBonusFeature, calculateWheelBonus, createHoldAndWinState, creditHoldAndWinBonus, creditPickBonus, generateGrid, getBonusBuyCost, getBonusBuyPayoutBetAmount, getSpinCost, getStickyWildPositions, spinSlot, stepHoldAndWinBonus } from "./slotEngine";
+import { buyBonusDebit, buyBonusFeature, calculateWheelBonus, createGoldRushBonusTriggerGrid, createGoldRushShowdownBoostGrid, createHoldAndWinState, creditHoldAndWinBonus, creditPickBonus, debitGoldRushBonusBuy, generateGrid, getBonusBuyCost, getBonusBuyPayoutBetAmount, getGoldRushBonusBuyCost, getGoldRushBonusBuyOption, getGoldRushFreeSpinInitialInteriorColumns, getSpinCost, getStickyWildPositions, selectGoldRushInteriorStart, spinSlot, stepHoldAndWinBonus } from "./slotEngine";
 import { SymbolTile } from "./SymbolTile";
 import type { ReelVisualState, SlotAnimationState } from "./slotAnimation";
-import type { BonusFeatureType, HoldAndWinState, SlotConfig, SlotSpinResult, SpinMode } from "./types";
+import type { BonusFeatureType, GoldRushBonusBuyType, GoldRushMineClashSegment, GoldRushSpinMetadata, HoldAndWinState, SlotConfig, SlotSpinResult, SpinMode } from "./types";
+import { GoldRushFeatureToast, GoldRushWinOverlay, duckGoldRushMusic, getGoldRushWinTier, playGoldRushSound, startGoldRushMusic, stopGoldRushMusic } from "./goldRushFeedback";
 
 type SlotUiState =
   | "Idle"
@@ -44,6 +45,33 @@ type FrontierWheelReveal = {
   phase: FrontierWheelPhase;
   bonusBetAmount: number;
   fromBuy: boolean;
+};
+
+type GoldRushArmedBoost = {
+  type: Extract<GoldRushBonusBuyType, "bonus-plus-spins" | "showdown-spin">;
+  label: string;
+  cost: number;
+  spinMode: SpinMode;
+};
+
+type GoldRushFreeSpinSession = {
+  spinsRemaining: number;
+  totalWin: number;
+  spinsPlayed: number;
+  initialSpins: number;
+  interiorColumns: number;
+  interiorStartColumn: number;
+  bonusSymbolsCollected: number;
+  collectThreshold: number;
+  addedSpins: number;
+  maxInteriorColumns: number;
+  triggerSource: "natural" | "buy-bonus" | "buy-super-bonus";
+  introOpen: boolean;
+  summaryOpen: boolean;
+  lastGrowth?: {
+    addedSpins: number;
+    columns: number;
+  };
 };
 
 const FRONTIER_INTRO_SKIP_KEY = "frontier-fortune.skip-feature-intro";
@@ -122,8 +150,25 @@ export const moneyLightningIconAssets = {
   neon: "/assets/ui/money-lightning/neon_256.svg",
 } as const;
 
+export const goldRushFxAssets = {
+  mineClashImpactPop: new URL("../assets/gold-rush-showdown/fx/mine-clash-impact-pop.png", import.meta.url).href,
+  mineClashChamber: new URL("../assets/gold-rush-showdown/fx/mine-clash-chamber.png", import.meta.url).href,
+  goldMinerPortrait: new URL("../assets/gold-rush-showdown/fx/gold-miner-portrait.png", import.meta.url).href,
+  diamondMinerPortrait: new URL("../assets/gold-rush-showdown/fx/diamond-miner-portrait.png", import.meta.url).href,
+} as const;
+
 export function getFrontierEBoostIconAsset(state: "default" | "active" = "default") {
   return state === "active" ? moneyLightningIconAssets.neon : moneyLightningIconAssets.primary;
+}
+
+export function getPaylineOverlayPoints(
+  payline: SlotConfig["paylines"][number],
+  winPositions?: Array<{ reel: number; row: number }>,
+) {
+  const positions = winPositions?.length
+    ? winPositions
+    : payline.rows.map((row, reel) => ({ reel, row }));
+  return positions.map((position) => `${position.reel * 100 + 50},${position.row * 100 + 50}`).join(" ");
 }
 
 export function getNextFrontierSpinSpeed(speed: FrontierSpinSpeed): FrontierSpinSpeed {
@@ -389,14 +434,28 @@ export function getNextFrontierStickyWildPositions(game: SlotConfig, result: Slo
 
 type GoldRushGridPhase = "flash" | "expand" | "duel" | "clash" | "winner" | "final";
 
-export function getGoldRushMineClashArea(result: SlotSpinResult, reelCount: number, rowCount: number) {
-  const frame = result.expansionBonus?.frame;
-  const activeColumns = result.goldRush?.activeColumns;
-  const activeRows = result.goldRush?.activeRows;
-  const startReel = Math.max(0, Math.min(reelCount - 1, activeColumns?.start ?? frame?.startReel ?? result.goldRush?.activeVsPosition?.reel ?? 0));
-  const width = Math.max(1, Math.min(reelCount - startReel, activeColumns?.count ?? frame?.width ?? 1));
-  const rowStart = Math.max(0, Math.min(rowCount - 1, activeRows?.start ?? frame?.rowStart ?? 0));
-  const rowSpan = Math.max(1, Math.min(rowCount - rowStart, activeRows?.count ?? frame?.rowCount ?? rowCount));
+type GoldRushMineClashArea = {
+  startReel: number;
+  width: number;
+  rowStart: number;
+  rowSpan: number;
+  reelCount: number;
+  rowCount: number;
+  areaType: "column" | "interior";
+  winner?: "gold" | "diamond";
+  multiplier?: number;
+  tier?: GoldRushMineClashSegment["tier"];
+  goldMultiplier?: number;
+  diamondMultiplier?: number;
+  triggerPosition?: { reel: number; row: number };
+  transformedPositions?: Array<{ reel: number; row: number }>;
+};
+
+function normalizeGoldRushMineClashArea(segment: GoldRushMineClashSegment, reelCount: number, rowCount: number): GoldRushMineClashArea {
+  const startReel = Math.max(0, Math.min(reelCount - 1, segment.startReel));
+  const width = Math.max(1, Math.min(reelCount - startReel, segment.width));
+  const rowStart = Math.max(0, Math.min(rowCount - 1, segment.rowStart));
+  const rowSpan = Math.max(1, Math.min(rowCount - rowStart, segment.rowCount));
   return {
     startReel,
     width,
@@ -404,18 +463,73 @@ export function getGoldRushMineClashArea(result: SlotSpinResult, reelCount: numb
     rowSpan,
     reelCount,
     rowCount,
-    areaType: result.goldRush?.activeAreaType ?? (result.goldRush?.vsType === "interior" ? "interior" : "column"),
+    areaType: segment.type,
+    winner: segment.winner,
+    multiplier: segment.multiplier,
+    tier: segment.tier,
+    goldMultiplier: segment.goldMultiplier,
+    diamondMultiplier: segment.diamondMultiplier,
+    triggerPosition: segment.triggerPosition,
+    transformedPositions: segment.transformedPositions,
   };
 }
 
-export function getGoldRushMineClashDisplayMultipliers(result: SlotSpinResult) {
-  const winner = result.goldRush?.vsWinnerSide ?? result.expansionBonus?.vsWinnerSide ?? result.expansionBonus?.mineClash?.winner ?? "gold";
-  const winningMultiplier = result.goldRush?.vsWinningMultiplier ?? result.expansionBonus?.multiplier ?? 0;
-  let gold = result.goldRush?.vsCandidateMultipliers?.gold ?? result.expansionBonus?.mineClash?.goldMultiplier ?? winningMultiplier;
-  let diamond = result.goldRush?.vsCandidateMultipliers?.diamond ?? result.expansionBonus?.mineClash?.diamondMultiplier ?? winningMultiplier;
+export function getGoldRushMineClashSegments(result: SlotSpinResult, reelCount: number, rowCount: number): GoldRushMineClashArea[] {
+  const segments = result.goldRush?.activeSegments ?? result.expansionBonus?.activeSegments;
+  if (segments?.length) {
+    return segments.map((segment) => normalizeGoldRushMineClashArea(segment, reelCount, rowCount));
+  }
+
+  const frame = result.expansionBonus?.frame;
+  const activeColumns = result.goldRush?.activeColumns;
+  const activeRows = result.goldRush?.activeRows;
+  const startReel = Math.max(0, Math.min(reelCount - 1, activeColumns?.start ?? frame?.startReel ?? result.goldRush?.activeVsPosition?.reel ?? 0));
+  const width = Math.max(1, Math.min(reelCount - startReel, activeColumns?.count ?? frame?.width ?? 1));
+  const rowStart = Math.max(0, Math.min(rowCount - 1, activeRows?.start ?? frame?.rowStart ?? 0));
+  const rowSpan = Math.max(1, Math.min(rowCount - rowStart, activeRows?.count ?? frame?.rowCount ?? rowCount));
+  return [{
+    startReel,
+    width,
+    rowStart,
+    rowSpan,
+    reelCount,
+    rowCount,
+    areaType: result.goldRush?.activeAreaType ?? (result.goldRush?.vsType === "interior" ? "interior" : "column"),
+    winner: result.goldRush?.vsWinnerSide ?? result.expansionBonus?.vsWinnerSide ?? result.expansionBonus?.mineClash?.winner,
+    multiplier: result.goldRush?.vsWinningMultiplier ?? result.goldRush?.vsMultiplier ?? result.expansionBonus?.multiplier,
+    tier: result.goldRush?.vsTier ?? result.expansionBonus?.vsTier,
+    goldMultiplier: result.goldRush?.vsCandidateMultipliers?.gold ?? result.expansionBonus?.mineClash?.goldMultiplier,
+    diamondMultiplier: result.goldRush?.vsCandidateMultipliers?.diamond ?? result.expansionBonus?.mineClash?.diamondMultiplier,
+    triggerPosition: result.goldRush?.activeVsPosition ?? result.expansionBonus?.activeVsPosition,
+    transformedPositions: result.goldRush?.transformedPositions ?? result.expansionBonus?.transformedPositions,
+  }];
+}
+
+export function getGoldRushMineClashArea(result: SlotSpinResult, reelCount: number, rowCount: number) {
+  return getGoldRushMineClashSegments(result, reelCount, rowCount)[0];
+}
+
+export function getGoldRushMineClashDisplayMultipliers(result: SlotSpinResult, area?: GoldRushMineClashArea) {
+  const matchingColumn = area?.areaType === "column"
+    ? (result.goldRush?.mineClashColumns ?? result.expansionBonus?.mineClashColumns ?? []).find((column) => column.reel === area.startReel)
+    : undefined;
+  const primaryColumn = matchingColumn ?? result.goldRush?.mineClashColumns?.[0] ?? result.expansionBonus?.mineClashColumns?.[0];
+  const tier = area?.tier ?? primaryColumn?.tier ?? result.goldRush?.vsTier ?? result.expansionBonus?.vsTier ?? "gold-gold";
+  const winner = area?.winner ?? primaryColumn?.winner ?? result.goldRush?.vsWinnerSide ?? result.expansionBonus?.vsWinnerSide ?? result.expansionBonus?.mineClash?.winner ?? "gold";
+  const winningMultiplier = area?.multiplier ?? primaryColumn?.multiplier ?? result.goldRush?.vsWinningMultiplier ?? result.expansionBonus?.multiplier ?? 0;
+  let gold = area?.goldMultiplier ?? primaryColumn?.goldMultiplier ?? result.goldRush?.vsCandidateMultipliers?.gold ?? result.expansionBonus?.mineClash?.goldMultiplier ?? winningMultiplier;
+  let diamond = area?.diamondMultiplier ?? primaryColumn?.diamondMultiplier ?? result.goldRush?.vsCandidateMultipliers?.diamond ?? result.expansionBonus?.mineClash?.diamondMultiplier ?? winningMultiplier;
+  const goldKind = tier === "diamond-diamond" ? "diamond" : "gold";
+  const diamondKind = tier === "gold-gold" ? "gold" : "diamond";
+  const goldLabel = goldKind === "diamond" ? "Diamond Miner" : "Gold Miner";
+  const diamondLabel = diamondKind === "diamond" ? "Diamond Miner" : "Gold Miner";
 
   if (winner === "gold") gold = winningMultiplier;
   if (winner === "diamond") diamond = winningMultiplier;
+
+  if (tier === "gold-diamond" && diamond <= gold) {
+    gold = Math.max(2, diamond - 1);
+  }
 
   if (gold === diamond) {
     if (winner === "gold") {
@@ -425,7 +539,7 @@ export function getGoldRushMineClashDisplayMultipliers(result: SlotSpinResult) {
     }
   }
 
-  return { gold, diamond, winning: winningMultiplier, winner };
+  return { gold, diamond, winning: winningMultiplier, winner, tier, goldKind, diamondKind, goldLabel, diamondLabel };
 }
 
 export function GoldRushMineClashGridOverlay({
@@ -440,18 +554,27 @@ export function GoldRushMineClashGridOverlay({
   onComplete: () => void;
 }) {
   const [phase, setPhase] = useState<GoldRushGridPhase>("flash");
+  const [segmentIndex, setSegmentIndex] = useState(0);
   const onCompleteRef = useRef(onComplete);
-  const area = getGoldRushMineClashArea(result, reelCount, rowCount);
-  const displayMultipliers = getGoldRushMineClashDisplayMultipliers(result);
+  const segments = getGoldRushMineClashSegments(result, reelCount, rowCount);
+  const area = segments[Math.min(segmentIndex, Math.max(0, segments.length - 1))] ?? getGoldRushMineClashArea(result, reelCount, rowCount);
+  const displayMultipliers = getGoldRushMineClashDisplayMultipliers(result, area);
   const winner = displayMultipliers.winner;
   const goldMultiplier = displayMultipliers.gold;
   const diamondMultiplier = displayMultipliers.diamond;
   const winningMultiplier = displayMultipliers.winning;
-  const transformedCount = result.goldRush?.transformedPositions?.length ?? result.expansionBonus?.transformedPositions?.length ?? 0;
+  const goldPortrait = displayMultipliers.goldKind === "diamond" ? goldRushFxAssets.diamondMinerPortrait : goldRushFxAssets.goldMinerPortrait;
+  const diamondPortrait = displayMultipliers.diamondKind === "diamond" ? goldRushFxAssets.diamondMinerPortrait : goldRushFxAssets.goldMinerPortrait;
+  const transformedCount = area.transformedPositions?.length ?? result.goldRush?.transformedPositions?.length ?? result.expansionBonus?.transformedPositions?.length ?? 0;
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
+
+  useEffect(() => {
+    setSegmentIndex(0);
+    setPhase("flash");
+  }, [result]);
 
   useEffect(() => {
     setPhase("flash");
@@ -464,8 +587,8 @@ export function GoldRushMineClashGridOverlay({
         { phase: "final", delay: 220 },
       ]
       : [
-        { phase: "expand", delay: 420 },
-        { phase: "duel", delay: 820 },
+        { phase: "expand", delay: 720 },
+        { phase: "duel", delay: 1080 },
         { phase: "clash", delay: 1050 },
         { phase: "winner", delay: 1550 },
         { phase: "final", delay: 820 },
@@ -474,26 +597,42 @@ export function GoldRushMineClashGridOverlay({
     const timers: number[] = [];
     playExpansionHit();
     playBonus();
+    startGoldRushMusic();
+    playGoldRushSound("vs_land");
+    duckGoldRushMusic(reducedMotion ? 900 : 4200);
     const advance = () => {
       const next = sequence[index];
       if (!next) {
-        timers.push(window.setTimeout(() => onCompleteRef.current(), reducedMotion ? 220 : 720));
+        timers.push(window.setTimeout(() => {
+          if (segmentIndex < segments.length - 1) {
+            setSegmentIndex((current) => current + 1);
+          } else {
+            onCompleteRef.current();
+          }
+        }, reducedMotion ? 220 : 720));
         return;
       }
       timers.push(window.setTimeout(() => {
         setPhase(next.phase);
         playMultiplierTick();
+        if (next.phase === "expand") playGoldRushSound("vs_expand");
+        else if (next.phase === "duel") playGoldRushSound("symbol_land");
+        else if (next.phase === "clash") playGoldRushSound("clash_hit");
+        else if (next.phase === "winner") playGoldRushSound("multiplier_reveal");
+        else if (next.phase === "final") playGoldRushSound("symbol_land");
         index += 1;
         advance();
       }, next.delay));
     };
     advance();
     return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, [result]);
+  }, [result, segmentIndex, segments.length]);
 
   return (
     <div
-      className={`gold-rush-grid-clash-overlay phase-${phase} area-${area.areaType} winner-${winner}`}
+      className={`gold-rush-grid-clash-overlay phase-${phase} area-${area.areaType} width-${area.width} winner-${winner}`}
+      data-segment-index={segmentIndex}
+      data-segment-count={segments.length}
       style={{
         "--clash-start": area.startReel,
         "--clash-width": area.width,
@@ -506,6 +645,8 @@ export function GoldRushMineClashGridOverlay({
     >
       <div className="gold-rush-grid-dim" aria-hidden="true" />
       <div className="gold-rush-clash-active-area" aria-hidden="true">
+        <img className="mine-clash-chamber-art" src={goldRushFxAssets.mineClashChamber} alt="" />
+        <img className="mine-clash-pop-art" src={goldRushFxAssets.mineClashImpactPop} alt="" />
         <span className="ore-line gold" />
         <span className="ore-line diamond" />
         <span className="clash-spark one" />
@@ -513,15 +654,16 @@ export function GoldRushMineClashGridOverlay({
         <span className="clash-spark three" />
       </div>
       <div className="gold-rush-clash-content">
-        <div className={`grid-miner-card gold ${winner === "gold" ? "winner" : "loser"}`}>
+        <div className={`grid-miner-card gold side-${displayMultipliers.goldKind} ${winner === "gold" ? "winner" : "loser"}`}>
           <i className="grid-miner-avatar" aria-hidden="true">
+            <img className="miner-portrait-art" src={goldPortrait} alt="" />
             <span className="miner-helmet" />
             <span className="miner-face" />
             <span className="miner-body" />
             <span className="miner-pickaxe" />
             <span className="miner-ore" />
           </i>
-          <span>Gold Miner</span>
+          <span>{displayMultipliers.goldLabel}</span>
           <strong>{goldMultiplier}x</strong>
           <em className="miner-meter"><i /></em>
         </div>
@@ -529,15 +671,24 @@ export function GoldRushMineClashGridOverlay({
           <b>VS</b>
           <strong>{phase === "winner" || phase === "final" ? `${winningMultiplier}x` : "CLASH"}</strong>
         </div>
-        <div className={`grid-miner-card diamond ${winner === "diamond" ? "winner" : "loser"}`}>
+        {segments.length > 1 && (
+          <div className="grid-column-multipliers" aria-hidden="true">
+            <span className={`winner-${winner}`}>
+              <i>{segmentIndex + 1}/{segments.length}</i>
+              <b>{winningMultiplier}x</b>
+            </span>
+          </div>
+        )}
+        <div className={`grid-miner-card diamond side-${displayMultipliers.diamondKind} ${winner === "diamond" ? "winner" : "loser"}`}>
           <i className="grid-miner-avatar" aria-hidden="true">
+            <img className="miner-portrait-art" src={diamondPortrait} alt="" />
             <span className="miner-helmet" />
             <span className="miner-face" />
             <span className="miner-body" />
             <span className="miner-pickaxe" />
             <span className="miner-ore" />
           </i>
-          <span>Diamond Miner</span>
+          <span>{displayMultipliers.diamondLabel}</span>
           <strong>{diamondMultiplier}x</strong>
           <em className="miner-meter"><i /></em>
         </div>
@@ -556,35 +707,47 @@ export function GoldRushMineClashFinalPanel({
   reelCount: number;
   rowCount: number;
 }) {
-  const area = getGoldRushMineClashArea(result, reelCount, rowCount);
-  const winner = result.goldRush?.vsWinnerSide ?? result.expansionBonus?.vsWinnerSide ?? result.expansionBonus?.mineClash?.winner ?? "gold";
-  const multiplier = result.goldRush?.vsWinningMultiplier ?? result.goldRush?.vsMultiplier ?? result.expansionBonus?.multiplier ?? 0;
+  const segments = getGoldRushMineClashSegments(result, reelCount, rowCount);
   return (
-    <div
-      className={`gold-rush-final-clash-panel area-${area.areaType} winner-${winner}`}
-      style={{
-        "--clash-start": area.startReel,
-        "--clash-width": area.width,
-        "--clash-row-start": area.rowStart,
-        "--clash-row-span": area.rowSpan,
-        "--clash-reel-count": area.reelCount,
-        "--clash-row-count": area.rowCount,
-      } as React.CSSProperties}
-      aria-label={`${winner === "diamond" ? "Diamond" : "Gold"} Miner ${multiplier}x multiplier wild`}
-    >
-      <div className="final-miner-avatar" aria-hidden="true">
-        <span className="miner-helmet" />
-        <span className="miner-face" />
-        <span className="miner-body" />
-        <span className="miner-pickaxe" />
-        <span className="miner-ore" />
-      </div>
-      <div className="final-miner-copy">
-        <span>{winner === "diamond" ? "Diamond Miner" : "Gold Miner"}</span>
-        <strong>{multiplier}x</strong>
-        <b>WILD</b>
-      </div>
-    </div>
+    <>
+      {segments.map((area, index) => {
+        const displayMultipliers = getGoldRushMineClashDisplayMultipliers(result, area);
+        const winner = displayMultipliers.winner;
+        const multiplier = displayMultipliers.winning;
+        return (
+          <div
+            key={`${area.areaType}-${area.startReel}-${area.width}-${index}`}
+            className={`gold-rush-final-clash-panel area-${area.areaType} width-${area.width} winner-${winner}`}
+            data-segment-index={index}
+            data-segment-count={segments.length}
+            style={{
+              "--clash-start": area.startReel,
+              "--clash-width": area.width,
+              "--clash-row-start": area.rowStart,
+              "--clash-row-span": area.rowSpan,
+              "--clash-reel-count": area.reelCount,
+              "--clash-row-count": area.rowCount,
+            } as React.CSSProperties}
+            aria-label={`${winner === "diamond" ? "Diamond" : "Gold"} Miner ${multiplier}x multiplier wild`}
+          >
+            <img className="mine-clash-final-bg" src={goldRushFxAssets.mineClashChamber} alt="" aria-hidden="true" />
+            <div className="final-miner-avatar" data-center-anchor="true" aria-hidden="true">
+              <img className="miner-portrait-art" src={winner === "diamond" ? goldRushFxAssets.diamondMinerPortrait : goldRushFxAssets.goldMinerPortrait} alt="" />
+              <span className="miner-helmet" />
+              <span className="miner-face" />
+              <span className="miner-body" />
+              <span className="miner-pickaxe" />
+              <span className="miner-ore" />
+            </div>
+            <div className="final-miner-copy">
+              <span>{winner === "diamond" ? "Diamond Miner" : "Gold Miner"}</span>
+              <strong>{multiplier}x</strong>
+              <b>WILD</b>
+            </div>
+          </div>
+        );
+      })}
+    </>
   );
 }
 
@@ -598,6 +761,27 @@ export function getBonusChanceTier(betAmount: number, game: SlotConfig) {
 
 export function getBuyBonusCost(betAmount: number, game: SlotConfig) {
   return game.buyBonus?.enabled ? getBonusBuyCost(game, betAmount) : 0;
+}
+
+function getGoldRushBonusOptionDetail(type: GoldRushBonusBuyType) {
+  switch (type) {
+    case "bonus-plus-spins":
+      return "Boosts Bonus symbols on the next paid spin. This is a one-spin boost and is consumed after you press Spin.";
+    case "showdown-spin":
+      return "Keeps Showdown Spin active until you turn it off. Each paid spin guarantees at least one VS symbol and an interior zone, but a win is not guaranteed.";
+    case "buy-bonus":
+      return "Immediately buys a trigger spin with 3 Bonus symbols, then starts 10 Free Spins with a 2x4 interior frame.";
+    case "buy-super-bonus":
+      return "Immediately buys a trigger spin with 4 Bonus symbols, then starts 10 Free Spins with a larger 3x4 interior frame.";
+    default:
+      return "";
+  }
+}
+
+export function getGoldRushFreeSpinDisplayInterior(game: SlotConfig, columns: number, preferredStartColumn: number) {
+  const safeColumns = Math.max(2, Math.min(game.reelCount, game.goldRushBonusBuys?.freeSpins.maxInteriorColumns ?? game.reelCount, columns));
+  const startColumn = Math.max(0, Math.min(game.reelCount - safeColumns, preferredStartColumn));
+  return { startColumn, columns: safeColumns, rowStart: 0, rowCount: game.rowCount };
 }
 
 export function getBetOptions(game: SlotConfig, currency?: Currency) {
@@ -665,14 +849,21 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
   const [frontierSkipIntro, setFrontierSkipIntro] = useState(false);
   const [frontierEntryEntered, setFrontierEntryEntered] = useState(() => game.id !== "frontier-fortune");
   const [frontierIntroReopened, setFrontierIntroReopened] = useState(false);
+  const [highlightedLineIndex, setHighlightedLineIndex] = useState(0);
+  const [goldRushSpinInterior, setGoldRushSpinInterior] = useState<NonNullable<SlotSpinResult["goldRush"]>["interior"] | null>(null);
+  const [goldRushArmedBoost, setGoldRushArmedBoost] = useState<GoldRushArmedBoost | null>(null);
+  const [goldRushFreeSpinSession, setGoldRushFreeSpinSession] = useState<GoldRushFreeSpinSession | null>(null);
+  const [goldRushBonusSelection, setGoldRushBonusSelection] = useState<GoldRushBonusBuyType | null>(null);
 
   if (!user) return null;
   const currentUser = user;
+  const isGoldRush = game.id === "gold-rush-showdown";
   const balance = getBalance(currentUser.id, currency);
   const currencyLabel = getCurrencyShortName(currency);
   const inHoldAndWin = Boolean(holdState);
-  const spinCost = getSpinCost(game, betAmount, spinMode);
-  const canSpin = assetsLoaded && !spinning && !inHoldAndWin && !expansionOverlayResult && (freeSpins > 0 || balance >= spinCost);
+  const spinCost = goldRushArmedBoost ? goldRushArmedBoost.cost : getSpinCost(game, betAmount, spinMode);
+  const goldRushSpinLocked = Boolean(goldRushFreeSpinSession?.introOpen || goldRushFreeSpinSession?.summaryOpen);
+  const canSpin = assetsLoaded && !spinning && !inHoldAndWin && !expansionOverlayResult && !goldRushSpinLocked && (freeSpins > 0 || balance >= spinCost);
   const holdBuyCost = getBonusBuyCost(game, betAmount, "HOLD_AND_WIN", currency);
   const wheelBuyCost = getBonusBuyCost(game, betAmount, "WHEEL_BONUS", currency);
   const turbo = frontierTurboBypassesAnimation(spinSpeed);
@@ -682,12 +873,26 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
   const betOptions = getBetOptions(game, currency);
   const titleLogo = game.visual.logoImage;
   const frontierEntryPhase = getFrontierEntryPhase(game.id, assetsLoaded, frontierEntryEntered, frontierSkipIntro, frontierIntroReopened);
-  const isGoldRush = game.id === "gold-rush-showdown";
   const showLastWin = !spinning && animationState !== "spinning";
   const goldRushVisualResult =
     isGoldRush && overlayResult?.gameId === game.id && overlayResult.expansionBonus?.sourceFeature === "mine-clash" ? overlayResult : lastResult;
   const resultForHighlights = isGoldRush ? goldRushVisualResult : lastResult;
-  const activePaylines = new Set(showLastWin ? (resultForHighlights?.lineWins.map((win) => win.paylineId) ?? []) : []);
+  const goldRushLineWins = showLastWin && isGoldRush && !expansionOverlayResult ? resultForHighlights?.lineWins ?? [] : [];
+  const currentGoldRushLineWin = goldRushLineWins.length > 0 ? goldRushLineWins[highlightedLineIndex % goldRushLineWins.length] : undefined;
+  const activePaylines = new Set(
+    showLastWin
+      ? isGoldRush
+        ? currentGoldRushLineWin ? [currentGoldRushLineWin.paylineId] : []
+        : resultForHighlights?.lineWins.map((win) => win.paylineId) ?? []
+      : [],
+  );
+  const goldRushLineHighlightKey = goldRushLineWins.map((win) => `${win.paylineId}:${win.symbol}:${win.count}:${win.payout}`).join("|");
+  const goldRushLineBadgeStyle = currentGoldRushLineWin
+    ? {
+      "--line-badge-x": `${((currentGoldRushLineWin.positions.reduce((sum, position) => sum + position.reel, 0) / currentGoldRushLineWin.positions.length) + 0.5) / game.reelCount * 100}%`,
+      "--line-badge-y": `${((currentGoldRushLineWin.positions.reduce((sum, position) => sum + position.row, 0) / currentGoldRushLineWin.positions.length) + 0.5) / game.rowCount * 100}%`,
+    } as React.CSSProperties
+    : undefined;
   const goldRushTransformedPositions = new Set(
     showLastWin && isGoldRush && !expansionOverlayResult
       ? (goldRushVisualResult?.goldRush?.transformedPositions ?? goldRushVisualResult?.expansionBonus?.transformedPositions ?? []).map((position) => `${position.reel}:${position.row}`)
@@ -701,7 +906,16 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
     goldRushTransformedPositions.size > 0
       ? goldRushVisualResult
       : null;
-  const goldRushInterior = showLastWin && isGoldRush ? goldRushVisualResult?.goldRush?.interior : undefined;
+  const goldRushFreeSpinDisplayInterior = goldRushFreeSpinSession && freeSpins > 0
+    ? getGoldRushFreeSpinDisplayInterior(game, goldRushFreeSpinSession.interiorColumns, goldRushFreeSpinSession.interiorStartColumn)
+    : undefined;
+  const goldRushInterior = isGoldRush
+    ? spinning
+      ? goldRushSpinInterior ?? goldRushFreeSpinDisplayInterior
+      : showLastWin
+        ? goldRushSpinInterior ?? goldRushVisualResult?.goldRush?.interior ?? goldRushFreeSpinDisplayInterior
+        : goldRushFreeSpinDisplayInterior
+    : undefined;
   const modeLabel =
     animationState === "bonusRespinning"
       ? "Respinning"
@@ -725,6 +939,18 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
   const wheelSectionLabels = getWheelSectionLabels(game);
   const wheelDrama = wheelReveal ? getFrontierWheelDrama(wheelSectionLabels, wheelReveal.result.wheelBonus?.segment) : "standard";
   const speedLabel = spinSpeed === "NORMAL" ? "Normal" : spinSpeed === "FAST" ? "Fast" : isGoldRush ? "Instant" : "Turbo";
+  const selectedGoldRushBonusOption = goldRushBonusSelection ? getGoldRushBonusBuyOption(game, goldRushBonusSelection) : undefined;
+  const selectedGoldRushBonusCost = selectedGoldRushBonusOption ? getGoldRushBonusBuyCost(game, betAmount, selectedGoldRushBonusOption.type) : 0;
+  const goldRushOverlayTier = overlayResult && isGoldRush ? getGoldRushWinTier(overlayResult.payout, betAmount) : "none";
+
+  useEffect(() => {
+    setHighlightedLineIndex(0);
+    if (!isGoldRush || !showLastWin || goldRushLineWins.length <= 1) return undefined;
+    const timer = window.setInterval(() => {
+      setHighlightedLineIndex((index) => (index + 1) % goldRushLineWins.length);
+    }, 950);
+    return () => window.clearInterval(timer);
+  }, [goldRushLineHighlightKey, goldRushLineWins.length, isGoldRush, showLastWin]);
 
   useEffect(() => {
     setBetAmount(getDefaultBetAmount(game, "GOLD"));
@@ -749,6 +975,10 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
     setReelStates(Array.from({ length: game.reelCount }, () => "idle"));
     setBetMenuOpen(false);
     setGoldRushBonusOpen(false);
+    setGoldRushBonusSelection(null);
+    setGoldRushSpinInterior(null);
+    setGoldRushArmedBoost(null);
+    setGoldRushFreeSpinSession(null);
     setWheelReveal(null);
     setFrontierSkipIntro(false);
     setFrontierEntryEntered(game.id !== "frontier-fortune");
@@ -760,12 +990,46 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
   }, [currency, game]);
 
   useEffect(() => {
+    if (!isGoldRush) return undefined;
+    const timer = window.setInterval(() => {
+      if (!isSoundEnabled()) stopGoldRushMusic();
+    }, 250);
+    return () => {
+      window.clearInterval(timer);
+      stopGoldRushMusic();
+    };
+  }, [isGoldRush]);
+
+  useEffect(() => {
+    setGoldRushArmedBoost((current) => {
+      if (!current) return current;
+      const option = getGoldRushBonusBuyOption(game, current.type);
+      if (!option?.spinMode) return null;
+      return {
+        ...current,
+        label: option.label,
+        cost: getGoldRushBonusBuyCost(game, betAmount, current.type),
+        spinMode: option.spinMode,
+      };
+    });
+  }, [betAmount, game]);
+
+  useEffect(() => {
+    if (!isGoldRush || !goldRushFreeSpinSession?.lastGrowth) return undefined;
+    const timer = window.setTimeout(() => {
+      setGoldRushFreeSpinSession((current) => current ? { ...current, lastGrowth: undefined } : current);
+    }, 1850);
+    return () => window.clearTimeout(timer);
+  }, [goldRushFreeSpinSession?.lastGrowth?.addedSpins, goldRushFreeSpinSession?.lastGrowth?.columns, isGoldRush]);
+
+  useEffect(() => {
     let active = true;
     setAssetsLoaded(false);
     setAssetLoadProgress(0);
     const urls = [
       ...game.symbols.map((symbol) => symbol.image).filter((url): url is string => Boolean(url)),
       ...(game.visual.logoImage ? [game.visual.logoImage] : []),
+      ...(game.goldRushBonusBuys?.options.map((option) => option.image).filter((url): url is string => Boolean(url)) ?? []),
       ...(game.id === "frontier-fortune" ? Object.values(frontierUiAssets) : []),
       ...(game.id === "frontier-fortune" ? Object.values(frontierIntroAssets) : []),
     ];
@@ -828,6 +1092,30 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
 
   const overlayIsBig = overlayResult?.winTier === "BIG" || overlayResult?.winTier === "MEGA";
 
+  function createGoldRushFreeSpinSession(triggerCount: number, source: GoldRushFreeSpinSession["triggerSource"]): GoldRushFreeSpinSession {
+    const config = game.goldRushBonusBuys?.freeSpins;
+    const interiorColumns = Math.max(2, Math.min(config?.maxInteriorColumns ?? game.reelCount, getGoldRushFreeSpinInitialInteriorColumns(game, triggerCount)));
+    return {
+      spinsRemaining: config?.initialSpins ?? 10,
+      totalWin: 0,
+      spinsPlayed: 0,
+      initialSpins: config?.initialSpins ?? 10,
+      interiorColumns,
+      interiorStartColumn: selectGoldRushInteriorStart(game, interiorColumns),
+      bonusSymbolsCollected: Math.max(0, triggerCount > 4 ? triggerCount - 4 : 0),
+      collectThreshold: config?.collectThreshold ?? 3,
+      addedSpins: config?.addedSpins ?? 2,
+      maxInteriorColumns: config?.maxInteriorColumns ?? game.reelCount,
+      triggerSource: source,
+      introOpen: true,
+      summaryOpen: false,
+    };
+  }
+
+  function nextGoldRushInteriorStart(columns: number) {
+    return selectGoldRushInteriorStart(game, columns);
+  }
+
   function stepBet(direction: -1 | 1) {
     const index = betOptions.indexOf(betAmount);
     const nextIndex = Math.min(betOptions.length - 1, Math.max(0, (index >= 0 ? index : 0) + direction));
@@ -849,12 +1137,15 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
 
   useEffect(() => {
     if (!overlayResult) return;
+    if (isGoldRush && overlayResult.gameId === "gold-rush-showdown" && overlayResult.payout > 0 && !overlayResult.triggeredExpansionBonus && goldRushOverlayTier !== "none") {
+      return undefined;
+    }
     const timeout = window.setTimeout(
       () => setOverlayResult(null),
       overlayResult.triggeredHoldAndWin && overlayResult.payout === 0 ? 1600 : overlayResult.winTier === "MEGA" ? 2800 : 2000,
     );
     return () => window.clearTimeout(timeout);
-  }, [overlayResult]);
+  }, [goldRushOverlayTier, isGoldRush, overlayResult]);
 
   function completeFrontierWheelSpin(reveal: FrontierWheelReveal) {
     const wheelBonus = reveal.result.wheelBonus;
@@ -913,9 +1204,67 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
     );
     setBonusMeter((current) => (result.triggeredBonus ? 0 : Math.min(100, current + game.bonusFeature.meterPerSpin)));
     const freeSpinCap = game.freeSpins.maxSpins ?? 30;
-    const freeSpinsAfterSpin = Math.max(0, freeSpins - (usedFreeSpin ? 1 : 0));
-    const freeSpinsAfterAwards = Math.min(freeSpinCap, freeSpinsAfterSpin + result.freeSpinsAwarded);
-    if (usedFreeSpin || result.freeSpinsAwarded > 0) {
+    let freeSpinsAfterSpin = Math.max(0, freeSpins - (usedFreeSpin ? 1 : 0));
+    let freeSpinsAfterAwards = Math.min(freeSpinCap, freeSpinsAfterSpin + result.freeSpinsAwarded);
+    if (isGoldRush && usedFreeSpin && goldRushFreeSpinSession) {
+      const collected = result.grid.flat().filter((symbol) => symbol === game.scatterSymbol).length;
+      const previousThresholds = Math.floor(goldRushFreeSpinSession.bonusSymbolsCollected / goldRushFreeSpinSession.collectThreshold);
+      const nextCollected = goldRushFreeSpinSession.bonusSymbolsCollected + collected;
+      const nextThresholds = Math.floor(nextCollected / goldRushFreeSpinSession.collectThreshold);
+      const thresholdsReached = Math.max(0, nextThresholds - previousThresholds);
+      const addedSpins = Math.min(freeSpinCap - freeSpinsAfterSpin, thresholdsReached * goldRushFreeSpinSession.addedSpins);
+      const nextColumns = Math.min(
+        goldRushFreeSpinSession.maxInteriorColumns,
+        goldRushFreeSpinSession.interiorColumns + thresholdsReached * (game.goldRushBonusBuys?.freeSpins.growColumns ?? 1),
+      );
+      const displayInterior = getGoldRushFreeSpinDisplayInterior(
+        game,
+        nextColumns,
+        result.goldRush?.interior?.startColumn ?? goldRushFreeSpinSession.interiorStartColumn,
+      );
+      freeSpinsAfterAwards = Math.min(freeSpinCap, freeSpinsAfterSpin + addedSpins);
+      const nextTotal = nextFreeSpinTotal(goldRushFreeSpinSession.totalWin, result);
+      const nextSession: GoldRushFreeSpinSession = {
+        ...goldRushFreeSpinSession,
+        spinsRemaining: freeSpinsAfterAwards,
+        totalWin: nextTotal,
+        spinsPlayed: goldRushFreeSpinSession.spinsPlayed + 1,
+        bonusSymbolsCollected: nextCollected,
+        interiorColumns: nextColumns,
+        interiorStartColumn: displayInterior.startColumn,
+        introOpen: false,
+        summaryOpen: freeSpinsAfterAwards === 0,
+        lastGrowth: thresholdsReached > 0 ? { addedSpins, columns: nextColumns } : undefined,
+      };
+      setGoldRushFreeSpinSession(nextSession);
+      setGoldRushSpinInterior(displayInterior);
+      setFreeSpins(freeSpinsAfterAwards);
+      setFreeSpinTotal(nextTotal);
+      setStickyWildPositions([]);
+      playGoldRushSound("free_spin_counter_tick");
+      if (collected > 0) playGoldRushSound("meter_collect");
+      if (thresholdsReached > 0) {
+        playGoldRushSound("meter_threshold_hit");
+        if (nextColumns > goldRushFreeSpinSession.interiorColumns) playGoldRushSound("interior_expand");
+      }
+    } else if (isGoldRush && !usedFreeSpin && result.triggeredFreeSpins) {
+      const triggerCount = result.goldRush?.freeSpinsTrigger?.triggerCount ?? result.grid.flat().filter((symbol) => symbol === game.scatterSymbol).length;
+      const source = result.goldRush?.freeSpinsTrigger?.source ?? "natural";
+      const session = createGoldRushFreeSpinSession(triggerCount, source);
+      const initialInteriorColumns = result.goldRush?.freeSpinsTrigger?.initialInteriorColumns;
+      if (initialInteriorColumns) {
+        session.interiorColumns = initialInteriorColumns;
+        session.interiorStartColumn = nextGoldRushInteriorStart(initialInteriorColumns);
+      }
+      const sessionInterior = getGoldRushFreeSpinDisplayInterior(game, session.interiorColumns, session.interiorStartColumn);
+      setGoldRushFreeSpinSession(session);
+      setGoldRushSpinInterior(sessionInterior);
+      setFreeSpins(session.spinsRemaining);
+      setFreeSpinTotal(0);
+      setStickyWildPositions([]);
+      freeSpinsAfterAwards = session.spinsRemaining;
+      playGoldRushSound("free_spins_start");
+    } else if (usedFreeSpin || result.freeSpinsAwarded > 0) {
       setFreeSpins(freeSpinsAfterAwards);
       setStickyWildPositions(getNextFrontierStickyWildPositions(game, result, stickyWildPositions, freeSpinsAfterAwards));
       if (usedFreeSpin) setFreeSpinTotal((total) => nextFreeSpinTotal(total, result));
@@ -944,7 +1293,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
       setExpansionOverlayResult(result);
       setOverlayResult(null);
       setAnimationState("bonusReveal");
-    } else if (result.triggeredBonus) {
+    } else if (result.triggeredBonus && !(isGoldRush && result.triggeredFreeSpins)) {
       setBonusResult(result);
       setOverlayResult(result.payout > 0 ? result : null);
       setAnimationState("idle");
@@ -980,42 +1329,83 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
       multiplier: result.multiplier,
     });
     setSessionStats((stats) => nextSessionStats(stats, result.wager, result.payout));
-    if (result.triggeredBonus) playBonus();
+    if (isGoldRush) {
+      const bonusSymbols = result.grid.flat().filter((symbol) => symbol === game.scatterSymbol).length;
+      const vsSymbols = result.grid.flat().filter((symbol) => symbol === game.expansionBonus?.triggerSymbol).length;
+      if (bonusSymbols > 0) playGoldRushSound("bonus_land");
+      if (vsSymbols > 0 && !result.triggeredExpansionBonus) playGoldRushSound("vs_land");
+      if (result.triggeredExpansionBonus) playGoldRushSound("vs_expand");
+      else if (result.payout > 0 && result.winTier !== "NONE") playGoldRushSound(result.winTier === "BIG" || result.winTier === "MEGA" ? "big_win_count_up" : "meter_collect");
+    } else if (result.triggeredBonus) playBonus();
     else if (result.winTier === "BIG" || result.winTier === "MEGA") playBigWin();
     else if (result.payout > 0) playWin();
     else playLose();
   }
 
   function spin(modeOverride: SpinMode = spinMode) {
-    const activeSpinMode = freeSpins > 0 ? "NORMAL" : modeOverride;
-    const activeSpinCost = getSpinCost(game, betAmount, activeSpinMode);
+    const activeBoost = isGoldRush && freeSpins === 0 ? goldRushArmedBoost : null;
+    const activeSpinMode = freeSpins > 0 ? "NORMAL" : activeBoost?.spinMode ?? modeOverride;
+    const activeSpinCost = activeBoost?.cost ?? getSpinCost(game, betAmount, activeSpinMode);
     if (!spinning && !inHoldAndWin && freeSpins === 0 && balance < activeSpinCost) {
       setUiState("Error/Insufficient Balance");
       notify("Insufficient balance for this spin.", "error");
       playError();
+      if (isGoldRush) playGoldRushSound("error_insufficient_balance");
       return;
     }
     if (!canSpin) {
       setUiState("Error/Insufficient Balance");
       playError();
+      if (isGoldRush) playGoldRushSound("error_insufficient_balance");
       return;
     }
 
     setSpinning(true);
-    playClick();
-    playSpin();
+    if (isGoldRush) {
+      startGoldRushMusic();
+      playGoldRushSound("button_tap");
+      playGoldRushSound("spin_start");
+    } else {
+      playClick();
+      playSpin();
+    }
     setUiState("Spinning");
     setAnimationState("spinning");
     setReelStates(Array.from({ length: game.reelCount }, () => "spinning"));
     setOverlayResult(null);
+    setGoldRushSpinInterior(null);
     setAnticipating(false);
     const usedFreeSpin = freeSpins > 0;
+    const showdownBoost = activeBoost?.type === "showdown-spin" ? createGoldRushShowdownBoostGrid(game) : undefined;
+    const freeSpinInteriorOverride = isGoldRush && usedFreeSpin && goldRushFreeSpinSession
+      ? { startColumn: nextGoldRushInteriorStart(goldRushFreeSpinSession.interiorColumns), columns: goldRushFreeSpinSession.interiorColumns, rowStart: 0, rowCount: game.rowCount }
+      : undefined;
+    if (freeSpinInteriorOverride) setGoldRushSpinInterior(freeSpinInteriorOverride);
     const mode = getFrontierSpinAnimationMode(spinSpeed);
     const timing = slotAnimation[mode];
     const stoppedReels = new Set<number>();
     let result: SlotSpinResult;
     try {
-      result = spinSlot({ user: currentUser, game, currency, betAmount, freeSpin: usedFreeSpin, spinMode: activeSpinMode, stickyWildPositions: usedFreeSpin ? stickyWildPositions : undefined });
+      if (activeBoost) {
+        debitGoldRushBonusBuy({ user: currentUser, game, currency, betAmount, bonusType: activeBoost.type });
+      }
+      result = spinSlot({
+        user: currentUser,
+        game,
+        currency,
+        betAmount,
+        freeSpin: usedFreeSpin,
+        spinMode: activeSpinMode,
+        stickyWildPositions: usedFreeSpin ? stickyWildPositions : undefined,
+        forcedGrid: showdownBoost?.grid,
+        prepaidWager: activeBoost?.cost,
+        goldRushInteriorOverride: showdownBoost?.interior ?? freeSpinInteriorOverride,
+      });
+      if (isGoldRush) setGoldRushSpinInterior(result.goldRush?.interior ?? null);
+      if (activeBoost?.type === "bonus-plus-spins") {
+        setGoldRushArmedBoost(null);
+        setSpinMode("NORMAL");
+      }
     } catch (caught) {
       setSpinning(false);
       setAnimationState("idle");
@@ -1023,6 +1413,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
       setUiState("Error/Insufficient Balance");
       notify(caught instanceof Error ? caught.message : "Spin failed.", "error");
       playError();
+      if (isGoldRush) playGoldRushSound("error_insufficient_balance");
       return;
     }
     if (frontierTurboBypassesAnimation(spinSpeed)) {
@@ -1030,6 +1421,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
       setUiState("Evaluating");
       setAnimationState("settling");
       setReelStates(Array.from({ length: game.reelCount }, () => "stopped"));
+      if (isGoldRush) playGoldRushSound("reel_tick");
       updateAfterSpin(result, usedFreeSpin);
       setSpinning(false);
       setReelStates(Array.from({ length: game.reelCount }, () => "idle"));
@@ -1051,6 +1443,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
         stoppedReels.add(reelIndex);
         setGrid((current) => current.map((reel, index) => (index === reelIndex ? result.grid[index] ?? reel : reel)));
         setReelStates((states) => states.map((state, index) => (index === reelIndex ? "settling" : state)));
+        if (isGoldRush) playGoldRushSound("reel_tick");
         window.setTimeout(() => {
           setReelStates((states) => states.map((state, index) => (index === reelIndex ? "stopped" : state)));
         }, timing.settleMs);
@@ -1165,10 +1558,130 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
     window.setTimeout(() => spin(mode), 0);
   }
 
-  function selectGoldRushBonusPlaceholder(label: string) {
-    setGoldRushBonusOpen(false);
-    notify(`${label} option added as a prototype placeholder. Feature math will be wired later.`, "info");
-    playClick();
+  function armGoldRushBoost(bonusType: Extract<GoldRushBonusBuyType, "bonus-plus-spins" | "showdown-spin">) {
+    const option = getGoldRushBonusBuyOption(game, bonusType);
+    if (!option?.spinMode) return;
+    if (goldRushArmedBoost?.type === bonusType) {
+      setGoldRushArmedBoost(null);
+      setSpinMode("NORMAL");
+      setGoldRushBonusSelection(null);
+      notify(`${option.label} turned off.`, "info");
+      playClick();
+      playGoldRushSound("button_tap");
+      return;
+    }
+    if (goldRushArmedBoost) {
+      notify("Cancel the active boost before arming another option.", "error");
+      playError();
+      playGoldRushSound("error_insufficient_balance");
+      return;
+    }
+    if (freeSpins > 0 || goldRushFreeSpinSession) {
+      notify("Finish the current Free Spins round before buying a boost.", "error");
+      playError();
+      playGoldRushSound("error_insufficient_balance");
+      return;
+    }
+    const cost = getGoldRushBonusBuyCost(game, betAmount, bonusType);
+    try {
+      if (balance < cost) throw new Error("Insufficient balance.");
+      setGoldRushArmedBoost({ type: bonusType, label: option.label, cost, spinMode: option.spinMode });
+      setSpinMode(option.spinMode);
+      setGoldRushBonusOpen(false);
+      setGoldRushBonusSelection(null);
+      notify(`${option.label} ACTIVE. Press spin to use.`, "info");
+      playBonus();
+      startGoldRushMusic();
+      playGoldRushSound(bonusType === "showdown-spin" ? "vs_land" : "bonus_land");
+    } catch (caught) {
+      notify(caught instanceof Error ? caught.message : "Boost buy failed.", "error");
+      playError();
+      playGoldRushSound("error_insufficient_balance");
+    }
+  }
+
+  function confirmGoldRushBonusSelection() {
+    const option = selectedGoldRushBonusOption;
+    if (!option) return;
+    if (goldRushArmedBoost && goldRushArmedBoost.type !== option.type) {
+      notify("Turn off the active boost before choosing another option.", "error");
+      playError();
+      playGoldRushSound("error_insufficient_balance");
+      return;
+    }
+    if (option.mode === "boost") {
+      armGoldRushBoost(option.type as Extract<GoldRushBonusBuyType, "bonus-plus-spins" | "showdown-spin">);
+      return;
+    }
+    buyGoldRushFreeSpins(option.type as Extract<GoldRushBonusBuyType, "buy-bonus" | "buy-super-bonus">);
+  }
+
+  function buyGoldRushFreeSpins(bonusType: Extract<GoldRushBonusBuyType, "buy-bonus" | "buy-super-bonus">) {
+    const option = getGoldRushBonusBuyOption(game, bonusType);
+    const forcedBonusSymbols = option?.forcedBonusSymbols;
+    if (!forcedBonusSymbols) return;
+    if (goldRushArmedBoost) {
+      notify("Cancel the active boost before buying Free Spins.", "error");
+      playError();
+      playGoldRushSound("error_insufficient_balance");
+      return;
+    }
+    const cost = getGoldRushBonusBuyCost(game, betAmount, bonusType);
+    if (balance < cost) {
+      notify("Insufficient balance.", "error");
+      playError();
+      playGoldRushSound("error_insufficient_balance");
+      return;
+    }
+    try {
+      debitGoldRushBonusBuy({ user: currentUser, game, currency, betAmount, bonusType });
+      const forcedGrid = createGoldRushBonusTriggerGrid(game, forcedBonusSymbols);
+      setGoldRushBonusOpen(false);
+      setGoldRushBonusSelection(null);
+      setSpinning(true);
+      setUiState("Spinning");
+      setAnimationState("spinning");
+      setReelStates(Array.from({ length: game.reelCount }, () => "spinning"));
+      setOverlayResult(null);
+      setExpansionOverlayResult(null);
+      startGoldRushMusic();
+      playGoldRushSound("button_tap");
+      playGoldRushSound("spin_start");
+      const result = spinSlot({
+        user: currentUser,
+        game,
+        currency,
+        betAmount,
+        forcedGrid,
+        prepaidWager: cost,
+      });
+      if (result.goldRush?.freeSpinsTrigger) {
+        result.goldRush.freeSpinsTrigger.source = bonusType;
+        result.goldRush.freeSpinsTrigger.initialInteriorColumns = option.initialInteriorColumns ?? result.goldRush.freeSpinsTrigger.initialInteriorColumns;
+      }
+      const settle = frontierTurboBypassesAnimation(spinSpeed) ? 180 : 950;
+      window.setTimeout(() => {
+        setGrid(result.grid);
+        setReelStates(Array.from({ length: game.reelCount }, () => "stopped"));
+        setUiState("Evaluating");
+        window.setTimeout(() => {
+          updateAfterSpin(result, false);
+          setSpinning(false);
+          setReelStates(Array.from({ length: game.reelCount }, () => "idle"));
+          setAnimationState("idle");
+        }, 280);
+      }, settle);
+      refreshUser();
+      playBonus();
+      playGoldRushSound("free_spins_start");
+    } catch (caught) {
+      setSpinning(false);
+      setAnimationState("idle");
+      setReelStates(Array.from({ length: game.reelCount }, () => "idle"));
+      notify(caught instanceof Error ? caught.message : "Bonus buy failed.", "error");
+      playError();
+      playGoldRushSound("error_insufficient_balance");
+    }
   }
 
   function respinHoldAndWin() {
@@ -1292,7 +1805,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
             {(!logoReady || !titleLogo) && <p className="eyebrow">{game.theme}</p>}
             <h1 className={logoReady ? "asset-backed" : ""}>{game.name}</h1>
             <p className="muted">
-              {game.waysToWin} | {game.volatility} volatility | Target RTP {(game.targetRtp * 100).toFixed(1)}% | Demo only
+              {game.waysToWin} | {game.volatility} Volatility | Stay Hot.
             </p>
           </div>
         </div>
@@ -1365,6 +1878,37 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
           <button className="ghost-button icon-only" onClick={() => setPaytableOpen(true)} title="Info"><Info size={18} /></button>
           <SoundToggle className="ghost-button icon-only" compact />
         </div>
+        {isGoldRush && goldRushArmedBoost && (
+          <div className="gold-rush-boost-armed" role="status">
+            <strong>{goldRushArmedBoost.label} ACTIVE</strong>
+            <span>{goldRushArmedBoost.type === "showdown-spin" ? "Guaranteed VS + Interior" : "Next spin boosted"}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setGoldRushArmedBoost(null);
+                setSpinMode("NORMAL");
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+        {isGoldRush && goldRushFreeSpinSession && (
+          <div className={`gold-rush-free-spins-hud ${goldRushFreeSpinSession.lastGrowth ? "grew" : ""}`} role="status">
+            <strong>{goldRushFreeSpinSession.spinsRemaining} Free Spins</strong>
+            <span>Win {formatCoins(goldRushFreeSpinSession.totalWin)}</span>
+            <span>Interior {goldRushFreeSpinSession.interiorColumns}x4</span>
+            <span>Bonus {goldRushFreeSpinSession.bonusSymbolsCollected % goldRushFreeSpinSession.collectThreshold}/{goldRushFreeSpinSession.collectThreshold}</span>
+          </div>
+        )}
+        {isGoldRush && goldRushFreeSpinSession?.lastGrowth && (
+          <GoldRushFeatureToast
+            title="Bonus Boost"
+            primary={`+${goldRushFreeSpinSession.lastGrowth.addedSpins} Spins`}
+            secondary={`Interior ${goldRushFreeSpinSession.lastGrowth.columns}x4`}
+            tone="mixed"
+          />
+        )}
         {!isGoldRush && (
           <div className={`slot-state-pill ${inHoldAndWin ? "bonus" : ""}`}>
             <span>{modeLabel}</span>
@@ -1425,11 +1969,20 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
               {showLastWin && !expansionOverlayResult && resultForHighlights?.lineWins.length ? (
                 <svg className="payline-overlay" viewBox={`0 0 ${game.reelCount * 100} ${game.rowCount * 100}`} preserveAspectRatio="none" aria-hidden="true">
                   {game.paylines.map((payline) => {
-                    const points = payline.rows.map((lineRow, reel) => `${reel * 100 + 50},${lineRow * 100 + 50}`).join(" ");
+                    const points = getPaylineOverlayPoints(
+                      payline,
+                      isGoldRush && currentGoldRushLineWin?.paylineId === payline.id ? currentGoldRushLineWin.positions : undefined,
+                    );
                     return <polyline className={activePaylines.has(payline.id) ? "active" : ""} points={points} key={payline.id} />;
                   })}
                 </svg>
               ) : null}
+              {isGoldRush && currentGoldRushLineWin && goldRushLineBadgeStyle && (
+                <div className="payline-payout-badge" style={goldRushLineBadgeStyle} aria-hidden="true">
+                  <span>{currentGoldRushLineWin.paylineName}</span>
+                  <strong>+{formatCoins(currentGoldRushLineWin.payout)}</strong>
+                </div>
+              )}
               {Array.from({ length: game.rowCount }, (_, row) =>
                 Array.from({ length: game.reelCount }, (_, reel) => {
                   const transformed = goldRushTransformedPositions.has(`${reel}:${row}`);
@@ -1463,8 +2016,8 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
               )}
             </>
           )}
-          <WinOverlay
-            show={Boolean(overlayResult)}
+            <WinOverlay
+            show={Boolean(overlayResult && !isGoldRush && !(isGoldRush && overlayResult.expansionBonus?.sourceFeature === "mine-clash"))}
       title={overlayResult?.triggeredExpansionBonus ? (overlayResult.expansionBonus?.sourceFeature === "mine-clash" ? "Mine Clash Complete" : "Heist Showdown Complete") : overlayResult?.triggeredWheelBonus ? "WHEEL BONUS" : overlayResult?.triggeredHoldAndWin ? (overlayResult.payout > 0 ? "Hold And Win Complete" : "Bonus Triggered") : overlayResult?.winTier === "MEGA" ? "Mega Win" : overlayResult?.winTier === "BIG" ? "Big Win" : "Win"}
             amount={overlayResult?.payout ?? 0}
             big={overlayIsBig}
@@ -1473,13 +2026,21 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
           >
             {overlayResult?.expansionBonus ? `${overlayResult.expansionBonus.multiplier}x multiplier wilds` : overlayResult?.wheelBonus ? `Wheel result: ${overlayResult.wheelBonus.segment}` : overlayResult?.holdAndWin ? `Respin rounds: ${overlayResult.holdAndWin.respinRounds.length}` : null}
           </WinOverlay>
+          {isGoldRush && overlayResult && overlayResult.payout > 0 && goldRushOverlayTier !== "none" && !overlayResult.triggeredExpansionBonus && !overlayResult.triggeredFreeSpins && (
+            <GoldRushWinOverlay
+              result={overlayResult}
+              betAmount={betAmount}
+              currencyLabel={currencyLabel}
+              onDismiss={() => setOverlayResult(null)}
+            />
+          )}
           {isGoldRush && expansionOverlayResult?.expansionBonus?.sourceFeature === "mine-clash" ? (
             <GoldRushMineClashGridOverlay
               result={expansionOverlayResult}
               reelCount={game.reelCount}
               rowCount={game.rowCount}
               onComplete={() => {
-                setOverlayResult(expansionOverlayResult);
+                setOverlayResult(null);
                 setExpansionOverlayResult(null);
                 setAnimationState("idle");
                 setUiState(expansionOverlayResult.freeSpinsAwarded > 0 ? "Free Spins" : "Win");
@@ -1518,6 +2079,8 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
               onClick={() => {
                 setGoldRushBonusOpen(true);
                 playClick();
+                startGoldRushMusic();
+                playGoldRushSound("button_tap");
               }}
               type="button"
             >
@@ -1576,7 +2139,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
               {spinMode !== "NORMAL" && <small>{formatCoins(spinCost)} total</small>}
             </div>
             <button
-              className={`slot-main-action ${inHoldAndWin ? "respin" : ""}`}
+              className={`slot-main-action ${inHoldAndWin ? "respin" : ""} ${goldRushArmedBoost ? "boost-armed" : ""}`}
               disabled={inHoldAndWin ? bonusBusy || holdState?.finished : !canSpin}
               onClick={inHoldAndWin ? respinHoldAndWin : () => spin()}
             >
@@ -1640,7 +2203,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
           </div>
           <div className="balance-line">Available: {formatCoins(balance)} {currency}</div>
           <div className="meter">
-            <span>Feature meter</span>
+            <span>Bonus Tracker</span>
             <div><i style={{ width: `${bonusMeter}%` }} /></div>
           </div>
           {freeSpins > 0 && (
@@ -1664,7 +2227,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
             </button>
             <SoundToggle className="ghost-button" />
           </div>
-          <button className="ghost-button icon-button" disabled title="Dev-only placeholder">
+          <button className="ghost-button icon-button" disabled title="Auto Spin coming soon">
             <Gauge size={15} /> Auto Spin
           </button>
           <div className="session-stats">
@@ -1680,7 +2243,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
           <section className="frontier-bet-modal" role="dialog" aria-modal="true" aria-label="Select bet amount" onClick={(event) => event.stopPropagation()}>
             <div className="frontier-bet-modal-header">
               <strong>Select Bet</strong>
-              <button className="ghost-button icon-only" onClick={() => setBetMenuOpen(false)} aria-label="Close bet selector">×</button>
+              <button className="ghost-button icon-only" onClick={() => setBetMenuOpen(false)} aria-label="Close bet selector">x</button>
             </div>
             <div className="frontier-bet-modal-grid">
               {betOptions.map((value) => (
@@ -1781,27 +2344,78 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
         </Modal>
       )}
       {goldRushBonusOpen && (
-        <Modal title="Gold Rush Bonus" onClose={() => setGoldRushBonusOpen(false)}>
+        <Modal title="Gold Rush Bonus" onClose={() => {
+          setGoldRushBonusOpen(false);
+          setGoldRushBonusSelection(null);
+        }}>
           <div className="modal-stack gold-rush-bonus-modal">
-            <p className="muted">
-              Prototype-safe bonus controls for Gold Rush Showdown. These do not change wallet, ledger, RTP, or slot math yet.
-            </p>
             <div className="gold-rush-bonus-options">
-              <button className="notice-card bonus-cost-card" type="button" onClick={() => selectGoldRushBonusPlaceholder("Mine Clash")}>
-                <span className="bonus-card-icon coin" aria-hidden="true"><Gauge size={18} /></span>
-                <span className="bonus-card-heading"><span>Mine Clash</span></span>
-                <strong>Coming Soon</strong>
-                <small>Reserved for the expanding miner-versus frame feature.</small>
-              </button>
-              <button className="notice-card bonus-cost-card" type="button" onClick={() => selectGoldRushBonusPlaceholder("Add Scatters")}>
-                <span className="bonus-card-icon scatter" aria-hidden="true"><Coins size={18} /></span>
-                <span className="bonus-card-heading"><span>Add Scatters</span></span>
-                <strong>Coming Soon</strong>
-                <small>Reserved for a future scatter/free-spins bonus option.</small>
-              </button>
+              {(game.goldRushBonusBuys?.options ?? []).map((option) => {
+                const cost = getGoldRushBonusBuyCost(game, betAmount, option.type);
+                const active = goldRushArmedBoost?.type === option.type;
+                const unavailable = balance < cost && !active;
+                return (
+                  <button
+                    className={`notice-card bonus-cost-card ${option.type === "buy-super-bonus" ? "super" : ""} ${goldRushBonusSelection === option.type ? "selected" : ""} ${active ? "armed" : ""}`}
+                    type="button"
+                    disabled={spinning || Boolean(expansionOverlayResult)}
+                    onClick={() => {
+                      setGoldRushBonusSelection(option.type);
+                      playClick();
+                      playGoldRushSound("button_tap");
+                    }}
+                    key={option.type}
+                  >
+                    <span className="bonus-card-art" aria-hidden="true">
+                      {option.image ? <img src={option.image} alt="" /> : <Coins size={34} />}
+                      {active && <em>ACTIVE</em>}
+                    </span>
+                    <span className="bonus-card-heading"><span>{option.label}</span></span>
+                    <strong className={unavailable ? "unavailable" : ""}>{formatCoins(cost)} {currencyLabel}</strong>
+                  </button>
+                );
+              })}
             </div>
+            {selectedGoldRushBonusOption && (
+              <section className="gold-rush-bonus-confirm" aria-live="polite">
+                <div>
+                  <span>{selectedGoldRushBonusOption.mode === "boost" ? "Spin Mode" : "Feature Buy"}</span>
+                  <strong>{selectedGoldRushBonusOption.label}</strong>
+                  <p>{getGoldRushBonusOptionDetail(selectedGoldRushBonusOption.type)}</p>
+                </div>
+                <div className="gold-rush-confirm-cost">
+                  <span>Cost</span>
+                  <strong>{formatCoins(selectedGoldRushBonusCost)} {currencyLabel}</strong>
+                </div>
+                {goldRushArmedBoost && goldRushArmedBoost.type !== selectedGoldRushBonusOption.type && (
+                  <p className="gold-rush-boost-warning">{goldRushArmedBoost.label} ACTIVE. Turn it off before choosing another option.</p>
+                )}
+                {balance < selectedGoldRushBonusCost && !(goldRushArmedBoost?.type === selectedGoldRushBonusOption.type) && (
+                  <p className="gold-rush-boost-warning">Balance is too low for this option.</p>
+                )}
+                <button
+                  className="primary-button"
+                  type="button"
+                  disabled={
+                    (balance < selectedGoldRushBonusCost && !(goldRushArmedBoost?.type === selectedGoldRushBonusOption.type)) ||
+                    Boolean(goldRushArmedBoost && goldRushArmedBoost.type !== selectedGoldRushBonusOption.type)
+                  }
+                  onClick={confirmGoldRushBonusSelection}
+                >
+                  {goldRushArmedBoost?.type === selectedGoldRushBonusOption.type
+                    ? "Turn Off"
+                    : selectedGoldRushBonusOption.mode === "boost"
+                      ? "Activate"
+                      : "Confirm Buy"}
+                </button>
+              </section>
+            )}
             <div className="modal-actions">
-              <button className="ghost-button" onClick={() => setGoldRushBonusOpen(false)}>Close</button>
+              <button className="ghost-button" onClick={() => {
+                setGoldRushBonusOpen(false);
+                setGoldRushBonusSelection(null);
+                playGoldRushSound("button_tap");
+              }}>Close</button>
             </div>
           </div>
         </Modal>
@@ -1878,6 +2492,52 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
           <FrontierFeatureIntroScreen
             onContinue={continueFrontierEntry}
           />
+        </div>
+      )}
+      {isGoldRush && goldRushFreeSpinSession?.introOpen && (
+        <div className="gold-rush-free-spin-layer" role="dialog" aria-modal="true" aria-label="Gold Rush Free Spins">
+          <div className="gold-rush-free-spin-panel">
+            <span>Bonus Triggered</span>
+            <strong>{goldRushFreeSpinSession.initialSpins} Free Spins</strong>
+            <p>Interior Frame Active</p>
+            <em>{goldRushFreeSpinSession.interiorColumns}x4 Mine Chamber</em>
+            <button
+              className="primary-button"
+              type="button"
+              onClick={() => {
+                setGoldRushFreeSpinSession((current) => current ? { ...current, introOpen: false } : current);
+                setUiState("Free Spins");
+                playClick();
+                playGoldRushSound("button_tap");
+              }}
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
+      {isGoldRush && goldRushFreeSpinSession?.summaryOpen && (
+        <div className="gold-rush-free-spin-layer summary" role="dialog" aria-modal="true" aria-label="Gold Rush Free Spins Complete">
+          <div className="gold-rush-free-spin-panel">
+            <span>Free Spins Complete</span>
+            <strong>{formatCoins(goldRushFreeSpinSession.totalWin)}</strong>
+            <p>{goldRushFreeSpinSession.spinsPlayed} spins played</p>
+            <em>Final Interior {goldRushFreeSpinSession.interiorColumns}x4</em>
+            <button
+              className="primary-button"
+              type="button"
+              onClick={() => {
+                setGoldRushFreeSpinSession(null);
+                setFreeSpins(0);
+                setFreeSpinTotal(0);
+                setUiState("Idle");
+                playClick();
+                playGoldRushSound("button_tap");
+              }}
+            >
+              Continue
+            </button>
+          </div>
         </div>
       )}
       {bonusResult && (

@@ -2,7 +2,8 @@ import type { Currency, User } from "../types";
 
 export type Volatility = "Low" | "Medium" | "High";
 export type BonusFeatureType = "FREE_SPINS" | "HOLD_AND_WIN" | "WHEEL_BONUS" | "PICK_BONUS" | "EXPANSION_BONUS";
-export type SpinMode = "NORMAL" | "GOLD_BOOST" | "SCATTER_BOOST";
+export type SpinMode = "NORMAL" | "GOLD_BOOST" | "SCATTER_BOOST" | "GOLD_RUSH_BONUS_BOOST" | "GOLD_RUSH_SHOWDOWN";
+export type GoldRushBonusBuyType = "bonus-plus-spins" | "showdown-spin" | "buy-bonus" | "buy-super-bonus";
 
 export interface SlotSymbol {
   id: string;
@@ -47,7 +48,7 @@ export interface SlotConfig {
     featureType: BonusFeatureType;
   };
   bonusBuys?: Array<{
-    id: "hold-and-win" | "wheel-bonus";
+    id: "hold-and-win" | "wheel-bonus" | "gold-rush-buy-bonus" | "gold-rush-buy-super-bonus";
     label: string;
     featureType: BonusFeatureType;
     costMultiplier: number;
@@ -128,6 +129,7 @@ export interface SlotConfig {
   expansionBonus?: ExpansionBonusConfig;
   goldRushVs?: GoldRushVsConfig;
   goldRushInterior?: GoldRushInteriorConfig;
+  goldRushBonusBuys?: GoldRushBonusBuyConfig;
   pickBonus: {
     triggerCount: number;
     picks: number;
@@ -170,6 +172,29 @@ export interface GoldRushInteriorConfig {
   maxInteriorColumns: number;
 }
 
+export interface GoldRushBonusBuyConfig {
+  options: Array<{
+    type: GoldRushBonusBuyType;
+    label: string;
+    costMultiplier: number;
+    mode: "boost" | "immediate";
+    image?: string;
+    forcedBonusSymbols?: 3 | 4;
+    initialFreeSpins?: number;
+    initialInteriorColumns?: number;
+    spinMode?: SpinMode;
+  }>;
+  freeSpins: {
+    initialSpins: number;
+    normalInitialInteriorColumns: number;
+    superInitialInteriorColumns: number;
+    collectThreshold: number;
+    addedSpins: number;
+    growColumns: number;
+    maxInteriorColumns: number;
+  };
+}
+
 export interface Payline {
   id: string;
   name: string;
@@ -184,6 +209,9 @@ export interface SlotSpinInput {
   freeSpin?: boolean;
   spinMode?: SpinMode;
   stickyWildPositions?: number[];
+  forcedGrid?: string[][];
+  prepaidWager?: number;
+  goldRushInteriorOverride?: GoldRushSpinMetadata["interior"];
 }
 
 export interface SlotSpinResult {
@@ -234,6 +262,7 @@ export interface GoldRushSpinMetadata {
   baseLinePayout: number;
   inactiveVsPositions: Array<{ reel: number; row: number }>;
   activeVsPosition?: { reel: number; row: number };
+  activeVsPositions?: Array<{ reel: number; row: number }>;
   vsActive: boolean;
   vsType?: "normal-column" | "interior";
   activeAreaType?: "column" | "interior";
@@ -245,6 +274,9 @@ export interface GoldRushSpinMetadata {
   vsWinningMultiplier?: number;
   vsWinnerSide?: "gold" | "diamond";
   transformedPositions?: Array<{ reel: number; row: number }>;
+  mineClashColumns?: MineClashColumnResult[];
+  activeSegments?: GoldRushMineClashSegment[];
+  multiplierWilds?: MultiplierWildPosition[];
   interior?: {
     startColumn: number;
     columns: number;
@@ -254,6 +286,46 @@ export interface GoldRushSpinMetadata {
   vsInsideInteriorCount: number;
   activeNormalVsPayout: number;
   activeInteriorVsPayout: number;
+  bonusSymbolCount?: number;
+  freeSpinsTrigger?: {
+    triggerCount: number;
+    awardedSpins: number;
+    initialInteriorColumns: number;
+    source: "natural" | "buy-bonus" | "buy-super-bonus";
+  };
+}
+
+export interface MultiplierWildPosition {
+  reel: number;
+  row: number;
+  multiplier: number;
+  winner?: "gold" | "diamond";
+}
+
+export interface MineClashColumnResult {
+  position: { reel: number; row: number };
+  reel: number;
+  multiplier: number;
+  winner: "gold" | "diamond";
+  tier: "gold-gold" | "gold-diamond" | "diamond-diamond";
+  goldMultiplier: number;
+  diamondMultiplier: number;
+  transformedPositions: Array<{ reel: number; row: number }>;
+}
+
+export interface GoldRushMineClashSegment {
+  type: "column" | "interior";
+  startReel: number;
+  width: number;
+  rowStart: number;
+  rowCount: number;
+  winner: "gold" | "diamond";
+  multiplier: number;
+  tier?: "gold-gold" | "gold-diamond" | "diamond-diamond";
+  goldMultiplier?: number;
+  diamondMultiplier?: number;
+  triggerPosition?: { reel: number; row: number };
+  transformedPositions: Array<{ reel: number; row: number }>;
 }
 
 export interface SimulationResult {
@@ -261,7 +333,7 @@ export interface SimulationResult {
   totalWagered: number;
   totalPaid: number;
   observedRtp: number;
-  modeResults?: Partial<Record<SpinMode | "BUY_HOLD_AND_WIN" | "BUY_WHEEL_BONUS", {
+  modeResults?: Partial<Record<SpinMode | "BUY_HOLD_AND_WIN" | "BUY_WHEEL_BONUS" | "GOLD_RUSH_BUY_BONUS" | "GOLD_RUSH_BUY_SUPER_BONUS", {
     totalWagered: number;
     totalPaid: number;
     observedRtp: number;
@@ -301,6 +373,15 @@ export interface SimulationResult {
   interiorSizeDistribution?: Record<string, number>;
   vsDuelTierDistribution?: Record<string, number>;
   vsMultiplierDistribution?: Record<string, number>;
+  naturalThreeBonusTriggerRate?: number;
+  naturalFourBonusTriggerRate?: number;
+  buyBonusRtp3?: number;
+  buyBonusRtp4?: number;
+  bonusPlusSpinsRtp?: number;
+  showdownSpinRtp?: number;
+  buyBonusAverageFreeSpins?: number;
+  buyBonusAverageFinalInteriorSize?: number;
+  vsInsideFreeSpinsRate?: number;
 }
 
 export interface HoldAndWinResult {
@@ -418,6 +499,9 @@ export interface ExpansionBonusResult {
     reelCount: number;
   };
   transformedPositions?: Array<{ reel: number; row: number }>;
+  mineClashColumns?: MineClashColumnResult[];
+  activeSegments?: GoldRushMineClashSegment[];
+  multiplierWilds?: MultiplierWildPosition[];
   vsActive?: boolean;
   vsType?: "normal-column" | "interior";
   activeAreaType?: "column" | "interior";
@@ -430,6 +514,7 @@ export interface ExpansionBonusResult {
   vsWinnerSide?: "gold" | "diamond";
   inactiveVsPositions?: Array<{ reel: number; row: number }>;
   activeVsPosition?: { reel: number; row: number };
+  activeVsPositions?: Array<{ reel: number; row: number }>;
   interiorColumns?: number;
   interiorStartColumn?: number;
   mineClash?: {
