@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "./AuthContext";
-import { COMPLIANCE_COPY } from "../lib/compliance";
-import { PLAYHEATER_BRAND, PlayheaterMark, PlayheaterWordmark } from "../branding/playheater";
+import { PlayheaterWordmark } from "../branding/playheater";
 
 export function AuthPage() {
   const { login, register } = useAuth();
@@ -29,13 +28,7 @@ export function AuthPage() {
   return (
     <main className="auth-shell">
       <section className="auth-panel">
-        <div className="brand-mark">
-          <PlayheaterMark />
-        </div>
         <PlayheaterWordmark className="auth-wordmark" />
-        <h1>{PLAYHEATER_BRAND.shortName}</h1>
-        <p className="auth-slogan">{PLAYHEATER_BRAND.slogan}</p>
-        <p className="muted">{COMPLIANCE_COPY}</p>
 
         <div className="segmented">
           <button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>
@@ -73,8 +66,6 @@ export function AuthPage() {
             {submitting ? "Please wait..." : mode === "login" ? "Login" : "Create Account"}
           </button>
         </form>
-
-        <p className="hint">Local HEATER admin: admin@demo.local / admin123</p>
       </section>
     </main>
   );

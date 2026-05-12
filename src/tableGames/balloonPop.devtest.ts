@@ -57,8 +57,16 @@ creditCurrency({ userId: user.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", am
 creditCurrency({ userId: user.id, type: "ADMIN_ADJUSTMENT", currency: "BONUS", amount: 100000 });
 
 const lowestDefaultPrize = pickBalloonPrize(() => 0);
-if (balloonPopConfig.blankChance !== 0 || lowestDefaultPrize.kind === "blank" || lowestDefaultPrize.multiplier !== 0.1) {
-  throw new Error("Expected default Balloon Pop math to have no blanks and a 0.1x minimum prize.");
+if (balloonPopConfig.blankChance <= 0 || lowestDefaultPrize.kind !== "blank" || lowestDefaultPrize.multiplier !== 0) {
+  throw new Error("Expected default Balloon Pop math to include zero-value blanks.");
+}
+const hasRarePrize = [
+  ...balloonPopConfig.prizeWeights,
+  ...balloonPopConfig.multiplierWeights,
+  ...balloonPopConfig.bonusWeights,
+].some((weight) => weight.value >= 10);
+if (!hasRarePrize) {
+  throw new Error("Expected default Balloon Pop math to include rare high-value prizes.");
 }
 
 function testPrize(kind: BalloonPrizeKind, multiplier: number, label = `${multiplier}x`) {
@@ -155,6 +163,15 @@ if (multiplierRound.runningTotal !== 300 || multiplierRound.balloons[1].paidAmou
   throw new Error("Expected Balloon Pop multiplier to apply to the bet.");
 }
 
+let fractionalRound = startBalloonPopRound({ userId: user.id, currency: "GOLD", betAmount: 1.25, random: () => 0.99 });
+fractionalRound = withBalloons(fractionalRound, [
+  testPrize("coin", 0.25),
+]);
+fractionalRound = popBalloon(fractionalRound, 0);
+if (fractionalRound.runningTotal !== 0.3125 || fractionalRound.balloons[0].paidAmount !== 0.3125) {
+  throw new Error("Expected Balloon Pop to keep fractional GC payouts internally.");
+}
+
 const capConfig: BalloonPopConfig = { ...balloonPopConfig, maxWinMultiplier: 2 };
 let cappedRound = startBalloonPopRound({ userId: user.id, currency: "GOLD", betAmount: 100, random: () => 0.99, config: capConfig });
 cappedRound = withBalloons(cappedRound, [
@@ -170,7 +187,6 @@ if (cappedRound.totalPaid !== 200 || !cappedRound.capped) {
 }
 
 const lowUser = "low-balloon-user";
-creditCurrency({ userId: lowUser, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: balloonPopConfig.minBet - 1 });
 try {
   startBalloonPopRound({ userId: lowUser, currency: "GOLD", betAmount: balloonPopConfig.minBet });
   throw new Error("Expected Balloon Pop to block insufficient balance.");

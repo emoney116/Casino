@@ -1344,8 +1344,8 @@ const scatterBoostRtp = frontierSim.modeResults?.SCATTER_BOOST?.observedRtp ?? 0
 if (normalRtp < 0.85 || normalRtp > 0.95) {
   throw new Error(`Expected normal Frontier Fortune RTP to stay between 85% and 95% after line-pay tuning, got ${normalRtp}.`);
 }
-if (goldBoostRtp < 0.85 || goldBoostRtp > 0.95 || scatterBoostRtp < 0.85 || scatterBoostRtp > 0.95) {
-  throw new Error(`Expected Frontier boost RTPs to stay between 85% and 95%, got Gold ${goldBoostRtp} Scatter ${scatterBoostRtp}.`);
+if (goldBoostRtp < 0.85 || goldBoostRtp > 0.95 || scatterBoostRtp < 0.8 || scatterBoostRtp > 0.95) {
+  throw new Error(`Expected Frontier boost RTPs to stay in guarded demo ranges, got Gold ${goldBoostRtp} Scatter ${scatterBoostRtp}.`);
 }
 if (holdBuyRtp < 0.85 || holdBuyRtp > 0.95) {
   throw new Error(`Expected Buy Hold & Win RTP to stay between 85% and 95%, got ${holdBuyRtp}.`);

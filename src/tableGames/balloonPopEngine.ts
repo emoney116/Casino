@@ -33,6 +33,10 @@ export interface BalloonPopConfig {
   targetRtp: number;
   minBet: number;
   maxBet: number;
+  minBetGold: number;
+  maxBetGold: number;
+  minBetSweepstakes: number;
+  maxBetSweepstakes: number;
   maxWinMultiplier: number;
   balloonCount: number;
   shotsPerRound: 3;
@@ -73,34 +77,61 @@ export const balloonPopConfig: BalloonPopConfig = {
   id: "balloonPop",
   name: "Balloon Pop",
   theme: "Carnival dart balloon wall",
-  targetRtp: 0.935,
-  minBet: 10,
-  maxBet: 500,
+  targetRtp: 0.94,
+  minBet: 1,
+  maxBet: 1000000,
+  minBetGold: 1,
+  maxBetGold: 1000000,
+  minBetSweepstakes: 0.01,
+  maxBetSweepstakes: 100,
   maxWinMultiplier: 25,
   balloonCount: 16,
   shotsPerRound: 3,
   prizeWeights: [
-    { value: 0.1, weight: 50 },
+    { value: 0.1, weight: 42 },
     { value: 0.25, weight: 31 },
-    { value: 0.5, weight: 18 },
-    { value: 1, weight: 4.5 },
-    { value: 2, weight: 0.8 },
-    { value: 5, weight: 0.09 },
+    { value: 0.5, weight: 20 },
+    { value: 1, weight: 7 },
+    { value: 2, weight: 1.6 },
+    { value: 5, weight: 0.25 },
+    { value: 10, weight: 0.05 },
+    { value: 25, weight: 0.01 },
   ],
   multiplierWeights: [
-    { value: 1.5, weight: 0.9 },
-    { value: 2, weight: 0.24 },
-    { value: 3, weight: 0.04 },
+    { value: 1.5, weight: 1.2 },
+    { value: 2, weight: 0.45 },
+    { value: 3, weight: 0.12 },
+    { value: 8, weight: 0.025 },
   ],
   bonusWeights: [
-    { value: 0.75, weight: 1.1 },
-    { value: 1.25, weight: 0.52 },
-    { value: 2.5, weight: 0.08 },
+    { value: 0.75, weight: 1.5 },
+    { value: 1.25, weight: 0.75 },
+    { value: 2.5, weight: 0.18 },
+    { value: 12, weight: 0.02 },
   ],
-  blankChance: 0,
+  blankChance: 0.21,
 };
 
-const balloonColors = ["red", "yellow", "blue", "green", "pink", "orange", "teal", "purple"];
+const balloonColors = [
+  "red",
+  "gold",
+  "blue",
+  "green",
+  "purple",
+  "green",
+  "blue",
+  "red",
+  "gold",
+  "purple",
+  "blue",
+  "green",
+  "red",
+  "gold",
+  "purple",
+  "red",
+  "blue",
+  "green",
+];
 
 function pickWeighted(weights: BalloonWeight[], random: () => number) {
   const totalWeight = weights.reduce((sum, item) => sum + item.weight, 0);
@@ -113,9 +144,18 @@ function pickWeighted(weights: BalloonWeight[], random: () => number) {
 }
 
 export function assertBalloonPopBet(userId: string, currency: Currency, amount: number, config = balloonPopConfig) {
-  if (!Number.isFinite(amount) || amount < config.minBet) throw new Error(`Minimum bet is ${config.minBet} coins.`);
-  if (amount > config.maxBet) throw new Error(`Maximum bet is ${config.maxBet} coins.`);
+  const limits = getBalloonPopBetLimits(currency, config);
+  const label = currency === "BONUS" ? "SC" : "GC";
+  if (!Number.isFinite(amount) || amount < limits.minBet) throw new Error(`Minimum ${label} bet is ${limits.minBet}.`);
+  if (amount > limits.maxBet) throw new Error(`Maximum ${label} bet is ${limits.maxBet}.`);
   if (getBalance(userId, currency) < amount) throw new Error("Insufficient balance for Balloon Pop.");
+}
+
+export function getBalloonPopBetLimits(currency: Currency, config = balloonPopConfig) {
+  if (currency === "BONUS") {
+    return { minBet: config.minBetSweepstakes, maxBet: config.maxBetSweepstakes };
+  }
+  return { minBet: config.minBetGold, maxBet: config.maxBetGold };
 }
 
 export function pickBalloonPrize(random = Math.random, config = balloonPopConfig): BalloonPrize {
@@ -152,13 +192,13 @@ export function createBalloonPrizeMap(random = Math.random, config = balloonPopC
 }
 
 function capForBet(betAmount: number, config: BalloonPopConfig) {
-  return Math.round(betAmount * config.maxWinMultiplier);
+  return betAmount * config.maxWinMultiplier;
 }
 
 function getPrizePaidAmount(prize: BalloonPrize, betAmount: number, currentTotal: number) {
   if (prize.kind === "blank") return 0;
   void currentTotal;
-  return Math.max(0, Math.round(betAmount * prize.multiplier));
+  return Math.max(0, betAmount * prize.multiplier);
 }
 
 export function startBalloonPopRound({

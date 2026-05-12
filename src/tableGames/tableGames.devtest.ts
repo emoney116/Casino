@@ -33,7 +33,8 @@ import { americanWheel, getRouletteInsideChipPosition, getRouletteWinningZones, 
 import { getDiceReturnMultiplier, resolveDiceBet } from "./diceEngine";
 import { cashOutCrashRound, crashCrashRound, generateCrashPoint, getCrashMultiplier, startCrashRound } from "./crashEngine";
 import { cashOutTreasureDigRound, createTreasureMultiplierTiles, createTreasureTrapIndexes, getTreasureDigMultiplier, getTreasurePotentialMaxMultiplier, pickTreasureTile, startTreasureDigRound } from "./treasureDigEngine";
-import { applyBrickBreakStep, brickBreakBonusConfig, createBrickBreakHitList, createBrickBreakReplaySteps, createBrickBreakShowcases, generateBrickBreakResult, isBrickExposed, pickBrickBreakOutcome, simulateBrickBreakBonus } from "./brickBreakBonusEngine";
+import { applyBrickBreakStep, brickBreakBonusConfig, createBrickBreakHitList, createBrickBreakReplaySteps, createBrickBreakShowcases, generateBrickBreakResult, getBrickBreakBetLimits, isBrickExposed, pickBrickBreakOutcome, simulateBrickBreakBonus } from "./brickBreakBonusEngine";
+import { getBalloonPopBetLimits } from "./balloonPopEngine";
 import { assertTableBet } from "./ledger";
 import { simulateTableGame } from "./tableMath";
 import type { PlayingCard } from "./types";
@@ -874,7 +875,22 @@ const oneXBrickSpread = createBrickBreakHitList({ betAmount: 10, desiredMultipli
 if (oneXBrickSpread.length < 4 || oneXBrickSpread.reduce((sum, hit) => sum + hit.amount, 0) !== 10) {
   throw new Error("Expected Brick Break Bonus to split some payouts into multiple small prize bricks without changing payout.");
 }
-const multiHitBrick = { id: "test-brick", brickIndex: 24, multiplier: 5, amount: 500, bonusBall: false, breakType: "full" as const, hitsRequired: 3 };
+const explosiveBrickHits = createBrickBreakHitList({ betAmount: 100, desiredMultiplier: 5, random: () => 0 });
+const explosiveSource = explosiveBrickHits.find((hit) => hit.effect === "explosive");
+const explosiveBlastHits = explosiveBrickHits.filter((hit) => hit.effect === "blast");
+if (!explosiveSource || explosiveBlastHits.length === 0 || explosiveBrickHits.reduce((sum, hit) => sum + hit.amount, 0) !== 500) {
+  throw new Error("Expected rare Brick Break Bonus explosive brick to break nearby bricks without adding payout beyond the selected outcome.");
+}
+const explosiveSteps = createBrickBreakReplaySteps(explosiveBrickHits);
+const explosiveFinalStep = explosiveSteps.find((step) => step.brickId === explosiveSource.id && step.revealsPrize);
+if (!explosiveFinalStep || explosiveFinalStep.blastBrickIndexes.length !== explosiveBlastHits.length) {
+  throw new Error("Expected explosive Brick Break Bonus replay step to destroy adjacent blast bricks.");
+}
+const explosiveReplayTotal = explosiveSteps.reduce((sum, step) => applyBrickBreakStep(sum, step), 0);
+if (explosiveReplayTotal !== 500) {
+  throw new Error("Expected explosive Brick Break Bonus replay payout to preserve RTP-accounted total.");
+}
+const multiHitBrick = { id: "test-brick", brickIndex: 24, multiplier: 5, amount: 500, bonusBall: false, effect: "normal" as const, breakType: "full" as const, hitsRequired: 3 };
 if (multiHitBrick.hitsRequired !== 3) {
   throw new Error("Expected rare Brick Break Bonus bricks to require multiple cracks.");
 }
@@ -920,6 +936,21 @@ if (brickSim.observedRtp > 0.95 || brickBreakBonusConfig.targetRtp > 0.95) {
 if (!Number.isFinite(brickSim.averagePayout) || !Number.isFinite(brickSim.bustRate) || !Number.isFinite(brickSim.averageBricksHit)) {
   throw new Error("Expected Brick Break Bonus simulation to expose admin stats.");
 }
+const brickGoldLimits = getBrickBreakBetLimits("GOLD");
+const brickSweepstakesLimits = getBrickBreakBetLimits("BONUS");
+const balloonGoldLimits = getBalloonPopBetLimits("GOLD");
+const balloonSweepstakesLimits = getBalloonPopBetLimits("BONUS");
+if (
+  brickGoldLimits.minBet !== balloonGoldLimits.minBet ||
+  brickGoldLimits.maxBet !== balloonGoldLimits.maxBet ||
+  brickSweepstakesLimits.minBet !== balloonSweepstakesLimits.minBet ||
+  brickSweepstakesLimits.maxBet !== balloonSweepstakesLimits.maxBet
+) {
+  throw new Error("Expected Brick Break Bonus bet limits to match Balloon Pop.");
+}
+if (brickBreakBonusConfig.maxPayout < brickBreakBonusConfig.maxBetGold * brickBreakBonusConfig.maxWinMultiplier) {
+  throw new Error("Expected Brick Break Bonus payout cap to preserve max-bet RTP.");
+}
 const brickBetCountBefore = getTransactions(user.id).filter((tx) => tx.type === "ARCADE_BET").length;
 const brickWinCountBefore = getTransactions(user.id).filter((tx) => tx.type === "ARCADE_WIN").length;
 creditCurrency({ userId: user.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 1000 });
@@ -936,6 +967,15 @@ if (replayPayout !== brickRound.totalPaid) {
 }
 if (brickRound.showcaseBricks.reduce((sum, showcase) => sum + showcase.amount, 0) + replayPayout === brickRound.totalPaid) {
   throw new Error("Expected Brick Break Bonus post-round showcase to not alter predetermined payout.");
+}
+if (brickRound.boardBricks.length !== 30) {
+  throw new Error("Expected Brick Break Bonus to generate a full per-round brick layout.");
+}
+if (!brickRound.boardBricks.some((brick) => brick.multiplier <= 0.5) || !brickRound.boardBricks.some((brick) => brick.multiplier >= 25)) {
+  throw new Error("Expected Brick Break Bonus round layout to mix low and high value brick colors.");
+}
+if (brickRound.boardBricks.some((brick) => brick.kind === "paid" && !brickRound.hitList.some((hit) => hit.brickIndex === brick.brickIndex))) {
+  throw new Error("Expected Brick Break Bonus paid board bricks to match the revealed hit list.");
 }
 if (getBalance(user.id, "GOLD") !== brickGoldBefore - 100 + brickRound.totalPaid) {
   throw new Error("Expected Brick Break Bonus play to debit bet and credit payout through wallet ledger.");
@@ -959,7 +999,7 @@ if (brickBust.totalPaid !== 0 || !brickBust.bust || brickBust.transactions.some(
   throw new Error("Expected Brick Break Bonus bust to lose wager without crediting a win.");
 }
 const lowBrickUser = "low-brick-break-user";
-creditCurrency({ userId: lowBrickUser, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: brickBreakBonusConfig.minBet - 1 });
+creditCurrency({ userId: lowBrickUser, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: brickBreakBonusConfig.minBet / 2 });
 try {
   generateBrickBreakResult({ userId: lowBrickUser, currency: "GOLD", betAmount: brickBreakBonusConfig.minBet });
   throw new Error("Expected Brick Break Bonus to block insufficient balance.");
@@ -972,7 +1012,8 @@ if (
   !brickBreakBonusUiMarkers.noSkillAutoplay ||
   !brickBreakBonusUiMarkers.cpuPaddle ||
   !brickBreakBonusUiMarkers.deterministicReplay ||
-  !brickBreakBonusUiMarkers.hiddenBrickValues ||
+  !brickBreakBonusUiMarkers.colorCodedBrickValues ||
+  !brickBreakBonusUiMarkers.activeBrickValueLabelsHidden ||
   !brickBreakBonusUiMarkers.runningWinningsMeter ||
   !brickBreakBonusUiMarkers.bottomToTopBreakOrder ||
   !brickBreakBonusUiMarkers.stagedBrickBreaks ||
@@ -982,6 +1023,10 @@ if (
   !brickBreakBonusUiMarkers.exposedBrickRule ||
   !brickBreakBonusUiMarkers.prizeRevealAfterFinalCrack ||
   !brickBreakBonusUiMarkers.actualMultiplierBricks ||
+  !brickBreakBonusUiMarkers.explosiveBrickTier ||
+  !brickBreakBonusUiMarkers.explosiveBrickBlast ||
+  !brickBreakBonusUiMarkers.explosiveBlastRtpAccounted ||
+  !brickBreakBonusUiMarkers.jackpotBrickTier ||
   !brickBreakBonusUiMarkers.postRoundShowcase ||
   !brickBreakBonusUiMarkers.postRoundAllBrickValues ||
   !brickBreakBonusUiMarkers.noBadBeatCopy ||
@@ -991,10 +1036,11 @@ if (
   !brickBreakBonusUiMarkers.postRoundBrokenContrast ||
   !brickBreakBonusUiMarkers.obviousCpuMiss ||
   !brickBreakBonusUiMarkers.compactBottomBetControls ||
+  !brickBreakBonusUiMarkers.sharedInfoButton ||
   !brickBreakBonusUiMarkers.rtpUnder95Warning ||
   !brickBreakBonusUiMarkers.sharedSoundToggle
 ) {
-  throw new Error("Expected Brick Break Bonus UI markers for no-skill autoplay, hidden brick values, replay, currency, RTP, and compact betting.");
+  throw new Error("Expected Brick Break Bonus UI markers for no-skill autoplay, color-coded brick values, replay, rare brick tiers, currency, RTP, and compact betting.");
 }
 
 console.log("tableGames.devtest passed");
