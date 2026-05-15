@@ -35,6 +35,8 @@ export interface PlayingCard {
 }
 
 export interface BlackjackConfig extends TableGameConfig {
+  minBetSweepstakes: number;
+  maxBetSweepstakes: number;
   dealerHitsSoft17: boolean;
   blackjackPayout: number;
   allowDouble: boolean;

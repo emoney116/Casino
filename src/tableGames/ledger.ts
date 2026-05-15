@@ -10,7 +10,7 @@ export function assertTableBet(userId: string, currency: Currency, amount: numbe
   if (amount > config.maxBet) {
     throw new Error(`Maximum bet is ${config.maxBet} coins.`);
   }
-  if (amount > DEMO_MAX_SINGLE_BET && config.id !== "roulette") {
+  if (amount > DEMO_MAX_SINGLE_BET && config.id !== "roulette" && config.id !== "blackjack") {
     throw new Error(`Demo maximum single bet is ${DEMO_MAX_SINGLE_BET} coins.`);
   }
   if (getBalance(userId, currency) < amount) {
@@ -53,7 +53,7 @@ export function settleTableResult({
   metadata?: Record<string, unknown>;
 }): TableSettlement {
   const transactions: Transaction[] = [];
-  const cappedPaid = capDemoPayout(Math.min(Math.max(0, Math.round(amountPaid)), config.maxPayout));
+  const cappedPaid = capDemoPayout(Math.min(Math.max(0, amountPaid), config.maxPayout));
   const baseMetadata = { tableGameId: config.id, tableGame: config.name, wagered, ...metadata };
 
   if (result === "WIN" && cappedPaid > 0) {

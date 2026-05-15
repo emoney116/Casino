@@ -1,5 +1,4 @@
 import type { Currency } from "../types";
-import { DEMO_MAX_TOTAL_BET } from "../economy/limits";
 import { rouletteConfig } from "./configs";
 import { placeTableBet, settleTableResult } from "./ledger";
 import type { RouletteBet, RouletteConfig, RouletteResult } from "./types";
@@ -56,6 +55,7 @@ export interface PlacedRouletteBet {
 }
 
 export function rouletteBetLabel(bet: RouletteBet) {
+  const numbers = "numbers" in bet ? sortRouletteLabelNumbers(bet.numbers) : [];
   if (bet.kind === "straight") return `Straight ${bet.value}`;
   if (bet.kind === "color") return bet.value === "red" ? "Red" : "Black";
   if (bet.kind === "parity") return bet.value === "odd" ? "Odd" : "Even";
@@ -63,7 +63,21 @@ export function rouletteBetLabel(bet: RouletteBet) {
   if (bet.kind === "dozen") return `${bet.value === 1 ? "1st" : bet.value === 2 ? "2nd" : "3rd"} 12`;
   if (bet.kind === "column") return `${bet.value === 1 ? "1st" : bet.value === 2 ? "2nd" : "3rd"} Column`;
   if (bet.kind === "basket") return "Top Line";
-  return `${bet.kind} ${bet.numbers.join("-")}`;
+  if (bet.kind === "split") return `Split ${numbers.join("/")}`;
+  if (bet.kind === "corner") return `Corner ${numbers.join("/")}`;
+  if (bet.kind === "street") return `Street ${numbers[0]}-${numbers[numbers.length - 1]}`;
+  if (bet.kind === "sixLine") return `6-Street ${numbers[0]}-${numbers[numbers.length - 1]}`;
+  return "Roulette bet";
+}
+
+function sortRouletteLabelNumbers(numbers: Array<"0" | "00" | number>) {
+  return [...numbers].sort((a, b) => rouletteLabelOrder(a) - rouletteLabelOrder(b));
+}
+
+function rouletteLabelOrder(value: "0" | "00" | number) {
+  if (value === "0") return 0;
+  if (value === "00") return 0.5;
+  return value;
 }
 
 export function rouletteBetKey(bet: RouletteBet) {
@@ -117,7 +131,6 @@ export function numberStreetStart(number: number) {
 
 export function assertRouletteTotal(total: number, config = rouletteConfig) {
   if (total > config.maxTotalBetGold) throw new Error(`Maximum total roulette bet is ${config.maxTotalBetGold} coins.`);
-  if (total > DEMO_MAX_TOTAL_BET) throw new Error(`Demo maximum total roulette bet is ${DEMO_MAX_TOTAL_BET} coins.`);
 }
 
 export function resolveRouletteBets({

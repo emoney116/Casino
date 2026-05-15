@@ -111,6 +111,11 @@ export function playCrashTick(multiplier = 1) { mark("playCrashTick"); tone(Math
 export function playCrashCashOut() { mark("playCrashCashOut"); tone(620, 0.07, 0.024); tone(920, 0.08, 0.022, 0.06); }
 export function playCrashSound() { mark("playCrashSound"); tone(170, 0.08, 0.024); tone(85, 0.16, 0.022, 0.07); }
 export function playRouletteTick(step = 1) { mark("playRouletteTick"); tone(Math.min(900, 360 + step * 26), 0.018, 0.008); }
+export function playRouletteChipPlace() { mark("playRouletteChipPlace"); tone(580, 0.024, 0.018); tone(310, 0.035, 0.011, 0.018); }
+export function playRouletteSpinStart() { mark("playRouletteSpinStart"); swoosh(180, 520, 0.32, 0.018); tone(130, 0.09, 0.018); tone(260, 0.11, 0.014, 0.08); }
+export function playRouletteBounce(step = 1) { mark("playRouletteBounce"); tone(760 + step * 52, 0.026, 0.014); tone(390 + step * 24, 0.022, 0.009, 0.018); }
+export function playRouletteReveal() { mark("playRouletteReveal"); tone(460, 0.065, 0.018); tone(680, 0.075, 0.018, 0.07); tone(940, 0.09, 0.016, 0.15); }
+export function playRoulettePayout() { mark("playRoulettePayout"); tone(720, 0.055, 0.02); tone(980, 0.07, 0.018, 0.055); tone(1220, 0.08, 0.016, 0.125); }
 export function playDartThrow() { mark("playDartThrow"); swoosh(860, 260, 0.12, 0.013); }
 export function playBalloonPop() { mark("playBalloonPop"); tone(760, 0.026, 0.024); tone(240, 0.05, 0.014, 0.018); }
 export function playConfettiBurst() { mark("playConfettiBurst"); tone(920, 0.04, 0.018); tone(1180, 0.045, 0.015, 0.035); }

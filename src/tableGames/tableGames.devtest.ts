@@ -11,7 +11,9 @@ import {
   canOfferInsurance,
   canSplitBlackjack,
   createShoe,
+  declineEvenMoneyBlackjack,
   doubleDownBlackjack,
+  getBlackjackBetLimits,
   hitBlackjack,
   handValue,
   resolveInsuranceBlackjack,
@@ -39,7 +41,29 @@ import { assertTableBet } from "./ledger";
 import { simulateTableGame } from "./tableMath";
 import type { PlayingCard } from "./types";
 import { blackjackCleanUxMarkers } from "./BlackjackPageClean";
-import { rouletteUiMarkers } from "./RoulettePage";
+import {
+  ChipSelector,
+  ChipStack,
+  CurrentBetsSummary,
+  RouletteLastFiveNumbers,
+  RouletteWheel,
+  getBetAnchor,
+  getNextRouletteHistory,
+  getRouletteBoardBetsForLifecycle,
+  getRouletteLastWinAmount,
+  getRouletteResultOverlayCopy,
+  getRouletteWheelMotion,
+  getRouletteWheelPocketIndex,
+  getRouletteWheelTargetRotation,
+  isRouletteInteractionLocked,
+  rouletteResultTiming,
+  rouletteSpinLifecycleStates,
+  rouletteUiMarkers,
+  shouldShowRouletteBetFlash,
+  shouldShowRouletteResultOverlay,
+  shouldShowRouletteSettledBets,
+  shouldShowRouletteWinningZones,
+} from "./RoulettePage";
 import { overUnderUiMarkers } from "./DicePage";
 import { crashUiMarkers } from "./CrashPage";
 import { treasureDigUiMarkers } from "./TreasureDigPage";
@@ -166,6 +190,236 @@ function card(rank: PlayingCard["rank"], suit: PlayingCard["suit"] = "S"): Playi
   return { rank, suit };
 }
 
+function bjDeck(player: [PlayingCard, PlayingCard], dealer: [PlayingCard, PlayingCard], draws: PlayingCard[] = []) {
+  return [player[0], player[1], dealer[0], dealer[1], ...draws];
+}
+
+function deterministicBlackjackConfig(overrides: Partial<typeof blackjackConfig> = {}) {
+  return { ...blackjackConfig, dealerAdvantageAssistRate: 0, ...overrides };
+}
+
+function seedBlackjackUser(userId: string, balances: { GOLD?: number; BONUS?: number }) {
+  updateData((data) => {
+    data.users.push({
+      ...user,
+      id: userId,
+      email: `${userId}@test.local`,
+      username: userId,
+    });
+    data.walletBalances[userId] = {
+      GOLD: balances.GOLD ?? 0,
+      BONUS: balances.BONUS ?? 0,
+    };
+  });
+}
+
+function blackjackTransactions(userId: string, type?: "TABLE_BET" | "TABLE_WIN" | "TABLE_PUSH" | "TABLE_LOSS" | "TABLE_REFUND") {
+  const transactions = getTransactions(userId);
+  return type ? transactions.filter((transaction) => transaction.type === type) : transactions;
+}
+
+const blackjackGoldLimits = getBlackjackBetLimits("GOLD");
+const blackjackSweepstakesLimits = getBlackjackBetLimits("BONUS");
+if (
+  blackjackGoldLimits.minBet !== 1 ||
+  blackjackGoldLimits.maxBet !== 1000000 ||
+  blackjackSweepstakesLimits.minBet !== 0.01 ||
+  blackjackSweepstakesLimits.maxBet !== 200
+) {
+  throw new Error("Expected Blackjack initial bet limits to be GC 1-1,000,000 and SC 0.01-200.");
+}
+
+const blackjackLimitConfig = deterministicBlackjackConfig();
+seedBlackjackUser("bj-limit-user", { GOLD: 3000000, BONUS: 500 });
+try {
+  startBlackjackRound({ userId: "bj-limit-user", currency: "GOLD", betAmount: 0.5, deck: bjDeck([card("10"), card("8")], [card("9"), card("7")]), config: blackjackLimitConfig });
+  throw new Error("Expected GC deal below min to be blocked.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("Minimum GC bet")) throw error;
+}
+try {
+  startBlackjackRound({ userId: "bj-limit-user", currency: "GOLD", betAmount: 1000001, deck: bjDeck([card("10"), card("8")], [card("9"), card("7")]), config: blackjackLimitConfig });
+  throw new Error("Expected GC deal above max to be blocked.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("Maximum GC bet")) throw error;
+}
+try {
+  startBlackjackRound({ userId: "bj-limit-user", currency: "BONUS", betAmount: 0.009, deck: bjDeck([card("10"), card("8")], [card("9"), card("7")]), config: blackjackLimitConfig });
+  throw new Error("Expected SC deal below min to be blocked.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("Minimum SC bet")) throw error;
+}
+try {
+  startBlackjackRound({ userId: "bj-limit-user", currency: "BONUS", betAmount: 201, deck: bjDeck([card("10"), card("8")], [card("9"), card("7")]), config: blackjackLimitConfig });
+  throw new Error("Expected SC deal above max to be blocked.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("Maximum SC bet")) throw error;
+}
+try {
+  startBlackjackRound({ userId: "bj-empty-user", currency: "GOLD", betAmount: 1, deck: bjDeck([card("10"), card("8")], [card("9"), card("7")]), config: blackjackLimitConfig });
+  throw new Error("Expected deal to block insufficient balance.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("Insufficient")) throw error;
+}
+const maxBetRound = startBlackjackRound({
+  userId: "bj-limit-user",
+  currency: "GOLD",
+  betAmount: blackjackGoldLimits.maxBet,
+  deck: bjDeck([card("5"), card("6")], [card("9"), card("7")], [card("10"), card("6")]),
+  config: blackjackLimitConfig,
+});
+if (getBalance("bj-limit-user", "GOLD") !== 2000000 || blackjackTransactions("bj-limit-user", "TABLE_BET").filter((tx) => tx.metadata?.action === "deal").length !== 1) {
+  throw new Error("Expected max GC deal to debit the initial bet exactly once.");
+}
+if (!canDoubleBlackjack(maxBetRound, "bj-limit-user", blackjackLimitConfig)) {
+  throw new Error("Expected double to remain available on a max initial Blackjack bet when balance covers the extra wager.");
+}
+const maxBetDouble = doubleDownBlackjack(maxBetRound, "bj-limit-user", blackjackLimitConfig);
+if (maxBetDouble.totalBet !== 2000000 || getBalance("bj-limit-user", "GOLD") < 0) {
+  throw new Error("Expected max-bet double to add one extra table bet without a negative balance.");
+}
+
+seedBlackjackUser("bj-edge-user", { GOLD: 100000, BONUS: 1000 });
+const edgeConfig = deterministicBlackjackConfig();
+const betOnceBefore = getBalance("bj-edge-user", "GOLD");
+const betOnceRound = startBlackjackRound({ userId: "bj-edge-user", currency: "GOLD", betAmount: 100, deck: bjDeck([card("10"), card("8")], [card("9"), card("7")]), config: edgeConfig });
+if (getBalance("bj-edge-user", "GOLD") !== betOnceBefore - 100 || blackjackTransactions("bj-edge-user", "TABLE_BET").filter((tx) => tx.metadata?.action === "deal").length !== 1) {
+  throw new Error("Expected initial Blackjack deal to create one bet debit.");
+}
+const nextRound = startBlackjackRound({ userId: "bj-edge-user", currency: "GOLD", betAmount: 100, deck: bjDeck([card("9"), card("9")], [card("8"), card("8")]), config: edgeConfig });
+if (nextRound.id === betOnceRound.id || nextRound.dealerRevealed || nextRound.playerHands.length !== 1 || nextRound.playerHands[0].cards.length !== 2) {
+  throw new Error("Expected a new Blackjack round to reset dealer/player state cleanly.");
+}
+
+const fractionalNatural = startBlackjackRound({ userId: "bj-edge-user", currency: "GOLD", betAmount: 25, deck: bjDeck([card("A"), card("K")], [card("9"), card("8")]), config: edgeConfig });
+if (fractionalNatural.result?.amountPaid !== 62.5 || fractionalNatural.playerHands[0].result?.profit !== 37.5) {
+  throw new Error("Expected 3:2 Blackjack payout to preserve fractional half-bet payouts.");
+}
+const tenUpcardNatural = startBlackjackRound({ userId: "bj-edge-user", currency: "GOLD", betAmount: 100, deck: bjDeck([card("A"), card("K")], [card("10"), card("6")], [card("10")]), config: edgeConfig });
+if (tenUpcardNatural.result?.amountPaid !== 250 || tenUpcardNatural.dealerCards.length !== 2 || !tenUpcardNatural.playerHands[0].result?.transactions.some((tx) => tx.metadata?.blackjack)) {
+  throw new Error("Expected natural blackjack to pay 3:2 without drawing dealer cards after a non-blackjack ten upcard.");
+}
+const scNatural = startBlackjackRound({ userId: "bj-edge-user", currency: "BONUS", betAmount: 0.01, deck: bjDeck([card("A"), card("K")], [card("9"), card("8")]), config: edgeConfig });
+if (scNatural.result?.amountPaid !== 0.03 || getBalance("bj-edge-user", "BONUS") <= 999.99) {
+  throw new Error("Expected SC Blackjack min-bet payout to preserve cents.");
+}
+
+const dealerAceBlackjack = startBlackjackRound({ userId: "bj-edge-user", currency: "GOLD", betAmount: 100, deck: bjDeck([card("10"), card("8")], [card("A"), card("K")]), config: edgeConfig });
+if (dealerAceBlackjack.status !== "PLAYER_TURN" || dealerAceBlackjack.dealerRevealed || !canOfferInsurance(dealerAceBlackjack, edgeConfig, "bj-edge-user")) {
+  throw new Error("Expected dealer Ace blackjack to offer insurance before reveal.");
+}
+const declinedInsurance = resolveInsuranceBlackjack(dealerAceBlackjack, "bj-edge-user", false, edgeConfig);
+if (declinedInsurance.status !== "RESOLVED" || declinedInsurance.result?.result !== "LOSS" || !declinedInsurance.dealerRevealed) {
+  throw new Error("Expected declining insurance against dealer blackjack to reveal and resolve.");
+}
+const aceBlackjackPushOffer = startBlackjackRound({ userId: "bj-edge-user", currency: "GOLD", betAmount: 100, deck: bjDeck([card("A"), card("K")], [card("A"), card("Q")]), config: edgeConfig });
+if (!canOfferEvenMoney(aceBlackjackPushOffer, edgeConfig) || aceBlackjackPushOffer.status !== "PLAYER_TURN") {
+  throw new Error("Expected player blackjack against dealer Ace to offer even money before reveal.");
+}
+const declinedEvenMoney = declineEvenMoneyBlackjack(aceBlackjackPushOffer, "bj-edge-user", edgeConfig);
+if (declinedEvenMoney.status !== "RESOLVED" || declinedEvenMoney.result?.result !== "PUSH") {
+  throw new Error("Expected declining even money against dealer blackjack to resolve as a push.");
+}
+const acceptedEvenMoneyEdge = acceptEvenMoneyBlackjack(
+  startBlackjackRound({ userId: "bj-edge-user", currency: "GOLD", betAmount: 100, deck: bjDeck([card("A"), card("K")], [card("A"), card("9")]), config: edgeConfig }),
+  "bj-edge-user",
+  edgeConfig,
+);
+if (acceptedEvenMoneyEdge.result?.amountPaid !== 200 || acceptedEvenMoneyEdge.status !== "RESOLVED") {
+  throw new Error("Expected even money acceptance to pay 1:1 and resolve immediately.");
+}
+
+const dealerHitsBelow17 = standBlackjack(startBlackjackRound({ userId: "bj-edge-user", currency: "GOLD", betAmount: 100, deck: bjDeck([card("10"), card("8")], [card("10"), card("6")], [card("5")]), config: edgeConfig }), "bj-edge-user", edgeConfig);
+if (dealerHitsBelow17.dealerCards.length !== 3 || handValue(dealerHitsBelow17.dealerCards).total !== 21) {
+  throw new Error("Expected dealer to hit below 17.");
+}
+const dealerHard17 = standBlackjack(startBlackjackRound({ userId: "bj-edge-user", currency: "GOLD", betAmount: 100, deck: bjDeck([card("10"), card("8")], [card("10"), card("7")], [card("5")]), config: edgeConfig }), "bj-edge-user", edgeConfig);
+if (dealerHard17.dealerCards.length !== 2 || handValue(dealerHard17.dealerCards).total !== 17) {
+  throw new Error("Expected dealer to stand on hard 17.");
+}
+const dealerSoft17Hit = standBlackjack(startBlackjackRound({ userId: "bj-edge-user", currency: "GOLD", betAmount: 100, deck: bjDeck([card("10"), card("8")], [card("6"), card("A")], [card("2")]), config: edgeConfig }), "bj-edge-user", edgeConfig);
+if (dealerSoft17Hit.dealerCards.length !== 3 || handValue(dealerSoft17Hit.dealerCards).total !== 19) {
+  throw new Error("Expected dealer to hit soft 17 when configured.");
+}
+const dealerSoft17Stand = standBlackjack(startBlackjackRound({
+  userId: "bj-edge-user",
+  currency: "GOLD",
+  betAmount: 100,
+  deck: bjDeck([card("10"), card("8")], [card("6"), card("A")], [card("2")]),
+  config: deterministicBlackjackConfig({ dealerHitsSoft17: false }),
+}), "bj-edge-user", deterministicBlackjackConfig({ dealerHitsSoft17: false }));
+if (dealerSoft17Stand.dealerCards.length !== 2 || handValue(dealerSoft17Stand.dealerCards).total !== 17) {
+  throw new Error("Expected dealer to stand on soft 17 when configured.");
+}
+const playerBustNoDealerDraw = hitBlackjack(startBlackjackRound({ userId: "bj-edge-user", currency: "GOLD", betAmount: 100, deck: bjDeck([card("10"), card("6")], [card("10"), card("6")], [card("9"), card("5")]), config: edgeConfig }), "bj-edge-user", edgeConfig);
+if (playerBustNoDealerDraw.status !== "RESOLVED" || playerBustNoDealerDraw.dealerCards.length !== 2 || playerBustNoDealerDraw.result?.result !== "LOSS") {
+  throw new Error("Expected player bust to reveal dealer without drawing extra dealer cards.");
+}
+const hitAfterResolvedCount = blackjackTransactions("bj-edge-user").length;
+const hitAfterResolved = hitBlackjack(playerBustNoDealerDraw, "bj-edge-user", edgeConfig);
+if (hitAfterResolved !== playerBustNoDealerDraw || blackjackTransactions("bj-edge-user").length !== hitAfterResolvedCount) {
+  throw new Error("Expected hit after round completion to be a no-op with no ledger entries.");
+}
+
+const doubleWin = doubleDownBlackjack(startBlackjackRound({ userId: "bj-edge-user", currency: "GOLD", betAmount: 100, deck: bjDeck([card("5"), card("6")], [card("10"), card("6")], [card("10"), card("6")]), config: edgeConfig }), "bj-edge-user", edgeConfig);
+if (doubleWin.playerHands[0].cards.length !== 3 || doubleWin.playerHands[0].result?.amountPaid !== 400 || doubleWin.result?.result !== "WIN") {
+  throw new Error("Expected double win to draw once, auto-stand, and pay on the doubled wager.");
+}
+const doubleLoss = doubleDownBlackjack(startBlackjackRound({ userId: "bj-edge-user", currency: "GOLD", betAmount: 100, deck: bjDeck([card("5"), card("6")], [card("10"), card("9")], [card("2")]), config: edgeConfig }), "bj-edge-user", edgeConfig);
+if (doubleLoss.playerHands[0].result?.amountPaid !== 0 || doubleLoss.result?.result !== "LOSS") {
+  throw new Error("Expected double loss to lose both wagers.");
+}
+const doublePush = doubleDownBlackjack(startBlackjackRound({ userId: "bj-edge-user", currency: "GOLD", betAmount: 100, deck: bjDeck([card("5"), card("6")], [card("10"), card("6")], [card("10"), card("5")]), config: edgeConfig }), "bj-edge-user", edgeConfig);
+if (doublePush.playerHands[0].result?.amountPaid !== 200 || doublePush.result?.result !== "PUSH") {
+  throw new Error("Expected double push to return the doubled stake.");
+}
+
+let splitBustWin = splitBlackjack(startBlackjackRound({ userId: "bj-edge-user", currency: "GOLD", betAmount: 100, deck: bjDeck([card("8"), card("8")], [card("10"), card("6")], [card("K"), card("3"), card("10"), card("10"), card("10")]), config: edgeConfig }), "bj-edge-user", edgeConfig);
+splitBustWin = hitBlackjack(splitBustWin, "bj-edge-user", edgeConfig);
+if (splitBustWin.activeHandIndex !== 1 || splitBustWin.playerHands[0].status !== "BUST" || splitBustWin.playerHands[1].status !== "ACTIVE") {
+  throw new Error("Expected one busted split hand to advance without affecting the other hand.");
+}
+splitBustWin = hitBlackjack(splitBustWin, "bj-edge-user", edgeConfig);
+splitBustWin = standBlackjack(splitBustWin, "bj-edge-user", edgeConfig);
+if (splitBustWin.playerHands[0].result?.result !== "LOSS" || splitBustWin.playerHands[1].result?.result !== "WIN" || splitBustWin.result?.result !== "PUSH") {
+  throw new Error("Expected split settlement to combine one loss and one win safely.");
+}
+const splitBlackjackTwentyOne = standBlackjack(standBlackjack(splitBlackjack(startBlackjackRound({
+  userId: "bj-edge-user",
+  currency: "GOLD",
+  betAmount: 100,
+  deck: bjDeck([card("A"), card("A")], [card("9"), card("7")], [card("K"), card("Q"), card("2")]),
+  config: edgeConfig,
+}), "bj-edge-user", edgeConfig), "bj-edge-user", edgeConfig), "bj-edge-user", edgeConfig);
+if (splitBlackjackTwentyOne.playerHands.some((hand) => !hand.result || hand.result.amountPaid !== 200 || hand.result.transactions.some((tx) => tx.metadata?.blackjack))) {
+  throw new Error("Expected 21 after split to pay as a regular win, not a natural blackjack.");
+}
+const splitDealerBust = standBlackjack(standBlackjack(splitBlackjack(startBlackjackRound({
+  userId: "bj-edge-user",
+  currency: "GOLD",
+  betAmount: 100,
+  deck: bjDeck([card("9"), card("9")], [card("10"), card("6")], [card("2"), card("3"), card("10")]),
+  config: edgeConfig,
+}), "bj-edge-user", edgeConfig), "bj-edge-user", edgeConfig), "bj-edge-user", edgeConfig);
+if (splitDealerBust.playerHands.some((hand) => hand.result?.result !== "WIN") || splitDealerBust.result?.amountPaid !== 400) {
+  throw new Error("Expected dealer bust to pay every non-busted split hand.");
+}
+
+const insuranceTaken = startBlackjackRound({ userId: "bj-edge-user", currency: "GOLD", betAmount: 25, deck: bjDeck([card("10"), card("8")], [card("A"), card("9")]), config: edgeConfig });
+const insuranceBalanceBefore = getBalance("bj-edge-user", "GOLD");
+const insuranceNoBlackjack = resolveInsuranceBlackjack(insuranceTaken, "bj-edge-user", true, edgeConfig);
+if (insuranceNoBlackjack.insuranceBet !== 12.5 || insuranceNoBlackjack.insuranceResult?.result !== "LOSS" || getBalance("bj-edge-user", "GOLD") !== insuranceBalanceBefore - 12.5) {
+  throw new Error("Expected insurance to debit exactly half the bet and lose when dealer has no blackjack.");
+}
+const insuranceTxCount = blackjackTransactions("bj-edge-user").length;
+const insuranceAgain = resolveInsuranceBlackjack(insuranceNoBlackjack, "bj-edge-user", true, edgeConfig);
+if (insuranceAgain !== insuranceNoBlackjack || blackjackTransactions("bj-edge-user").length !== insuranceTxCount) {
+  throw new Error("Expected insurance to be unavailable after resolving once.");
+}
+const insuranceWin = resolveInsuranceBlackjack(startBlackjackRound({ userId: "bj-edge-user", currency: "GOLD", betAmount: 25, deck: bjDeck([card("10"), card("8")], [card("A"), card("K")]), config: edgeConfig }), "bj-edge-user", true, edgeConfig);
+if (insuranceWin.insuranceResult?.amountPaid !== 37.5 || insuranceWin.result?.result !== "LOSS") {
+  throw new Error("Expected insurance blackjack to pay 2:1 plus insurance stake while main hand resolves separately.");
+}
 const blackjackBefore = getTransactions(user.id).length;
 const blackjack = startBlackjackRound({
   userId: user.id,
@@ -218,7 +472,7 @@ try {
   startBlackjackRound({ userId: user.id, currency: "GOLD", betAmount: 0, deck: [card("10"), card("8"), card("9"), card("7")] });
   throw new Error("Expected deal to require valid bet.");
 } catch (error) {
-  if (!(error instanceof Error) || !error.message.includes("Minimum bet")) throw error;
+  if (!(error instanceof Error) || !error.message.includes("Minimum GC bet")) throw error;
 }
 
 const pushRound = startBlackjackRound({
@@ -388,11 +642,11 @@ const lowInsuranceRound = startBlackjackRound({
 if (canOfferInsurance(lowInsuranceRound, blackjackConfig, lowInsuranceUser)) {
   throw new Error("Expected insurance offer to hide when half-bet cannot be covered.");
 }
-try {
-  resolveInsuranceBlackjack(lowInsuranceRound, lowInsuranceUser, true);
-  throw new Error("Expected insurance ledger debit to block insufficient balance.");
-} catch (error) {
-  if (!(error instanceof Error) || !error.message.includes("Insufficient")) throw error;
+const lowInsuranceTxCount = getTransactions(lowInsuranceUser).length;
+const lowInsuranceBalance = getBalance(lowInsuranceUser, "GOLD");
+const lowInsuranceBlocked = resolveInsuranceBlackjack(lowInsuranceRound, lowInsuranceUser, true);
+if (lowInsuranceBlocked.insuranceResolved || getTransactions(lowInsuranceUser).length !== lowInsuranceTxCount || getBalance(lowInsuranceUser, "GOLD") !== lowInsuranceBalance) {
+  throw new Error("Expected insurance to be blocked without a ledger debit when half-bet cannot be covered.");
 }
 
 const evenMoneyRound = startBlackjackRound({
@@ -465,6 +719,115 @@ if (rouletteBasket.totalPaid !== 700) throw new Error("Expected American basket/
 const expectedAmericanWheelStart = ["0", 28, 9, 26, 30, 11, 7, 20];
 if (JSON.stringify(americanWheel.slice(0, expectedAmericanWheelStart.length)) !== JSON.stringify(expectedAmericanWheelStart) || americanWheel.length !== 38) {
   throw new Error("Expected American roulette wheel sequence with 0, 00, and 36 numbered pockets.");
+}
+for (const [outcome, index] of [["0", 0], [28, 1], [7, 6], ["00", 19]] as Array<["0" | "00" | number, number]>) {
+  if (getRouletteWheelPocketIndex(outcome) !== index) throw new Error(`Expected roulette wheel pocket index ${index} for ${outcome}.`);
+}
+if (getRouletteWheelTargetRotation(7) !== -(6 * (360 / americanWheel.length))) throw new Error("Expected roulette wheel target rotation to align 7 under the ball.");
+const settledWheelMotion = getRouletteWheelMotion(7, 1);
+if (Math.round(settledWheelMotion.ballX) !== 50 || settledWheelMotion.ballY >= 35) throw new Error("Expected settled roulette ball to land visibly on the upper pocket track.");
+const spinningWheelMarkup = renderToStaticMarkup(createElement(RouletteWheel, { outcome: 7, spinning: true, showLabel: false }));
+if (!spinningWheelMarkup.includes("roulette-ball-layer") || !spinningWheelMarkup.includes("roulette-ball")) throw new Error("Expected roulette wheel to render a visible independent ball layer.");
+const settledWheelMarkup = renderToStaticMarkup(createElement(RouletteWheel, { outcome: 7, spinning: false, showLabel: false }));
+if (!settledWheelMarkup.includes("roulette-winning-pocket-glow") || !settledWheelMarkup.includes("data-pocket-index=\"6\"")) throw new Error("Expected settled roulette wheel to glow the winning pocket.");
+if (rouletteSpinLifecycleStates.join(",") !== "idle,betting,spinning,ballSettling,resultReveal,chipResolution,readyNextSpin") {
+  throw new Error("Expected Roulette UI to expose the full spin lifecycle state machine.");
+}
+if (
+  !isRouletteInteractionLocked("spinning") ||
+  !isRouletteInteractionLocked("resultReveal") ||
+  isRouletteInteractionLocked("readyNextSpin") ||
+  !shouldShowRouletteSettledBets("resultReveal") ||
+  shouldShowRouletteSettledBets("readyNextSpin") ||
+  !shouldShowRouletteWinningZones("resultReveal") ||
+  shouldShowRouletteWinningZones("ballSettling") ||
+  !shouldShowRouletteResultOverlay("chipResolution")
+) {
+  throw new Error("Expected Roulette lifecycle helpers to gate betting, chips, zones, and overlay correctly.");
+}
+if (rouletteResultTiming.numberHighlightMs !== 800 || rouletteResultTiming.resultOverlayMs < 1600 || rouletteResultTiming.resultOverlayMs > 2500) {
+  throw new Error("Expected Roulette result timing to keep the board readable before clearing chips.");
+}
+const historyOnce = getNextRouletteHistory([28, 9, "0", "00", 14], 7);
+if (JSON.stringify(historyOnce) !== JSON.stringify([7, 28, 9, "0", "00"])) {
+  throw new Error("Expected Roulette Last 5 history to contain only landed numbers, newest first, and update once.");
+}
+const lastFiveMarkup = renderToStaticMarkup(createElement(RouletteLastFiveNumbers, { values: historyOnce }));
+if (!lastFiveMarkup.includes("data-result-value=\"7\"") || lastFiveMarkup.includes("Straight") || lastFiveMarkup.includes("Split")) {
+  throw new Error("Expected Roulette Last 5 markup to show landed number chips only, never bet detail rows.");
+}
+const sampleRouletteBets = [
+  { id: "loss-red", amount: 25, label: "Red", bet: { kind: "color", value: "red" } },
+  { id: "win-straight", amount: 25, label: "Straight 7", bet: { kind: "straight", value: 7 } },
+] as any[];
+const currentBetsMarkup = renderToStaticMarkup(createElement(CurrentBetsSummary, { bets: sampleRouletteBets }));
+if (!currentBetsMarkup.includes("Current Bets") || !currentBetsMarkup.includes("Red") || !currentBetsMarkup.includes("Straight 7") || currentBetsMarkup.includes("data-result-value")) {
+  throw new Error("Expected Roulette Current Bets summary to stay separate from Last 5 landed results.");
+}
+const noCurrentBetsMarkup = renderToStaticMarkup(createElement(CurrentBetsSummary, { bets: [] }));
+if (!noCurrentBetsMarkup.includes("No active bets.")) {
+  throw new Error("Expected Roulette Current Bets summary to show an empty state after resolution clears.");
+}
+if (
+  getRouletteBoardBetsForLifecycle([], [...sampleRouletteBets], "resultReveal").length !== 2 ||
+  getRouletteBoardBetsForLifecycle([], [...sampleRouletteBets], "chipResolution").length !== 2 ||
+  getRouletteBoardBetsForLifecycle([], [...sampleRouletteBets], "readyNextSpin").length !== 0
+) {
+  throw new Error("Expected Roulette settled chips to remain visible through result reveal and clear only for the next spin.");
+}
+const winningChipMarkup = renderToStaticMarkup(createElement(ChipStack, { bets: [sampleRouletteBets[1]], winningIds: new Set(["win-straight"]), resolutionState: "resultReveal", currency: "GOLD" }));
+if (!winningChipMarkup.includes("board-chip") || !winningChipMarkup.includes("win") || !winningChipMarkup.includes("data-resolution=\"resultReveal\"")) {
+  throw new Error("Expected Roulette winning chip stack to pulse during result reveal.");
+}
+const losingChipMarkup = renderToStaticMarkup(createElement(ChipStack, { bets: [sampleRouletteBets[0]], winningIds: new Set<string>(), resolutionState: "chipResolution", currency: "GOLD" }));
+if (!losingChipMarkup.includes("lose") || !losingChipMarkup.includes("data-resolution=\"chipResolution\"")) {
+  throw new Error("Expected Roulette losing chip stack to fade only during chip resolution.");
+}
+const selectedChipMarkup = renderToStaticMarkup(createElement(ChipSelector, { chips: [1, 5, 25, 100], selectedChip: 25, currency: "GOLD", disabled: false, onSelect: () => undefined }));
+if (!selectedChipMarkup.includes("roulette-chip chip-emerald active")) {
+  throw new Error("Expected Roulette selected chip to render a premium active chip state.");
+}
+const straightAnchor = getBetAnchor({ kind: "straight", value: 7 });
+const outsideAnchor = getBetAnchor({ kind: "color", value: "red" });
+const splitAnchor = getBetAnchor({ kind: "split", numbers: [16, 19] });
+const streetAnchor = getBetAnchor({ kind: "street", numbers: [34, 35, 36] });
+const sixStreetAnchor = getBetAnchor({ kind: "sixLine", numbers: [31, 32, 33, 34, 35, 36] });
+const cornerAnchor = getBetAnchor({ kind: "corner", numbers: [10, 11, 13, 14] });
+if (
+  straightAnchor.mode !== "straightCenter" ||
+  outsideAnchor.mode !== "buttonCenter" ||
+  splitAnchor.mode !== "splitMidpoint" ||
+  streetAnchor.mode !== "streetEdge" ||
+  sixStreetAnchor.mode !== "sixStreetEdge" ||
+  cornerAnchor.mode !== "cornerIntersection" ||
+  straightAnchor.measurement !== "domRect"
+) {
+  throw new Error("Expected Roulette bet anchors to describe measured DOM centers, lines, and intersections for chip placement.");
+}
+if (
+  Math.round(splitAnchor.logical?.left ?? 0) !== 50 ||
+  Math.round(streetAnchor.logical?.top ?? 0) !== 100 ||
+  Math.round(sixStreetAnchor.logical?.left ?? 0) !== Math.round(11 * (100 / 12))
+) {
+  throw new Error("Expected Roulette split, street, and six-street anchors to use the correct midpoint or street edge.");
+}
+const overlayWinCopy = getRouletteResultOverlayCopy({ outcome: 28, color: "black", won: true, totalPaid: 450, totalWagered: 225, net: 225, settlement: {} } as any);
+if (overlayWinCopy.heading !== "28 Black" || overlayWinCopy.status !== "Won 450" || overlayWinCopy.net !== "Net +225" || overlayWinCopy.totalWon !== "Total Won 450") {
+  throw new Error("Expected Roulette result overlay copy to include winning number, color, won, and net result.");
+}
+const overlayLossCopy = getRouletteResultOverlayCopy({ outcome: 12, color: "red", won: false, totalPaid: 0, totalWagered: 25, net: -25, settlement: {} } as any);
+if (overlayLossCopy.heading !== "12 Red" || overlayLossCopy.status !== "No win" || overlayLossCopy.net !== "Net -25") {
+  throw new Error("Expected Roulette result overlay copy to describe losses cleanly.");
+}
+if (
+  getRouletteLastWinAmount(null) !== 0 ||
+  getRouletteLastWinAmount({ outcome: 12, color: "red", won: false, totalPaid: 0, totalWagered: 25, net: -25, settlement: {} } as any) !== 0 ||
+  getRouletteLastWinAmount({ outcome: 28, color: "black", won: true, totalPaid: 450, totalWagered: 225, net: 225, settlement: {} } as any) !== 225
+) {
+  throw new Error("Expected Roulette Last Win stat to clamp losses to 0 and show positive net wins.");
+}
+if (shouldShowRouletteBetFlash("betting", "Split 16/19") || shouldShowRouletteBetFlash("spinning", "Split 16/19") || shouldShowRouletteBetFlash("readyNextSpin", null)) {
+  throw new Error("Expected Roulette placement popups to stay hidden while chip and zone feedback handle betting.");
 }
 const winningZoneKeys = new Set(getRouletteWinningZones(18).map(rouletteBetKey));
 for (const key of ["straight:18", "color:red", "parity:even", "range:low", "dozen:2", "column:3"]) {
@@ -617,9 +980,24 @@ if (
   !rouletteUiMarkers.sequencedAmericanWheel ||
   !rouletteUiMarkers.sharedResultBanner ||
   !rouletteUiMarkers.sharedSoundToggle ||
-  !rouletteUiMarkers.winningBetGlow
+  !rouletteUiMarkers.winningBetGlow ||
+  !rouletteUiMarkers.explicitSpinLifecycle ||
+  !rouletteUiMarkers.delayedChipResolution ||
+  !rouletteUiMarkers.lastFiveLandedNumbersOnly ||
+  !rouletteUiMarkers.temporaryBetLabelsOnly ||
+  !rouletteUiMarkers.premiumCssChips ||
+  !rouletteUiMarkers.resultOverlayBreakdown ||
+  !rouletteUiMarkers.measuredBetAnchors ||
+  !rouletteUiMarkers.currentBetsSeparated ||
+  !rouletteUiMarkers.cleanRasterChipBase ||
+  !rouletteUiMarkers.subtleWheelLightingOnly ||
+  !rouletteUiMarkers.lastWinStat ||
+  !rouletteUiMarkers.cssTableGameSpinButton ||
+  !rouletteUiMarkers.clean2dWheelPresentation ||
+  !rouletteUiMarkers.persistentLastResultHighlights ||
+  !rouletteUiMarkers.noBetSpinError
 ) {
-  throw new Error("Expected Roulette UI markers for American board, CSS chips, multi-bet slip, wheel animation, and advanced inside bets.");
+  throw new Error("Expected Roulette UI markers for American board, premium chips, delayed resolution, Last 5 landed numbers, and advanced inside bets.");
 }
 
 if (

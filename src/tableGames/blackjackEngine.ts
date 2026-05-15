@@ -78,6 +78,29 @@ export function blackjackRankValue(card: PlayingCard) {
   return ["K", "Q", "J", "10"].includes(card.rank) ? 10 : Number(card.rank);
 }
 
+export function getBlackjackBetLimits(currency: Currency, config = blackjackConfig) {
+  if (currency === "BONUS") {
+    return { minBet: config.minBetSweepstakes, maxBet: config.maxBetSweepstakes };
+  }
+  return { minBet: config.minBetGold, maxBet: config.maxBetGold };
+}
+
+function roundCurrencyAmount(amount: number) {
+  return Math.round(amount * 100) / 100;
+}
+
+function getInsuranceBet(round: BlackjackRound) {
+  return roundCurrencyAmount(round.betAmount / 2);
+}
+
+function assertBlackjackInitialBet(userId: string, currency: Currency, amount: number, config: BlackjackConfig) {
+  const limits = getBlackjackBetLimits(currency, config);
+  const label = currency === "BONUS" ? "SC" : "GC";
+  if (!Number.isFinite(amount) || amount < limits.minBet) throw new Error(`Minimum ${label} bet is ${limits.minBet}.`);
+  if (amount > limits.maxBet) throw new Error(`Maximum ${label} bet is ${limits.maxBet}.`);
+  if (getBalance(userId, currency) < amount) throw new Error("Insufficient balance for this blackjack bet.");
+}
+
 export function activeBlackjackHand(round: BlackjackRound) {
   return round.playerHands[round.activeHandIndex];
 }
@@ -113,13 +136,14 @@ export function canSplitBlackjack(round: BlackjackRound, userId: string, config 
 }
 
 export function canOfferInsurance(round: BlackjackRound, config = blackjackConfig, userId?: string) {
-  const insuranceBet = Math.floor(round.betAmount / 2);
+  const insuranceBet = getInsuranceBet(round);
   return Boolean(
     config.allowInsurance &&
       round.status === "PLAYER_TURN" &&
       round.dealerCards[0]?.rank === "A" &&
       !round.insuranceResolved &&
       !isBlackjack(round.playerHands[0].cards) &&
+      insuranceBet > 0 &&
       (!userId || getBalance(userId, round.currency) >= insuranceBet),
   );
 }
@@ -158,6 +182,10 @@ function nextHandOrDealer(round: BlackjackRound, userId: string, config: Blackja
   return playDealerAndSettle(round, userId, config);
 }
 
+function revealAndSettle(round: BlackjackRound, userId: string, config: BlackjackConfig) {
+  return settleBlackjackRound(syncCompat({ ...round, status: "DEALER_TURN", dealerRevealed: true }), userId, config);
+}
+
 export function startBlackjackRound({
   userId,
   currency,
@@ -172,6 +200,7 @@ export function startBlackjackRound({
   config?: BlackjackConfig;
 }): BlackjackRound {
   const shoe = ensureShoe(deck, config);
+  assertBlackjackInitialBet(userId, currency, betAmount, config);
   placeTableBet(userId, currency, betAmount, config, { action: "deal" });
   const hand: BlackjackHand = {
     id: createId("bjhand"),
@@ -193,11 +222,16 @@ export function startBlackjackRound({
     deck: shoe,
   });
 
-  if (isBlackjack(round.dealerCards) && (round.dealerCards[0]?.rank === "A" || blackjackRankValue(round.dealerCards[0]) === 10)) {
+  const dealerHasBlackjack = isBlackjack(round.dealerCards);
+  const dealerUpcard = round.dealerCards[0];
+  if (dealerHasBlackjack && dealerUpcard?.rank === "A") {
+    return round;
+  }
+  if (dealerHasBlackjack && dealerUpcard && blackjackRankValue(dealerUpcard) === 10) {
     return playDealerAndSettle(round, userId, config);
   }
-  if (isBlackjack(hand.cards) && round.dealerCards[0]?.rank !== "A") {
-    return playDealerAndSettle(round, userId, config);
+  if (isBlackjack(hand.cards) && dealerUpcard?.rank !== "A") {
+    return revealAndSettle(round, userId, config);
   }
   return round;
 }
@@ -268,9 +302,9 @@ export function resolveInsuranceBlackjack(
   takeInsurance: boolean,
   config = blackjackConfig,
 ): BlackjackRound {
-  if (!canOfferInsurance(round, config)) return round;
+  if (!canOfferInsurance(round, config, userId)) return round;
   let insuranceResult: TableSettlement | undefined;
-  const insuranceBet = Math.floor(round.betAmount / 2);
+  const insuranceBet = getInsuranceBet(round);
   if (takeInsurance && insuranceBet > 0) {
     placeTableBet(userId, round.currency, insuranceBet, config, { action: "insurance" });
     if (isBlackjack(round.dealerCards)) {
@@ -322,8 +356,9 @@ export function acceptEvenMoneyBlackjack(round: BlackjackRound, userId: string, 
   });
 }
 
-export function declineEvenMoneyBlackjack(round: BlackjackRound) {
-  return { ...round, evenMoneyOffered: true };
+export function declineEvenMoneyBlackjack(round: BlackjackRound, userId: string, config = blackjackConfig) {
+  if (!canOfferEvenMoney(round, config)) return round;
+  return revealAndSettle(syncCompat({ ...round, evenMoneyOffered: true }), userId, config);
 }
 
 function playDealerAndSettle(round: BlackjackRound, userId: string, config: BlackjackConfig) {
@@ -345,14 +380,14 @@ function playDealerAndSettle(round: BlackjackRound, userId: string, config: Blac
 function settleHand(hand: BlackjackHand, round: BlackjackRound, userId: string, config: BlackjackConfig) {
   const playerTotal = handValue(hand.cards).total;
   const dealerTotal = handValue(round.dealerCards).total;
+  const playerNatural = !hand.splitFromPair && isBlackjack(hand.cards);
+  const dealerNatural = isBlackjack(round.dealerCards);
   let settlement: TableSettlement;
   if (playerTotal > 21) {
     settlement = settleTableResult({ userId, currency: round.currency, config, result: "LOSS", amountPaid: 0, wagered: hand.betAmount, metadata: { handId: hand.id } });
-  } else if (dealerTotal > 21) {
-    settlement = settleTableResult({ userId, currency: round.currency, config, result: "WIN", amountPaid: hand.betAmount * 2, wagered: hand.betAmount, metadata: { handId: hand.id } });
-  } else if (isBlackjack(hand.cards) && isBlackjack(round.dealerCards)) {
+  } else if (playerNatural && dealerNatural) {
     settlement = settleTableResult({ userId, currency: round.currency, config, result: "PUSH", amountPaid: hand.betAmount, wagered: hand.betAmount, metadata: { handId: hand.id } });
-  } else if (isBlackjack(hand.cards)) {
+  } else if (playerNatural) {
     settlement = settleTableResult({
       userId,
       currency: round.currency,
@@ -362,7 +397,11 @@ function settleHand(hand: BlackjackHand, round: BlackjackRound, userId: string, 
       wagered: hand.betAmount,
       metadata: { handId: hand.id, blackjack: true },
     });
-  } else if (dealerTotal > playerTotal || isBlackjack(round.dealerCards)) {
+  } else if (dealerNatural) {
+    settlement = settleTableResult({ userId, currency: round.currency, config, result: "LOSS", amountPaid: 0, wagered: hand.betAmount, metadata: { handId: hand.id } });
+  } else if (dealerTotal > 21) {
+    settlement = settleTableResult({ userId, currency: round.currency, config, result: "WIN", amountPaid: hand.betAmount * 2, wagered: hand.betAmount, metadata: { handId: hand.id } });
+  } else if (dealerTotal > playerTotal) {
     settlement = settleTableResult({ userId, currency: round.currency, config, result: "LOSS", amountPaid: 0, wagered: hand.betAmount, metadata: { handId: hand.id } });
   } else if (playerTotal === dealerTotal) {
     settlement = settleTableResult({ userId, currency: round.currency, config, result: "PUSH", amountPaid: hand.betAmount, wagered: hand.betAmount, metadata: { handId: hand.id } });

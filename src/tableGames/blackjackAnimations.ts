@@ -38,7 +38,7 @@ export function dealerRevealAnimationMs(previousDealerCardCount: number, nextDea
 }
 
 export function dealerDrawDelay(indexAfterHole: number) {
-  return blackjackAnimationConfig.flipMs + indexAfterHole * blackjackAnimationConfig.dealerDrawDelayMs;
+  return blackjackAnimationConfig.flipMs + indexAfterHole * (blackjackAnimationConfig.dealerDrawDelayMs + blackjackAnimationConfig.cardSlideMs);
 }
 
 export function blackjackActionsDisabled(cardsAnimating: boolean, actionBlocked: boolean) {

@@ -5,23 +5,22 @@ import type { BlackjackHand, PlayingCard as Card } from "./types";
 
 export function DealerHandView({
   cards,
-  total,
   revealed,
-  totalRevealed,
   immediateDeal,
+  sequencing,
+  animateDraws,
+  markerSrc,
 }: {
   cards: Card[];
-  total: number;
   revealed: boolean;
-  totalRevealed?: boolean;
   immediateDeal?: boolean;
+  sequencing?: boolean;
+  animateDraws?: boolean;
+  markerSrc?: string;
 }) {
   return (
-    <section className="blackjack-clean-hand">
-      <div className="blackjack-clean-hand-head">
-        <strong>Dealer</strong>
-        <span>{revealed && totalRevealed ? "Total" : "Visible"}: {cards.length ? total : "-"}</span>
-      </div>
+    <section className="blackjack-clean-hand dealer" aria-label="Dealer hand">
+      {markerSrc && <img className="blackjack-clean-dealer-button" src={markerSrc} alt="" draggable={false} aria-hidden="true" />}
       <div className="blackjack-clean-cards">
         {cards.length === 0 ? (
           <PlayingCard />
@@ -33,7 +32,8 @@ export function DealerHandView({
               hidden={!revealed && index === 1}
               reveal={revealed && index === 1}
               index={index}
-              delayMs={immediateDeal ? 0 : index === 0 ? initialDealStepDelay(1) : index === 1 ? initialDealStepDelay(3) : dealerDrawDelay(index - 2)}
+              delayMs={immediateDeal || sequencing ? 0 : index === 0 ? initialDealStepDelay(1) : index === 1 ? initialDealStepDelay(3) : dealerDrawDelay(index - 2)}
+              animate={Boolean(immediateDeal || (animateDraws && index > 1))}
             />
           ))
         )}
@@ -48,22 +48,28 @@ export function PlayerHandView({
   index,
   split,
   immediateDeal,
+  animateLastCard,
 }: {
   hand: BlackjackHand;
   active: boolean;
   index: number;
   split: boolean;
   immediateDeal?: boolean;
+  animateLastCard?: boolean;
 }) {
-  const total = handValue(hand.cards).total;
-  const label = hand.status === "BUST" ? "Bust" : hand.cards.length === 2 && total === 21 ? "Blackjack" : `Total: ${total}`;
+  const value = handValue(hand.cards);
+  const total = value.total;
+  const handTotal = formatHandTotal(hand.cards);
+  const label = hand.status === "BUST" ? "Bust" : hand.cards.length === 2 && total === 21 ? "Blackjack" : `Total: ${handTotal}`;
+  const className = [
+    "blackjack-clean-hand",
+    active ? "active" : "",
+    hand.status === "BUST" ? "bust" : "",
+    hand.cards.length === 2 && total === 21 ? "natural" : "",
+  ].filter(Boolean).join(" ");
 
   return (
-    <section className={active ? "blackjack-clean-hand active" : "blackjack-clean-hand"}>
-      <div className="blackjack-clean-hand-head">
-        <strong>{split ? `Hand ${index + 1}` : "Player"}</strong>
-        <span>{label}</span>
-      </div>
+    <section className={className} aria-label={`${split ? `Hand ${index + 1}` : "Player"} ${label}`}>
       <div className="blackjack-clean-cards">
         {hand.cards.map((card, cardIndex) => (
           <PlayingCard
@@ -71,12 +77,27 @@ export function PlayerHandView({
             card={card}
             index={cardIndex}
             delayMs={immediateDeal ? 0 : cardIndex === 0 ? initialDealStepDelay(0) : cardIndex === 1 ? initialDealStepDelay(2) : blackjackAnimationConfig.initialDealDelayMs}
+            animate={Boolean(immediateDeal || (animateLastCard && cardIndex === hand.cards.length - 1 && cardIndex > 1))}
           />
         ))}
+      </div>
+      <div className="blackjack-clean-hand-total" aria-label={`${split ? `Hand ${index + 1}` : "Player"} total ${handTotal}`}>
+        <span>{split ? `H${index + 1}` : "Player"}</span>
+        <strong>{handTotal}</strong>
       </div>
       {hand.result && <small>{hand.result.result}</small>}
     </section>
   );
+}
+
+function formatHandTotal(cards: Card[]) {
+  const value = handValue(cards);
+  const hardTotal = cards.reduce((sum, card) => {
+    if (card.rank === "A") return sum + 1;
+    return sum + (["K", "Q", "J", "10"].includes(card.rank) ? 10 : Number(card.rank));
+  }, 0);
+  if (value.soft && hardTotal !== value.total) return `${hardTotal}/${value.total}`;
+  return `${value.total}`;
 }
 
 export function SplitHandSummary({
