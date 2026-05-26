@@ -1,4 +1,5 @@
 import { lazy, Suspense, useMemo, useState } from "react";
+import { Search } from "lucide-react";
 import type { TableGameId } from "./types";
 import { tableGameConfigs } from "./configs";
 import { TableGameCard } from "./TableGameCard";
@@ -10,6 +11,8 @@ const CrashPage = lazy(() => import("./CrashPage").then((module) => ({ default: 
 const TreasureDigPage = lazy(() => import("./TreasureDigPage").then((module) => ({ default: module.TreasureDigPage })));
 const BrickBreakBonusPage = lazy(() => import("./BrickBreakBonusPage").then((module) => ({ default: module.BrickBreakBonusPage })));
 const BalloonPopPage = lazy(() => import("./BalloonPopPage").then((module) => ({ default: module.BalloonPopPage })));
+const LavaRunPage = lazy(() => import("./LavaRunPage").then((module) => ({ default: module.LavaRunPage })));
+const EmberStackPage = lazy(() => import("./EmberStackPage").then((module) => ({ default: module.EmberStackPage })));
 
 export function TableGamesPage({
   activeGameId,
@@ -33,7 +36,7 @@ export function TableGamesPage({
 
   if (activeGameId) {
     return (
-      <section className={activeGameId === "blackjack" ? "page-stack blackjack-game-host" : activeGameId === "dice" ? "page-stack over-under-game-host" : activeGameId === "crash" ? "page-stack crash-game-host" : activeGameId === "treasureDig" ? "page-stack treasure-dig-game-host" : activeGameId === "brickBreakBonus" ? "page-stack brick-break-game-host" : activeGameId === "balloonPop" ? "page-stack balloon-pop-game-host" : "page-stack"}>
+      <section className={activeGameId === "blackjack" ? "page-stack blackjack-game-host" : activeGameId === "dice" ? "page-stack over-under-game-host" : activeGameId === "crash" ? "page-stack crash-game-host" : activeGameId === "treasureDig" ? "page-stack treasure-dig-game-host" : activeGameId === "brickBreakBonus" ? "page-stack brick-break-game-host" : activeGameId === "balloonPop" ? "page-stack balloon-pop-game-host" : activeGameId === "lavaRun" ? "page-stack lava-run-game-host" : activeGameId === "emberStack" ? "page-stack ember-stack-game-host" : "page-stack"}>
         <Suspense fallback={<div className="card loading-card">Loading game...</div>}>
           {activeGameId === "blackjack" && <BlackjackPage onExit={onExit} />}
           {activeGameId === "roulette" && <RoulettePage onExit={onExit} />}
@@ -42,6 +45,8 @@ export function TableGamesPage({
           {activeGameId === "treasureDig" && <TreasureDigPage onExit={onExit} />}
           {activeGameId === "brickBreakBonus" && <BrickBreakBonusPage onExit={onExit} />}
           {activeGameId === "balloonPop" && <BalloonPopPage onExit={onExit} />}
+          {activeGameId === "lavaRun" && <LavaRunPage onExit={onExit} />}
+          {activeGameId === "emberStack" && <EmberStackPage onExit={onExit} />}
         </Suspense>
       </section>
     );
@@ -51,15 +56,15 @@ export function TableGamesPage({
     <section className="page-stack table-games-lobby">
       <div className="page-heading table-games-lobby-heading">
         <div>
-          <p className="eyebrow">Virtual games</p>
-          <h1>Games</h1>
+          <h1>Playheater Games</h1>
         </div>
-        <label className="table-game-search">
-          <span>Search games</span>
+        <label className="table-game-search compact">
+          <Search className="table-game-search-icon" size={17} aria-hidden="true" />
           <input
             type="search"
             value={query}
-            placeholder="Search games"
+            aria-label="Search games"
+            placeholder="Search"
             onChange={(event) => setQuery(event.target.value)}
           />
         </label>

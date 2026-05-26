@@ -10,7 +10,7 @@ export function assertTableBet(userId: string, currency: Currency, amount: numbe
   if (amount > config.maxBet) {
     throw new Error(`Maximum bet is ${config.maxBet} coins.`);
   }
-  if (amount > DEMO_MAX_SINGLE_BET && config.id !== "roulette" && config.id !== "blackjack") {
+  if (amount > DEMO_MAX_SINGLE_BET && config.id !== "roulette" && config.id !== "blackjack" && config.id !== "dice") {
     throw new Error(`Demo maximum single bet is ${DEMO_MAX_SINGLE_BET} coins.`);
   }
   if (getBalance(userId, currency) < amount) {

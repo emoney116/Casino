@@ -67,6 +67,8 @@ const routes = [
   { path: "/games/treasure-dig", text: "Loading game..." },
   { path: "/games/brick-break-bonus", text: "Loading game..." },
   { path: "/games/balloon-pop", text: "Loading game..." },
+  { path: "/games/lava-run", text: "Loading game..." },
+  { path: "/games/ember-stack", text: "Loading game..." },
   { path: "/redemption", text: "Redemption" },
   { path: "/terms", text: "Terms" },
   { path: "/sweepstakes-rules", text: "Sweepstakes Rules" },
@@ -100,6 +102,29 @@ for (const route of routes) {
   if (["/terms", "/sweepstakes-rules", "/privacy", "/responsible-play", "/eligibility"].includes(route.path)
     && !markup.includes("Draft placeholder. Not legal advice. Must be reviewed by qualified counsel before launch.")) {
     throw new Error(`Expected ${route.path} to render legal placeholder copy.`);
+  }
+}
+
+{
+  const removedSlug = ["hot", "drop"].join("-");
+  const removedName = ["Hot", "Drop"].join(" ");
+  (globalThis as any).window = {
+    location: { pathname: `/games/${removedSlug}` },
+    history: { pushState: () => undefined },
+    setTimeout: () => 0,
+    clearTimeout: () => undefined,
+    requestAnimationFrame: () => 0,
+    cancelAnimationFrame: () => undefined,
+  } as unknown as Window;
+
+  const removedMarkup = renderToStaticMarkup(
+    createElement(ToastProvider, null,
+      createElement(AuthProvider, { initialUser: user, children: createElement(AppShell) }),
+    ),
+  );
+
+  if (removedMarkup.includes(removedName) || removedMarkup.includes("Loading game...")) {
+    throw new Error("Expected removed legacy route not to render a table game.");
   }
 }
 

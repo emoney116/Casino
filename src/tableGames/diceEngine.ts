@@ -4,6 +4,7 @@ import { placeTableBet, settleTableResult } from "./ledger";
 import type { DiceConfig, DiceDirection, DiceResult } from "./types";
 
 export function getDiceChance(direction: DiceDirection, target: number) {
+  if (direction === "exact") return 0.01;
   return direction === "over" ? (100 - target) / 100 : (target - 1) / 100;
 }
 
@@ -33,7 +34,7 @@ export function resolveDiceBet({
     throw new Error(`Target must be between ${config.minTarget} and ${config.maxTarget}.`);
   }
   placeTableBet(userId, currency, betAmount, config, { direction, target });
-  const won = direction === "over" ? roll > target : roll < target;
+  const won = direction === "exact" ? roll === target : direction === "over" ? roll > target : roll < target;
   const totalReturnMultiplier = getDiceReturnMultiplier(direction, target, config);
   const totalPaid = won ? betAmount * totalReturnMultiplier : 0;
   const settlement = settleTableResult({

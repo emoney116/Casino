@@ -126,3 +126,19 @@ export function playBrickBreakImpact() { mark("playBrickBreakImpact"); tone(640,
 export function playBrickExplosive() { mark("playBrickExplosive"); swoosh(220, 720, 0.16, 0.02); tone(110, 0.09, 0.022, 0.02); tone(960, 0.08, 0.018, 0.1); }
 export function playBrickJackpot() { mark("playBrickJackpot"); swoosh(340, 1120, 0.2, 0.02); tone(720, 0.08, 0.024, 0.08); tone(980, 0.1, 0.022, 0.16); tone(1280, 0.12, 0.018, 0.25); }
 export function playBrickCombo() { mark("playBrickCombo"); tone(620, 0.032, 0.014); tone(820, 0.034, 0.012, 0.032); }
+export function playLavaRunStart() { mark("playLavaRunStart"); swoosh(260, 740, 0.16, 0.018); tone(520, 0.05, 0.016, 0.08); }
+export function playLavaRunSelect() { mark("playLavaRunSelect"); tone(410, 0.026, 0.014); tone(620, 0.032, 0.011, 0.022); }
+export function playLavaRunSafe() { mark("playLavaRunSafe"); tone(640, 0.048, 0.018); tone(880, 0.06, 0.016, 0.05); }
+export function playLavaRunBust() { mark("playLavaRunBust"); tone(130, 0.085, 0.024); tone(72, 0.16, 0.02, 0.055); }
+export function playLavaRunMultiplier() { mark("playLavaRunMultiplier"); tone(720, 0.035, 0.013); tone(1040, 0.05, 0.012, 0.035); }
+export function playLavaRunCashout() { mark("playLavaRunCashout"); tone(620, 0.07, 0.024); tone(920, 0.08, 0.022, 0.06); }
+export function playLavaRunBigWin() { mark("playLavaRunBigWin"); swoosh(300, 1320, 0.22, 0.021); tone(760, 0.08, 0.025, 0.08); tone(1040, 0.1, 0.021, 0.17); tone(1360, 0.14, 0.018, 0.28); }
+export function playEmberStackMove() { mark("playEmberStackMove"); tone(220, 0.018, 0.006); }
+export function playEmberStackLock() { mark("playEmberStackLock"); tone(540, 0.032, 0.018); tone(260, 0.04, 0.012, 0.024); }
+export function playEmberStackCut() { mark("playEmberStackCut"); tone(820, 0.018, 0.012); tone(360, 0.045, 0.01, 0.016); }
+export function playEmberStackFall() { mark("playEmberStackFall"); swoosh(520, 110, 0.16, 0.012); tone(150, 0.06, 0.012, 0.12); }
+export function playEmberStackPerfect() { mark("playEmberStackPerfect"); tone(760, 0.045, 0.02); tone(1040, 0.06, 0.018, 0.045); }
+export function playEmberStackCombo() { mark("playEmberStackCombo"); swoosh(420, 1180, 0.14, 0.015); tone(1320, 0.05, 0.014, 0.08); }
+export function playEmberStackMultiplier() { mark("playEmberStackMultiplier"); tone(690, 0.032, 0.012); tone(1120, 0.044, 0.012, 0.032); }
+export function playEmberStackCashout() { mark("playEmberStackCashout"); swoosh(440, 1160, 0.18, 0.02); tone(820, 0.07, 0.024, 0.08); tone(1180, 0.09, 0.019, 0.15); }
+export function playEmberStackBust() { mark("playEmberStackBust"); tone(115, 0.1, 0.025); tone(68, 0.18, 0.021, 0.07); }

@@ -3,7 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { creditCurrency, getBalance, getTransactions } from "../wallet/walletService";
 import type { CasinoData, User } from "../types";
-import { blackjackConfig, crashConfig, diceConfig, rouletteConfig, treasureDigConfig } from "./configs";
+import { blackjackConfig, crashConfig, diceConfig, emberStackTableConfig, lavaRunTableConfig, rouletteConfig, tableGameConfigs, treasureDigConfig } from "./configs";
 import {
   acceptEvenMoneyBlackjack,
   canDoubleBlackjack,
@@ -32,11 +32,13 @@ import {
   initialDealSequence,
 } from "./blackjackAnimations";
 import { americanWheel, getRouletteInsideChipPosition, getRouletteWinningZones, resolveRouletteBet, resolveRouletteBets, rouletteBetKey } from "./rouletteEngine";
-import { getDiceReturnMultiplier, resolveDiceBet } from "./diceEngine";
+import { getDiceChance, getDiceReturnMultiplier, resolveDiceBet } from "./diceEngine";
 import { cashOutCrashRound, crashCrashRound, generateCrashPoint, getCrashMultiplier, startCrashRound } from "./crashEngine";
 import { cashOutTreasureDigRound, createTreasureMultiplierTiles, createTreasureTrapIndexes, getTreasureDigMultiplier, getTreasurePotentialMaxMultiplier, pickTreasureTile, startTreasureDigRound } from "./treasureDigEngine";
 import { applyBrickBreakStep, brickBreakBonusConfig, createBrickBreakHitList, createBrickBreakReplaySteps, createBrickBreakShowcases, generateBrickBreakResult, getBrickBreakBetLimits, isBrickExposed, pickBrickBreakOutcome, simulateBrickBreakBonus } from "./brickBreakBonusEngine";
 import { getBalloonPopBetLimits } from "./balloonPopEngine";
+import { cashOutLavaRunRound, createLavaRunBoard, getLavaRunBetLimits, getLavaRunCashoutEvByStep, getLavaRunFairMultiplier, getLavaRunMultiplierCurve, getLavaRunStepCapMultiplier, getLavaRunTheoreticalRtp, lavaRunConfig, pickLavaRunTile, simulateLavaRun, simulateLavaRunStrategy, startLavaRunRound, type LavaRunRisk } from "./lavaRunEngine";
+import { attemptEmberStackCpuStack, canCashOutEmberStackRound, cashOutEmberStackRound, continueEmberStackRound, emberStackConfig, emberStackRiskOrder, getEmberStackBaseMultiplier, getEmberStackBetLimits, getEmberStackCameraOffset, getEmberStackCashoutAmount, getEmberStackCpuSuccessChance, getEmberStackCycleMs, getEmberStackMaxWinMultiplier, getEmberStackNextMultiplier, getEmberStackPlatformX, getEmberStackSpeedForLevel, pickEmberStackCpuOutcome, simulateEmberStack, startEmberStackRound, type EmberStackSimulationStrategy } from "./emberStackEngine";
 import { assertTableBet } from "./ledger";
 import { simulateTableGame } from "./tableMath";
 import type { PlayingCard } from "./types";
@@ -68,6 +70,8 @@ import { overUnderUiMarkers } from "./DicePage";
 import { crashUiMarkers } from "./CrashPage";
 import { treasureDigUiMarkers } from "./TreasureDigPage";
 import { brickBreakBonusUiMarkers } from "./BrickBreakBonusPage";
+import { formatLavaRunMultiplier, getLavaRunAvatarTarget, getLavaRunCameraWindow, getLavaRunMultiplierTier, getLavaRunPlatformVisual, getLavaRunVisualIntensity, isLavaRunPlatformClickable, lavaRunAnimationTimings, lavaRunUiMarkers, shouldRevealLavaRunBoardState } from "./LavaRunPage";
+import { emberStackAnimationTimings, emberStackAssetManifest, emberStackUiMarkers, formatEmberStackMultiplier, getEmberStackBoardHudRows, getEmberStackBoardMood, getEmberStackCutLineStyle, getEmberStackCutStyle, getEmberStackMultiplierMilestone, getEmberStackOutcomeVisualState, getEmberStackParticleStyle, getEmberStackPlatformClass, getEmberStackPlatformStyle, getEmberStackPlatformTier, getEmberStackQualityCopy, getEmberStackRoundStatusCopy, getEmberStackRowMarkerStyle } from "./EmberStackPage";
 import { CoinBurst, GameResultBanner, WinOverlay, feedbackUiMarkers } from "../feedback/components";
 import {
   getFeedbackDebugCount,
@@ -85,6 +89,22 @@ import {
   playClick,
   playDeal,
   playError,
+  playEmberStackBust,
+  playEmberStackCashout,
+  playEmberStackCombo,
+  playEmberStackCut,
+  playEmberStackFall,
+  playEmberStackMove,
+  playEmberStackLock,
+  playEmberStackMultiplier,
+  playEmberStackPerfect,
+  playLavaRunBigWin,
+  playLavaRunBust,
+  playLavaRunCashout,
+  playLavaRunMultiplier,
+  playLavaRunSafe,
+  playLavaRunSelect,
+  playLavaRunStart,
   playLose,
   playPush,
   playSpin,
@@ -141,7 +161,7 @@ if (!isSoundEnabled() || localStorage.getItem("casino-feedback-sound-enabled") !
   throw new Error("Expected sound toggle setting to persist.");
 }
 setSoundEnabled(false);
-for (const feedback of [playClick, playBet, playDeal, playCardDeal, playCardFlip, playChip, playSpin, playWin, playBlackjackWin, playBigWin, playLose, playPush, playBonus, playCrashCashOut, playCrashSound, playCrashTick, playError]) {
+for (const feedback of [playClick, playBet, playDeal, playCardDeal, playCardFlip, playChip, playSpin, playWin, playBlackjackWin, playBigWin, playLose, playPush, playBonus, playCrashCashOut, playCrashSound, playCrashTick, playEmberStackMove, playEmberStackLock, playEmberStackCut, playEmberStackFall, playEmberStackPerfect, playEmberStackCombo, playEmberStackMultiplier, playEmberStackCashout, playEmberStackBust, playLavaRunStart, playLavaRunSelect, playLavaRunSafe, playLavaRunBust, playLavaRunMultiplier, playLavaRunCashout, playLavaRunBigWin, playError]) {
   feedback();
 }
 resetFeedbackDebugCounts();
@@ -867,6 +887,10 @@ if (diceConfig.name !== "Over/Under" || diceConfig.theme.toLowerCase().includes(
 }
 
 const diceMultiplier = getDiceReturnMultiplier("over", 50, diceConfig);
+const diceExactMultiplier = getDiceReturnMultiplier("exact", 50, diceConfig);
+if (getDiceChance("exact", 50) !== 0.01 || Math.abs(diceExactMultiplier - 93) > 0.000001) {
+  throw new Error("Expected exact Over/Under pick to pay 93x after demo edge.");
+}
 const diceBetCountBefore = getTransactions(user.id).filter((tx) => tx.type === "TABLE_BET").length;
 const diceWinCountBefore = getTransactions(user.id).filter((tx) => tx.type === "TABLE_WIN").length;
 const diceWin = resolveDiceBet({
@@ -896,6 +920,28 @@ const diceLoss = resolveDiceBet({
 });
 if (diceLoss.won || !getTransactions(user.id).some((tx) => tx.type === "TABLE_LOSS")) {
   throw new Error("Expected dice loss to create TABLE_LOSS event.");
+}
+const diceExactWin = resolveDiceBet({
+  userId: user.id,
+  currency: "BONUS",
+  betAmount: 10,
+  direction: "exact",
+  target: 50,
+  roll: 50,
+});
+if (!diceExactWin.won || diceExactWin.totalPaid !== 10 * diceExactMultiplier) {
+  throw new Error("Expected exact Over/Under pick to win only on the target number.");
+}
+const diceExactLoss = resolveDiceBet({
+  userId: user.id,
+  currency: "BONUS",
+  betAmount: 10,
+  direction: "exact",
+  target: 50,
+  roll: 49,
+});
+if (diceExactLoss.won || diceExactLoss.totalPaid !== 0) {
+  throw new Error("Expected exact Over/Under pick to lose off the target number.");
 }
 const lowOverUnderUser = "low-over-under-user";
 creditCurrency({ userId: lowOverUnderUser, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: diceConfig.minBet - 1 });
@@ -1006,14 +1052,20 @@ if (
   !overUnderUiMarkers.noBottomCurrencyDropdown ||
   !overUnderUiMarkers.compactBottomBetControls ||
   !overUnderUiMarkers.targetSlider ||
-  !overUnderUiMarkers.possibleReturn ||
+  overUnderUiMarkers.possibleReturn ||
+  !overUnderUiMarkers.lastWinStat ||
+  !overUnderUiMarkers.noWinChanceStat ||
   !overUnderUiMarkers.resultAnimation ||
   !overUnderUiMarkers.mobileOneScreenLayout ||
   !overUnderUiMarkers.manualBetInput ||
   !overUnderUiMarkers.lastFiveResults ||
   !overUnderUiMarkers.sharedResultBanner ||
   !overUnderUiMarkers.sharedSoundToggle ||
-  !overUnderUiMarkers.rollingNumberFlip
+  !overUnderUiMarkers.rollingNumberFlip ||
+  !overUnderUiMarkers.exactTargetPick ||
+  !overUnderUiMarkers.noPickComparisonSymbols ||
+  !overUnderUiMarkers.infoBesideGameName ||
+  !overUnderUiMarkers.rulesInfoModal
 ) {
   throw new Error("Expected Over/Under UI markers for header, currency toggle, compact betting, manual input, last five, payout, animation, and mobile layout.");
 }
@@ -1421,4 +1473,709 @@ if (
   throw new Error("Expected Brick Break Bonus UI markers for no-skill autoplay, color-coded brick values, replay, rare brick tiers, currency, RTP, and compact betting.");
 }
 
+const removedLegacyGameId = ["hot", "Drop"].join("");
+const removedLegacyGameName = ["Hot", "Drop"].join(" ");
+if (tableGameConfigs.some((game) => game.id === removedLegacyGameId || game.name === removedLegacyGameName)) {
+  throw new Error("Expected removed legacy lobby card to be absent from table game configs.");
+}
+if (!tableGameConfigs.some((game) => game.id === "lavaRun" && game.name === "Lava Run")) {
+  throw new Error("Expected Lava Run lobby card to be registered.");
+}
+if (!lavaRunTableConfig.artwork?.includes("/assets/branding/game-logos/lava_run_logo.png")) {
+  throw new Error("Expected Lava Run lobby card to use the branded raster logo.");
+}
+
+const lavaRunGoldLimits = getLavaRunBetLimits("GOLD");
+const lavaRunSweepstakesLimits = getLavaRunBetLimits("BONUS");
+if (
+  lavaRunGoldLimits.minBet !== 1 ||
+  lavaRunGoldLimits.maxBet !== 1000000 ||
+  lavaRunSweepstakesLimits.minBet !== 0.01 ||
+  lavaRunSweepstakesLimits.maxBet !== 200
+) {
+  throw new Error("Expected Lava Run bet limits to be GC 1-1,000,000 and SC 0.01-200.");
+}
+try {
+  startLavaRunRound({ userId: user.id, currency: "GOLD", betAmount: 0.5, risk: "low" });
+  throw new Error("Expected Lava Run GC bet below minimum to be blocked.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("Minimum GC bet")) throw error;
+}
+try {
+  startLavaRunRound({ userId: user.id, currency: "BONUS", betAmount: 201, risk: "medium" });
+  throw new Error("Expected Lava Run SC bet above maximum to be blocked.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("Maximum SC bet")) throw error;
+}
+try {
+  startLavaRunRound({ userId: "low-lava-run-user", currency: "GOLD", betAmount: 1, risk: "high" });
+  throw new Error("Expected Lava Run to block insufficient balance.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("Insufficient")) throw error;
+}
+
+function assertClose(actual: number, expected: number, message: string, tolerance = 0.000001) {
+  if (Math.abs(actual - expected) > tolerance) {
+    throw new Error(`${message} Expected ${expected}, received ${actual}.`);
+  }
+}
+
+const lavaRunExpectedMath = {
+  low: { choicesPerRow: 2, rtpFactor: 0.94, maxWinMultiplier: 100, capRampExponent: 0.8, opening: [1.88, 3.76, 7.52, 15.04, 30.08, 60.16, 75.42, 83.81, 91.99, 100] },
+  medium: { choicesPerRow: 3, rtpFactor: 0.93, maxWinMultiplier: 250, capRampExponent: 0.8, opening: [2.79, 8.37, 25.11, 75.33, 144.01, 166.47, 188.18, 209.29, 229.87, 250] },
+  high: { choicesPerRow: 4, rtpFactor: 0.92, maxWinMultiplier: 500, capRampExponent: 0.8, opening: [3.68, 14.72, 58.88, 235.52, 287.6, 332.6, 376.12, 418.41, 459.66, 500] },
+} as const satisfies Record<LavaRunRisk, { choicesPerRow: number; rtpFactor: number; maxWinMultiplier: number; capRampExponent: number; opening: number[] }>;
+
+for (const riskLevel of ["low", "medium", "high"] as LavaRunRisk[]) {
+  const profile = lavaRunConfig.riskProfiles[riskLevel];
+  const board = createLavaRunBoard(riskLevel, () => 0);
+  const curve = getLavaRunMultiplierCurve(riskLevel, 100);
+  const cashoutEvByStep = getLavaRunCashoutEvByStep(riskLevel, 100);
+  const expectedMath = lavaRunExpectedMath[riskLevel];
+  if (
+    profile.choicesPerRow !== expectedMath.choicesPerRow ||
+    profile.safeTilesPerRow !== 1 ||
+    profile.safeProbability !== 1 / expectedMath.choicesPerRow ||
+    profile.rtpFactor !== expectedMath.rtpFactor ||
+    profile.maxWinMultiplier !== expectedMath.maxWinMultiplier ||
+    profile.capRampExponent !== expectedMath.capRampExponent
+  ) {
+    throw new Error(`Expected Lava Run ${riskLevel} to use exactly 1 safe tile per row.`);
+  }
+  if (board.length !== profile.maxSteps || board.some((row) => row.tiles.length !== profile.choicesPerRow)) {
+    throw new Error(`Expected Lava Run ${riskLevel} board to create ${profile.choicesPerRow} clickable tiles per row.`);
+  }
+  if (board.some((row) => row.tiles.filter((tile) => tile === "safe").length !== 1 || row.tiles.filter((tile) => tile === "lava").length !== profile.choicesPerRow - 1)) {
+    throw new Error(`Expected Lava Run ${riskLevel} board rows to reveal 1 safe tile and the rest lava.`);
+  }
+  if (curve.length !== profile.maxSteps) throw new Error(`Expected Lava Run ${riskLevel} curve to include every step.`);
+  if (curve.some((multiplier, index) => multiplier < 1 || (index > 0 && multiplier < curve[index - 1]))) {
+    throw new Error(`Expected Lava Run ${riskLevel} curve to increase safely.`);
+  }
+  if (curve.at(-1)! > profile.maxWinMultiplier) {
+    throw new Error(`Expected Lava Run ${riskLevel} multiplier curve to respect profile max win cap.`);
+  }
+  for (const [openingIndex, expectedMultiplier] of expectedMath.opening.entries()) {
+    if (curve[openingIndex] !== expectedMultiplier) {
+      throw new Error(`Expected Lava Run ${riskLevel} step ${openingIndex + 1} opening multiplier to be ${expectedMultiplier}x.`);
+    }
+  }
+  for (let cashoutStep = 1; cashoutStep <= profile.maxSteps; cashoutStep += 1) {
+    const ev = cashoutEvByStep[cashoutStep - 1];
+    const cumulativeSurvivalProbability = Math.pow(profile.safeProbability, cashoutStep);
+    const fairMultiplier = 1 / cumulativeSurvivalProbability;
+    const expectedUncappedMultiplier = Math.floor(fairMultiplier * profile.rtpFactor * 100) / 100;
+    const expectedStepCapMultiplier = getLavaRunStepCapMultiplier(riskLevel, cashoutStep, 100);
+    const expectedMultiplier = Math.min(expectedUncappedMultiplier, expectedStepCapMultiplier);
+    const theoreticalRtp = getLavaRunTheoreticalRtp(riskLevel, cashoutStep, 100);
+    assertClose(getLavaRunFairMultiplier(riskLevel, cashoutStep), fairMultiplier, `Expected Lava Run ${riskLevel} fair multiplier to match cumulative survival probability.`);
+    assertClose(ev.cumulativeSurvivalProbability, cumulativeSurvivalProbability, `Expected Lava Run ${riskLevel} cumulative survival probability to match lane count.`);
+    assertClose(ev.fairMultiplier, fairMultiplier, `Expected Lava Run ${riskLevel} EV fair multiplier to match formula.`);
+    assertClose(ev.uncappedMultiplier, expectedUncappedMultiplier, `Expected Lava Run ${riskLevel} uncapped display multiplier to use fair multiplier times RTP factor.`);
+    assertClose(ev.maxMultiplierCap, profile.maxWinMultiplier, `Expected Lava Run ${riskLevel} max multiplier cap to match risk config.`);
+    assertClose(ev.stepCapMultiplier, expectedStepCapMultiplier, `Expected Lava Run ${riskLevel} step cap to ramp toward the final cap.`);
+    assertClose(curve[cashoutStep - 1], expectedMultiplier, `Expected Lava Run ${riskLevel} display multiplier to apply max cap.`);
+    assertClose(ev.theoreticalRtp, theoreticalRtp, `Expected Lava Run ${riskLevel} EV RTP to match theoretical helper.`);
+    if (cashoutStep < profile.maxSteps && curve[cashoutStep - 1] >= profile.maxWinMultiplier) {
+      throw new Error(`Expected Lava Run ${riskLevel} to reach the final cap only on step ${profile.maxSteps}.`);
+    }
+    if (cashoutStep === profile.maxSteps && curve[cashoutStep - 1] !== profile.maxWinMultiplier) {
+      throw new Error(`Expected Lava Run ${riskLevel} step ${profile.maxSteps} to land on the final cap.`);
+    }
+    if (theoreticalRtp > profile.rtpFactor + 0.0001 || theoreticalRtp > 0.95) {
+      throw new Error(`Expected Lava Run ${riskLevel} step ${cashoutStep} RTP to stay under risk target and below 95%.`);
+    }
+  }
+  if (!cashoutEvByStep.some((step) => step.capped)) {
+    throw new Error(`Expected Lava Run ${riskLevel} late-step multipliers to show the effect of max caps.`);
+  }
+}
+if (
+  formatLavaRunMultiplier(getLavaRunMultiplierCurve("low", 100)[0]) !== "1.88x" ||
+  formatLavaRunMultiplier(getLavaRunMultiplierCurve("medium", 100)[4]) !== "144x" ||
+  formatLavaRunMultiplier(getLavaRunMultiplierCurve("high", 100)[4]) !== "287.6x" ||
+  formatLavaRunMultiplier(getLavaRunMultiplierCurve("high", 100)[9]) !== "500x"
+) {
+  throw new Error("Expected Lava Run displayed next multipliers to match the configured curve with readable rounding.");
+}
+if (
+  lavaRunConfig.riskProfiles.low.choicesPerRow !== 2 ||
+  lavaRunConfig.riskProfiles.medium.choicesPerRow !== 3 ||
+  lavaRunConfig.riskProfiles.high.choicesPerRow !== 4 ||
+  lavaRunConfig.riskProfiles.low.safeTilesPerRow !== 1 ||
+  lavaRunConfig.riskProfiles.medium.safeTilesPerRow !== 1 ||
+  lavaRunConfig.riskProfiles.high.safeTilesPerRow !== 1
+) {
+  throw new Error("Expected Lava Run risk layouts to use 2/3/4 platform choices with one safe tile per row.");
+}
+const lavaRunCameraStart = getLavaRunCameraWindow({ currentStep: 0, maxSteps: 10 });
+const lavaRunCameraMid = getLavaRunCameraWindow({ currentStep: 4, maxSteps: 10 });
+const lavaRunCameraResolved = getLavaRunCameraWindow({ currentStep: 8, finalStep: 8, maxSteps: 10, resolved: true });
+if (lavaRunCameraStart.steps.join(",") !== "0,1,2") {
+  throw new Error("Expected Lava Run side camera to open on the first three future steps.");
+}
+if (lavaRunCameraMid.steps.includes(0) || lavaRunCameraMid.steps.join(",") !== "3,4,5") {
+  throw new Error("Expected Lava Run completed steps to drift off-screen left as the side camera advances.");
+}
+if (lavaRunCameraResolved.steps.join(",") !== "7,8,9") {
+  throw new Error("Expected Lava Run resolved reveal to keep the nearby side-scrolling canyon section visible.");
+}
+if (lavaRunCameraStart.steps.length > 3 || lavaRunCameraMid.steps.length > 3 || lavaRunCameraResolved.steps.length > 3) {
+  throw new Error("Expected Lava Run to emphasize only the current and next few canyon steps.");
+}
+if (
+  !isLavaRunPlatformClickable({ stepIndex: 2, activeStep: 2, status: "RUNNING" }) ||
+  isLavaRunPlatformClickable({ stepIndex: 3, activeStep: 2, status: "RUNNING" }) ||
+  isLavaRunPlatformClickable({ stepIndex: 2, activeStep: 2, status: "RUNNING", pendingReveal: true }) ||
+  isLavaRunPlatformClickable({ stepIndex: 2, activeStep: 2, status: "BUST" }) ||
+  isLavaRunPlatformClickable({ stepIndex: 2, activeStep: 2, status: "CASHED_OUT" })
+) {
+  throw new Error("Expected Lava Run to allow clicks only on the unlocked active step.");
+}
+if (shouldRevealLavaRunBoardState("RUNNING") || !shouldRevealLavaRunBoardState("BUST") || !shouldRevealLavaRunBoardState("CASHED_OUT")) {
+  throw new Error("Expected Lava Run board reveal state only after bust or cashout.");
+}
+if (
+  lavaRunAnimationTimings.suspenseMs < 250 ||
+  lavaRunAnimationTimings.suspenseMs > 450 ||
+  lavaRunAnimationTimings.jumpMs < 300 ||
+  lavaRunAnimationTimings.jumpMs > 450 ||
+  lavaRunAnimationTimings.bustMs < 600 ||
+  lavaRunAnimationTimings.bustMs > 900 ||
+  lavaRunAnimationTimings.cashoutMs < 900 ||
+  lavaRunAnimationTimings.cashoutMs > 1400
+) {
+  throw new Error("Expected Lava Run animation pacing to stay fast and replayable.");
+}
+const lavaRunVisualCurveBefore = getLavaRunMultiplierCurve("high", 100).join(",");
+const lowPlatformVisualA = getLavaRunPlatformVisual({ risk: "low", stepIndex: 0, choiceIndex: 0 });
+const lowPlatformVisualB = getLavaRunPlatformVisual({ risk: "low", stepIndex: 0, choiceIndex: 1 });
+const highPlatformVisual = getLavaRunPlatformVisual({ risk: "high", stepIndex: 7, choiceIndex: 3 });
+const lavaRunEarlyVisual = getLavaRunVisualIntensity({ stepIndex: 1, maxSteps: 10, multiplier: 5 });
+const lavaRunMidVisual = getLavaRunVisualIntensity({ stepIndex: 5, maxSteps: 10, multiplier: 12 });
+const lavaRunLateVisual = getLavaRunVisualIntensity({ stepIndex: 9, maxSteps: 10, multiplier: 55 });
+if (
+  lowPlatformVisualA.offsetX === lowPlatformVisualB.offsetX &&
+  lowPlatformVisualA.offsetY === lowPlatformVisualB.offsetY &&
+  lowPlatformVisualA.tilt === lowPlatformVisualB.tilt
+) {
+  throw new Error("Expected Lava Run platform visuals to stagger lanes away from a static grid.");
+}
+if (Math.abs(lowPlatformVisualA.offsetX) > 28 || Math.abs(highPlatformVisual.offsetY) > 22 || highPlatformVisual.scale > 1.02) {
+  throw new Error("Expected Lava Run visual offsets to stay readable and high-risk platforms to stay tighter.");
+}
+if (lavaRunEarlyVisual.zone !== "early" || lavaRunMidVisual.zone !== "mid" || lavaRunLateVisual.zone !== "late" || lavaRunLateVisual.heat <= lavaRunEarlyVisual.heat) {
+  throw new Error("Expected Lava Run visual intensity to escalate by step without changing math.");
+}
+if (getLavaRunMultiplierTier(9.99) !== "base" || getLavaRunMultiplierTier(10) !== "tier-10" || getLavaRunMultiplierTier(25) !== "tier-25" || getLavaRunMultiplierTier(50) !== "tier-50") {
+  throw new Error("Expected Lava Run multiplier glow tiers at 10x, 25x, and 50x.");
+}
+if (lavaRunVisualCurveBefore !== getLavaRunMultiplierCurve("high", 100).join(",")) {
+  throw new Error("Expected Lava Run visual-only escalation helpers to leave payout math unchanged.");
+}
+
+const lavaRunUser = "lava-run-user";
+creditCurrency({ userId: lavaRunUser, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 1000 });
+const lavaRunGoldBefore = getBalance(lavaRunUser, "GOLD");
+const lavaRunRound = startLavaRunRound({ userId: lavaRunUser, currency: "GOLD", betAmount: 100, risk: "medium", random: () => 0 });
+if (getBalance(lavaRunUser, "GOLD") !== lavaRunGoldBefore - 100) {
+  throw new Error("Expected Lava Run start to deduct the bet immediately.");
+}
+if (lavaRunRound.board.some((row) => row.tiles.length !== 3 || row.tiles.filter((tile) => tile === "safe").length !== 1)) {
+  throw new Error("Expected Lava Run Medium rounds to create 3 lanes with exactly one safe tile per row.");
+}
+const lavaRunBetTx = lavaRunRound.transactions.find((tx) => tx.type === "TABLE_BET");
+if (!lavaRunBetTx || lavaRunBetTx.metadata?.game !== "lava-run" || lavaRunBetTx.metadata?.risk !== "medium" || lavaRunBetTx.metadata?.bet !== 100) {
+  throw new Error("Expected Lava Run bet metadata to include game, risk, and bet.");
+}
+const lavaRunSafeStep = pickLavaRunTile({ round: lavaRunRound, userId: lavaRunUser, choiceIndex: lavaRunRound.board[0].safeChoiceIndex });
+if (lavaRunSafeStep.status !== "RUNNING" || lavaRunSafeStep.stepsCompleted !== 1 || lavaRunSafeStep.currentMultiplier <= 1) {
+  throw new Error("Expected Lava Run safe step to advance to the next row and increase multiplier.");
+}
+const lavaRunCashBefore = getBalance(lavaRunUser, "GOLD");
+const lavaRunCashout = cashOutLavaRunRound({ round: lavaRunSafeStep, userId: lavaRunUser });
+if (lavaRunCashout.status !== "CASHED_OUT" || lavaRunCashout.totalPaid !== Number((lavaRunSafeStep.betAmount * lavaRunSafeStep.currentMultiplier).toFixed(2))) {
+  throw new Error("Expected Lava Run cashout to pay bet times current multiplier.");
+}
+if (getBalance(lavaRunUser, "GOLD") !== lavaRunCashBefore + lavaRunCashout.totalPaid) {
+  throw new Error("Expected Lava Run cashout to credit winnings through the wallet ledger.");
+}
+const lavaRunWinTx = lavaRunCashout.transactions.find((tx) => tx.type === "TABLE_WIN");
+if (
+  !lavaRunWinTx ||
+  lavaRunWinTx.metadata?.game !== "lava-run" ||
+  lavaRunWinTx.metadata?.risk !== "medium" ||
+  lavaRunWinTx.metadata?.stepsCompleted !== 1 ||
+  lavaRunWinTx.metadata?.result !== "cashout" ||
+  !Array.isArray(lavaRunWinTx.metadata?.path) ||
+  !Array.isArray(lavaRunWinTx.metadata?.reveals) ||
+  lavaRunWinTx.metadata.reveals.length !== lavaRunCashout.maxSteps
+) {
+  throw new Error("Expected Lava Run win metadata to include game, risk, result, path choices, and full-board reveals.");
+}
+
+const lavaRunBustUser = "lava-run-bust-user";
+creditCurrency({ userId: lavaRunBustUser, type: "ADMIN_ADJUSTMENT", currency: "BONUS", amount: 20 });
+const lavaRunBustStart = startLavaRunRound({ userId: lavaRunBustUser, currency: "BONUS", betAmount: 1, risk: "high", random: () => 0 });
+const lavaRunBustBalance = getBalance(lavaRunBustUser, "BONUS");
+const lavaRunBust = pickLavaRunTile({ round: lavaRunBustStart, userId: lavaRunBustUser, choiceIndex: 3 });
+if (lavaRunBust.status !== "BUST" || lavaRunBust.totalPaid !== 0 || lavaRunBust.finalMultiplier !== 0 || getBalance(lavaRunBustUser, "BONUS") !== lavaRunBustBalance) {
+  throw new Error("Expected Lava Run lava bust to end the round with no payout.");
+}
+if (!lavaRunBust.transactions.some((tx) => tx.type === "TABLE_LOSS" && tx.metadata?.game === "lava-run" && tx.metadata?.result === "bust")) {
+  throw new Error("Expected Lava Run bust to record zero-win ledger metadata.");
+}
+const lavaRunLossTx = lavaRunBust.transactions.find((tx) => tx.type === "TABLE_LOSS");
+if (!Array.isArray(lavaRunLossTx?.metadata?.reveals) || lavaRunLossTx.metadata.reveals.length !== lavaRunBust.maxSteps) {
+  throw new Error("Expected Lava Run bust metadata to reveal the full board.");
+}
+const lavaRunSafeAvatar = getLavaRunAvatarTarget(lavaRunSafeStep);
+const lavaRunPendingAvatar = getLavaRunAvatarTarget(lavaRunSafeStep, { stepIndex: lavaRunSafeStep.stepsCompleted, choiceIndex: 0 });
+const lavaRunCashoutAvatar = getLavaRunAvatarTarget(lavaRunCashout);
+const lavaRunBustAvatar = getLavaRunAvatarTarget(lavaRunBust);
+if (
+  !lavaRunSafeAvatar ||
+  lavaRunSafeAvatar.stepIndex !== 0 ||
+  lavaRunSafeAvatar.choiceIndex !== lavaRunRound.board[0].safeChoiceIndex ||
+  lavaRunSafeAvatar.state !== "safe"
+) {
+  throw new Error("Expected Lava Run avatar target to move to the selected safe platform after a safe step.");
+}
+if (!lavaRunPendingAvatar || lavaRunPendingAvatar.stepIndex !== 1 || lavaRunPendingAvatar.state !== "pending") {
+  throw new Error("Expected Lava Run pending reveal to lock the tapped platform before resolving.");
+}
+if (!lavaRunCashoutAvatar || lavaRunCashoutAvatar.state !== "escaped" || lavaRunCashout.status !== "CASHED_OUT") {
+  throw new Error("Expected Lava Run cashout to expose an escaped avatar/result state.");
+}
+if (!lavaRunBustAvatar || lavaRunBustAvatar.state !== "bust" || lavaRunBust.status !== "BUST") {
+  throw new Error("Expected Lava Run bust to expose a falling avatar/result state.");
+}
+
+const lavaRunCapUser = "lava-run-cap-user";
+creditCurrency({ userId: lavaRunCapUser, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: lavaRunConfig.maxBetGold });
+let lavaRunCapRound = startLavaRunRound({ userId: lavaRunCapUser, currency: "GOLD", betAmount: lavaRunConfig.maxBetGold, risk: "high", random: () => 0 });
+for (let step = 0; step < lavaRunCapRound.maxSteps; step += 1) {
+  lavaRunCapRound = pickLavaRunTile({ round: lavaRunCapRound, userId: lavaRunCapUser, choiceIndex: lavaRunCapRound.board[step].safeChoiceIndex });
+}
+const lavaRunCappedCashout = cashOutLavaRunRound({ round: lavaRunCapRound, userId: lavaRunCapUser });
+if (!lavaRunCappedCashout.capped || lavaRunCappedCashout.totalPaid > lavaRunConfig.maxPayout || lavaRunCappedCashout.totalPaid !== Number((lavaRunCappedCashout.betAmount * (lavaRunCappedCashout.finalMultiplier ?? 0)).toFixed(2))) {
+  throw new Error("Expected Lava Run max win cap to be respected while preserving payout math.");
+}
+if (getBalance(lavaRunCapUser, "GOLD") < 0) {
+  throw new Error("Expected Lava Run never to create a negative wallet balance.");
+}
+
+for (const riskLevel of ["low", "medium", "high"] as LavaRunRisk[]) {
+  for (let cashoutStep = 1; cashoutStep <= lavaRunConfig.riskProfiles[riskLevel].maxSteps; cashoutStep += 1) {
+    const sim = simulateLavaRun(riskLevel, 50000, 10, cashoutStep);
+    if (sim.theoreticalRtp > 0.95 || sim.observedRtp > 0.95) {
+      throw new Error(`Expected Lava Run ${riskLevel} step ${cashoutStep} RTP simulation to stay under 95%.`);
+    }
+    if (sim.cashoutEvByStep.length !== lavaRunConfig.riskProfiles[riskLevel].maxSteps || typeof sim.hitRate !== "number" || typeof sim.averageMultiplier !== "number" || typeof sim.maxMultiplierObserved !== "number" || typeof sim.multiplierCapHitRate !== "number") {
+      throw new Error(`Expected Lava Run ${riskLevel} simulation output to include EV by step, hit rate, average multiplier, max multiplier, and cap effects.`);
+    }
+    if (cashoutStep === 1 && (sim.biggestWin <= 0 || sim.hitRate <= 0 || sim.bustRate <= 0 || sim.averagePayout <= 0 || sim.maxMultiplierObserved <= 0)) {
+      throw new Error(`Expected Lava Run ${riskLevel} simulation to report wins, hit rate, busts, and average payout.`);
+    }
+  }
+  for (const strategy of ["conservative", "balanced", "aggressive", "random"] as const) {
+    const sim = simulateLavaRunStrategy(riskLevel, strategy, 50000, 10);
+    if (sim.strategy !== strategy || sim.theoreticalRtp > 0.95 || sim.observedRtp > 0.95) {
+      throw new Error(`Expected Lava Run ${riskLevel} ${strategy} strategy simulation to stay under 95% RTP.`);
+    }
+    if (sim.hitRate + sim.bustRate < 0.999 || sim.hitRate + sim.bustRate > 1.001) {
+      throw new Error(`Expected Lava Run ${riskLevel} ${strategy} hit rate and bust rate to reconcile.`);
+    }
+  }
+}
+const lavaRunTableSim = simulateTableGame("lavaRun", 50000);
+if (lavaRunTableSim.observedRtp > 0.95 || lavaRunTableConfig.houseEdgeTarget < 0.05) {
+  throw new Error("Expected Lava Run table simulation and config target to stay under 95% RTP.");
+}
+if (
+  lavaRunUiMarkers.gameName !== "Lava Run" ||
+  !lavaRunUiMarkers.goldBonusToggle ||
+  !lavaRunUiMarkers.deterministicStepReveal ||
+  !lavaRunUiMarkers.exactOneSafeLanePerRow ||
+  !lavaRunUiMarkers.jumpRightToContinue ||
+  !lavaRunUiMarkers.continueButtonRemoved ||
+  !lavaRunUiMarkers.visibleStageRevealAfterRound ||
+  !lavaRunUiMarkers.resetAfterResolvedRound ||
+  !lavaRunUiMarkers.noPickTextOnTiles ||
+  !lavaRunUiMarkers.sideScrollingCamera ||
+  !lavaRunUiMarkers.completedStepsLeaveScreen ||
+  !lavaRunUiMarkers.futureStepsSpawnRight ||
+  !lavaRunUiMarkers.futureMultipliersVisible ||
+  !lavaRunUiMarkers.currentAndNextStepsOnly ||
+  !lavaRunUiMarkers.suspenseBeforeReveal ||
+  !lavaRunUiMarkers.platformTapLocksChoice ||
+  !lavaRunUiMarkers.inactiveFuturePlatformsDisabled ||
+  !lavaRunUiMarkers.singleAvatarPosition ||
+  !lavaRunUiMarkers.cashoutEscapedState ||
+  !lavaRunUiMarkers.resultBlocksPlatformClicks ||
+  !lavaRunUiMarkers.animationPacingTargets ||
+  !lavaRunUiMarkers.floatingPlatformScene ||
+  !lavaRunUiMarkers.organicPlatformStagger ||
+  !lavaRunUiMarkers.cameraPushOnAdvance ||
+  !lavaRunUiMarkers.visualOnlyEscalation ||
+  !lavaRunUiMarkers.highMultiplierIntensity ||
+  !lavaRunUiMarkers.emberParticleLayer ||
+  !lavaRunUiMarkers.cashoutPayoutCountUp ||
+  !lavaRunUiMarkers.environmentEscalatesByStep ||
+  !lavaRunUiMarkers.riskSelector ||
+  !lavaRunUiMarkers.currentMultiplierMeter ||
+  !lavaRunUiMarkers.nextMultiplierMeter ||
+  !lavaRunUiMarkers.cashOutAnytimeAfterSafeStep ||
+  !lavaRunUiMarkers.noPhysicsEngine ||
+  !lavaRunUiMarkers.platformRevealGlow ||
+  !lavaRunUiMarkers.lavaBustBurst ||
+  !lavaRunUiMarkers.avatarHop ||
+  !lavaRunUiMarkers.rasterPlatformAssets ||
+  !lavaRunUiMarkers.maxWinCapRespected ||
+  !lavaRunUiMarkers.rtpUnder95Warning ||
+  !lavaRunUiMarkers.sharedSoundToggle ||
+  !lavaRunUiMarkers.compactBottomBetControls ||
+  !lavaRunUiMarkers.ledgerMetadataIncludesPath
+) {
+  throw new Error("Expected Lava Run UI markers for simple path progression, controls, animations, RTP, and ledger metadata.");
+}
+
+if (!tableGameConfigs.some((game) => game.id === "emberStack" && game.name === "Ember Stack")) {
+  throw new Error("Expected Ember Stack lobby card to be registered.");
+}
+if (!emberStackTableConfig.artwork?.includes("/assets/branding/game-logos/ember_stack_logo.png")) {
+  throw new Error("Expected Ember Stack lobby card to use the card-fit raster branding logo.");
+}
+const emberGoldLimits = getEmberStackBetLimits("GOLD");
+const emberSweepstakesLimits = getEmberStackBetLimits("BONUS");
+if (
+  emberGoldLimits.minBet !== 1 ||
+  emberGoldLimits.maxBet !== 1000000 ||
+  emberSweepstakesLimits.minBet !== 0.01 ||
+  emberSweepstakesLimits.maxBet !== 500
+) {
+  throw new Error("Expected Ember Stack bet limits to be GC 1-1,000,000 and SC 0.01-500.");
+}
+if (emberStackConfig.name !== "Ember Stack" || emberStackConfig.slug !== "ember-stack" || emberStackConfig.id !== "emberStack") {
+  throw new Error("Expected Ember Stack config to carry the new game identity.");
+}
+const expectedEmberCurves = {
+  low: [1.04, 1.1, 1.18, 1.3, 1.48, 1.72, 2.05, 2.45, 3.1, 4, 5.5, 8],
+  medium: [1.15, 1.42, 2.05, 3.4, 6, 12, 22.5, 40, 70, 110, 160, 220, 300, 400],
+  high: [1.35, 2.5, 5.5, 12, 25, 50, 90, 150, 250, 400, 650, 1000, 1500, 2500, 4000, 5000],
+} as const;
+for (const riskLevel of emberStackRiskOrder) {
+  expectedEmberCurves[riskLevel].forEach((multiplier, index) => {
+    assertClose(getEmberStackBaseMultiplier(index + 1, riskLevel), multiplier, `Expected Ember Stack ${riskLevel} level ${index + 1} multiplier to match the requested curve.`);
+  });
+}
+if (
+  emberStackConfig.riskProfiles.low.maxWinMultiplier !== 8 ||
+  emberStackConfig.riskProfiles.medium.maxWinMultiplier !== 400 ||
+  emberStackConfig.riskProfiles.high.maxWinMultiplier !== 5000 ||
+  getEmberStackMaxWinMultiplier("high", emberStackConfig.maxBetGold) !== 5000 ||
+  getEmberStackBaseMultiplier(99, "high") !== 5000
+) {
+  throw new Error("Expected Ember Stack multiplier curves to cap at 8x, 400x, and 5000x by risk without a payout-size cap.");
+}
+if (getEmberStackBaseMultiplier(10, "medium") < 100 || getEmberStackBaseMultiplier(6, "high") <= getEmberStackBaseMultiplier(6, "medium") || getEmberStackBaseMultiplier(6, "medium") <= getEmberStackBaseMultiplier(6, "low")) {
+  throw new Error("Expected Ember Stack progression to reach 100x+ and scale by risk.");
+}
+if (getEmberStackSpeedForLevel("low", 0) >= getEmberStackSpeedForLevel("medium", 0) || getEmberStackSpeedForLevel("high", 5) <= getEmberStackSpeedForLevel("high", 1)) {
+  throw new Error("Expected Ember Stack speed to increase by risk and progression.");
+}
+if (formatEmberStackMultiplier(1.234) !== "1.23x" || formatEmberStackMultiplier(42) !== "42x") {
+  throw new Error("Expected Ember Stack multiplier formatting to be readable.");
+}
+
+function emberSequenceRandom(values: number[]) {
+  let index = 0;
+  return () => values[index++] ?? 0.5;
+}
+
+const emberMotionUser = "ember-stack-motion-user";
+creditCurrency({ userId: emberMotionUser, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 1000 });
+const emberMotionRound = startEmberStackRound({ userId: emberMotionUser, currency: "GOLD", betAmount: 10, risk: "medium", random: () => 0 });
+const emberBase = emberMotionRound.tower[0];
+if (!emberMotionRound.activePlatform || emberMotionRound.choiceAvailable || emberBase.width !== emberStackConfig.riskProfiles.medium.startingWidth || emberMotionRound.activePlatform.width !== emberBase.width || emberBase.x <= 0) {
+  throw new Error("Expected Ember Stack to start with a centered CPU-controlled block ready to animate.");
+}
+const emberCycleMs = getEmberStackCycleMs(emberMotionRound.activePlatform);
+assertClose(getEmberStackPlatformX(emberMotionRound.activePlatform, 0), getEmberStackPlatformX(emberMotionRound.activePlatform, emberCycleMs), "Expected Ember Stack moving platform to loop cleanly.");
+if (getEmberStackPlatformX(emberMotionRound.activePlatform, emberCycleMs / 2) <= getEmberStackPlatformX(emberMotionRound.activePlatform, 0)) {
+  throw new Error("Expected Ember Stack moving platform to slide across the board with eased direction changes.");
+}
+const lowCpuChance = getEmberStackCpuSuccessChance({ risk: "low", stackCount: 0, currentMultiplier: 1, platformWidth: emberStackConfig.riskProfiles.low.startingWidth });
+const mediumCpuChance = getEmberStackCpuSuccessChance({ risk: "medium", stackCount: 0, currentMultiplier: 1, platformWidth: emberStackConfig.riskProfiles.medium.startingWidth });
+const highCpuChance = getEmberStackCpuSuccessChance({ risk: "high", stackCount: 0, currentMultiplier: 1, platformWidth: emberStackConfig.riskProfiles.high.startingWidth });
+if (lowCpuChance <= mediumCpuChance || mediumCpuChance <= highCpuChance || pickEmberStackCpuOutcome({ risk: "high", stackCount: 0, currentMultiplier: 1, platformWidth: emberStackConfig.riskProfiles.high.startingWidth, random: emberSequenceRandom([1]) }) !== "miss") {
+  throw new Error("Expected Ember Stack CPU success chance to be risk-controlled with miss outcomes.");
+}
+
+const emberGood = attemptEmberStackCpuStack({ round: emberMotionRound, random: emberSequenceRandom([0, 0.25, 0, 0]) });
+if (emberGood.status !== "RUNNING" || !emberGood.choiceAvailable || emberGood.stackCount !== 1 || emberGood.lastQuality !== "good" || !emberGood.lastCut || emberGood.lastCut.width <= 0 || emberGood.tower[1].width >= emberBase.width) {
+  throw new Error("Expected Ember Stack CPU to resolve a good stack, slice overhang, and pause for player decision.");
+}
+if (!emberGood.activePlatform || emberGood.activePlatform.width !== emberGood.tower[1].width) {
+  throw new Error("Expected Ember Stack remaining platform width to become the next moving platform width.");
+}
+assertClose(emberGood.lastLockX ?? 0, emberGood.lastCut.x, "Expected Ember Stack good CPU lock position to line up with the visible trimmed piece.");
+assertClose(emberGood.lastCut.width, emberBase.width - emberGood.tower[1].width, "Expected Ember Stack good cut width to match the visual width loss.");
+assertClose(emberGood.tower[1].x, emberBase.x, "Expected Ember Stack good locked block to sit on the remaining overlap.");
+if (emberGood.currentMultiplier <= 1 || emberGood.lastParticles.length === 0 || !canCashOutEmberStackRound(emberGood)) {
+  throw new Error("Expected Ember Stack successful stack to increase multiplier and emit impact particles.");
+}
+
+const emberPerfectStart = startEmberStackRound({ userId: emberMotionUser, currency: "GOLD", betAmount: 10, risk: "medium", random: () => 0 });
+const emberPerfect = attemptEmberStackCpuStack({ round: emberPerfectStart, random: emberSequenceRandom([0, 0, 0.5, 0]) });
+if (emberPerfect.lastQuality !== "perfect" || emberPerfect.perfectCombo !== 1 || Math.abs(emberPerfect.currentMultiplier - getEmberStackBaseMultiplier(1, "medium")) > 0.000001 || emberPerfect.tower[1].width < emberPerfectStart.tower[0].width) {
+  throw new Error("Expected Ember Stack perfect stack to restore width, build combo, and keep the multiplier on the requested curve.");
+}
+const emberBad = attemptEmberStackCpuStack({ round: emberPerfectStart, random: emberSequenceRandom([0, 0.95, 0, 0]) });
+if (emberBad.lastQuality !== "bad" || !emberBad.choiceAvailable || emberBad.tower[1].width >= emberGood.tower[1].width) {
+  throw new Error("Expected Ember Stack bad CPU stack to keep running with a major width reduction.");
+}
+if (!emberBad.lastCut || emberBad.lastCut.width <= emberGood.lastCut.width) {
+  throw new Error("Expected Ember Stack bad CPU stack to visibly lose more width than a good stack.");
+}
+const emberMiss = attemptEmberStackCpuStack({ round: emberPerfectStart, random: emberSequenceRandom([1, 0, 0]) });
+if (emberMiss.status !== "BUST" || emberMiss.currentMultiplier !== 0 || emberMiss.lastCut?.side !== "full") {
+  throw new Error("Expected Ember Stack CPU miss to bust and drop the moving block.");
+}
+assertClose(emberMiss.lastLockX ?? 0, emberMiss.lastCut?.x ?? 0, "Expected Ember Stack miss lock position to match the falling full block.");
+if (getEmberStackRoundStatusCopy(emberMiss) !== "BUST" || getEmberStackQualityCopy("perfect") !== "PERFECT") {
+  throw new Error("Expected Ember Stack result copy to clearly describe CPU bust and perfect states.");
+}
+
+const emberStyle = getEmberStackPlatformStyle(emberGood.tower[1], getEmberStackCameraOffset(emberGood.stackCount));
+if (!String(emberStyle["--ember-platform-left" as keyof typeof emberStyle]).includes("%") || !String(emberStyle["--ember-platform-bottom" as keyof typeof emberStyle]).includes("px")) {
+  throw new Error("Expected Ember Stack platform styles to use board-relative mobile sizing.");
+}
+const emberPlatformClass = getEmberStackPlatformClass(emberPerfect.tower[1], emberPerfect);
+if (!emberPlatformClass.includes("top-lock") || !emberPlatformClass.includes("quality-perfect") || !emberPlatformClass.includes("tier-bottom")) {
+  throw new Error("Expected Ember Stack locked platform class to visually match the chosen CPU outcome and level color tier.");
+}
+const emberCutStyle = getEmberStackCutStyle(emberGood.lastCut!, getEmberStackCameraOffset(emberGood.stackCount));
+if (!String(emberCutStyle["--ember-cut-width" as keyof typeof emberCutStyle]).includes("%")) {
+  throw new Error("Expected Ember Stack cut piece style to expose falling overhang dimensions.");
+}
+const emberCutLineStyle = getEmberStackCutLineStyle(emberGood.lastCut!, getEmberStackCameraOffset(emberGood.stackCount));
+if (!String(emberCutLineStyle["--ember-cut-line-left" as keyof typeof emberCutLineStyle]).includes("%") || !String(emberCutLineStyle["--ember-cut-line-bottom" as keyof typeof emberCutLineStyle]).includes("px")) {
+  throw new Error("Expected Ember Stack cut line animation to align with the trimmed overhang.");
+}
+const emberParticleStyle = getEmberStackParticleStyle(emberGood.lastParticles[0]);
+if (!String(emberParticleStyle["--ember-particle-delay" as keyof typeof emberParticleStyle]).includes("ms")) {
+  throw new Error("Expected Ember Stack particles to expose staggered impact timing.");
+}
+const emberVisualState = getEmberStackOutcomeVisualState(emberGood);
+if (emberVisualState.quality !== "good" || !emberVisualState.hasCut || !emberVisualState.hasChoice || emberVisualState.milestone !== "base") {
+  throw new Error("Expected Ember Stack visual outcome state to track CPU stack quality, cut flow, and decision state.");
+}
+const emberHudRows = getEmberStackBoardHudRows(emberGood, getEmberStackNextMultiplier(emberGood));
+const emberLowHudRows = getEmberStackBoardHudRows(null, getEmberStackBaseMultiplier(1, "low"), undefined, "low");
+const emberHighHudRows = getEmberStackBoardHudRows(null, getEmberStackBaseMultiplier(1, "high"), undefined, "high");
+if (
+  emberHudRows.length !== expectedEmberCurves.medium.length ||
+  emberLowHudRows.length !== expectedEmberCurves.low.length ||
+  emberHighHudRows.length !== expectedEmberCurves.high.length ||
+  !emberHudRows.some((row) => row.state === "current") ||
+  !emberHudRows.some((row) => row.state === "next") ||
+  emberHudRows.at(-1)?.multiplier !== 400 ||
+  emberHighHudRows.at(-1)?.multiplier !== 5000
+) {
+  throw new Error("Expected Ember Stack board HUD rows to expose every risk multiplier level beside the tower.");
+}
+const emberRowMarkerStyle = getEmberStackRowMarkerStyle(emberHudRows[0], getEmberStackCameraOffset(emberGood.stackCount));
+if (!String(emberRowMarkerStyle["--ember-row-marker-bottom" as keyof typeof emberRowMarkerStyle]).includes("px")) {
+  throw new Error("Expected Ember Stack row multiplier markers to use board-relative vertical positioning.");
+}
+if (getEmberStackCameraOffset(8) !== 0 || getEmberStackOutcomeVisualState({ ...emberGood, stackCount: 8 }).cameraOffset !== 0) {
+  throw new Error("Expected Ember Stack board to stay fixed instead of camera-scrolling the tower.");
+}
+if (getEmberStackPlatformTier(1, "medium") !== "bottom" || getEmberStackPlatformTier(6, "medium") !== "middle" || getEmberStackPlatformTier(12, "medium") !== "top") {
+  throw new Error("Expected Ember Stack platform tiers to map lower, middle, and upper thirds to distinct colors.");
+}
+if (getEmberStackBoardMood(null).tier !== "base" || getEmberStackBoardMood({ ...emberPerfect, currentMultiplier: 120 }).tier !== "inferno" || getEmberStackMultiplierMilestone(10) !== "ten" || getEmberStackMultiplierMilestone(25) !== "twenty-five" || getEmberStackMultiplierMilestone(50) !== "fifty" || getEmberStackMultiplierMilestone(100) !== "hundred" || getEmberStackMultiplierMilestone(250) !== "two-fifty") {
+  throw new Error("Expected Ember Stack board mood to escalate with progression.");
+}
+if (getEmberStackNextMultiplier(emberGood) <= emberGood.currentMultiplier) {
+  throw new Error("Expected Ember Stack next multiplier to rise after a successful stack.");
+}
+const emberAssetValues = Object.values(emberStackAssetManifest);
+if (
+  emberAssetValues.length < 12 ||
+  !emberAssetValues.every((asset) => asset.includes("/assets/ember-stack/") && asset.endsWith(".png")) ||
+  !emberStackAssetManifest.greenPlatform.includes("platform-green.png") ||
+  !emberStackAssetManifest.bluePlatform.includes("platform-blue.png") ||
+  !emberStackAssetManifest.redPlatform.includes("platform-red.png")
+) {
+  throw new Error("Expected Ember Stack to use premium raster assets for board, platforms, FX, and logo.");
+}
+
+try {
+  startEmberStackRound({ userId: user.id, currency: "GOLD", betAmount: 0.5, risk: "low" });
+  throw new Error("Expected Ember Stack GC bet below minimum to be blocked.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("Minimum GC bet")) throw error;
+}
+try {
+  startEmberStackRound({ userId: user.id, currency: "BONUS", betAmount: 501, risk: "medium" });
+  throw new Error("Expected Ember Stack SC bet above maximum to be blocked.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("Maximum SC bet")) throw error;
+}
+try {
+  startEmberStackRound({ userId: "low-ember-stack-user", currency: "GOLD", betAmount: 1, risk: "high" });
+  throw new Error("Expected Ember Stack to block insufficient balance.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("Insufficient")) throw error;
+}
+
+const emberUser = "ember-stack-user";
+creditCurrency({ userId: emberUser, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 1000 });
+const emberGoldBefore = getBalance(emberUser, "GOLD");
+let emberRound = startEmberStackRound({ userId: emberUser, currency: "GOLD", betAmount: 100, risk: "medium", random: () => 0 });
+if (getBalance(emberUser, "GOLD") !== emberGoldBefore - 100) {
+  throw new Error("Expected Ember Stack start to deduct the bet immediately.");
+}
+emberRound = attemptEmberStackCpuStack({ round: emberRound, random: emberSequenceRandom([0, 0.25, 0, 0]) });
+if (emberRound.status !== "RUNNING" || emberRound.currentMultiplier <= 1 || emberRound.stackCount !== 1 || !canCashOutEmberStackRound(emberRound)) {
+  throw new Error("Expected Ember Stack CPU success to enable cashout and continue decisions.");
+}
+const emberContinued = continueEmberStackRound(emberRound);
+if (emberContinued.choiceAvailable || emberContinued.lastMessage !== "CPU lining up the next block.") {
+  throw new Error("Expected Ember Stack continue to arm the next CPU attempt.");
+}
+const emberSecondStack = attemptEmberStackCpuStack({ round: emberContinued, random: emberSequenceRandom([0, 0.25, 0, 0]) });
+if (emberSecondStack.stackCount !== 2 || !emberSecondStack.choiceAvailable || emberSecondStack.currentMultiplier <= emberRound.currentMultiplier) {
+  throw new Error("Expected Ember Stack continue to trigger the next CPU stack attempt.");
+}
+const emberCashBefore = getBalance(emberUser, "GOLD");
+const emberCashout = cashOutEmberStackRound({ round: emberRound, userId: emberUser });
+if (emberCashout.status !== "CASHED_OUT" || emberCashout.totalPaid !== getEmberStackCashoutAmount(emberRound)) {
+  throw new Error("Expected Ember Stack cashout to pay bet times current multiplier with caps.");
+}
+if (getBalance(emberUser, "GOLD") !== emberCashBefore + emberCashout.totalPaid) {
+  throw new Error("Expected Ember Stack cashout to credit winnings through the wallet ledger.");
+}
+const emberBetTx = emberRound.transactions.find((tx) => tx.type === "ARCADE_BET");
+const emberWinTx = emberCashout.transactions.find((tx) => tx.type === "ARCADE_WIN");
+if (!emberBetTx || emberBetTx.metadata?.game !== "ember-stack" || emberBetTx.metadata?.risk !== "medium" || emberBetTx.metadata?.bet !== 100) {
+  throw new Error("Expected Ember Stack bet metadata to include game, risk, and bet.");
+}
+if (!emberWinTx || emberWinTx.metadata?.game !== "ember-stack" || emberWinTx.metadata?.result !== "cashout" || emberWinTx.metadata?.stacks !== emberCashout.stackCount || emberWinTx.metadata?.perfects !== emberCashout.perfectCount || typeof emberWinTx.metadata?.goodStacks !== "number") {
+  throw new Error("Expected Ember Stack win metadata to include stack result details.");
+}
+
+const emberCapUser = "ember-stack-cap-user";
+creditCurrency({ userId: emberCapUser, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: emberStackConfig.maxBetGold });
+const emberCapRound = startEmberStackRound({ userId: emberCapUser, currency: "GOLD", betAmount: emberStackConfig.maxBetGold, risk: "high", random: () => 0 });
+const emberMaxMultiplierCashout = cashOutEmberStackRound({ round: { ...emberCapRound, choiceAvailable: true, stackCount: 16, currentMultiplier: 5000, perfectCount: 4 }, userId: emberCapUser });
+if (emberMaxMultiplierCashout.capped || emberMaxMultiplierCashout.totalPaid !== emberStackConfig.maxBetGold * 5000 || emberMaxMultiplierCashout.totalPaid <= emberStackConfig.maxPayout || emberMaxMultiplierCashout.currentMultiplier !== getEmberStackMaxWinMultiplier("high", emberStackConfig.maxBetGold)) {
+  throw new Error("Expected Ember Stack to use the risk multiplier max without applying the absolute payout cap.");
+}
+const emberOverMultiplierCashout = cashOutEmberStackRound({ round: { ...emberCapRound, choiceAvailable: true, stackCount: 17, currentMultiplier: 9000, perfectCount: 4 }, userId: emberCapUser });
+if (!emberOverMultiplierCashout.capped || emberOverMultiplierCashout.currentMultiplier !== 5000 || emberOverMultiplierCashout.totalPaid !== emberStackConfig.maxBetGold * 5000) {
+  throw new Error("Expected Ember Stack to cap only at the risk max multiplier.");
+}
+if (getBalance(emberCapUser, "GOLD") < 0) {
+  throw new Error("Expected Ember Stack never to create a negative wallet balance.");
+}
+
+for (const riskLevel of emberStackRiskOrder) {
+  for (const strategy of ["random", "quick", "balanced", "greedy"] as EmberStackSimulationStrategy[]) {
+    const sim = simulateEmberStack(riskLevel, 50000, 10, strategy);
+    if (sim.observedRtp > 0.95 || sim.houseEdge < 0.05) {
+      throw new Error(`Expected Ember Stack ${riskLevel} ${strategy} CPU RTP simulation to stay under 95%.`);
+    }
+    if (typeof sim.successRate !== "number" || typeof sim.bustRate !== "number" || typeof sim.averageCashoutEv !== "number" || typeof sim.maxWin !== "number" || sim.averageStacks <= 0 || typeof sim.cashoutRate !== "number") {
+      throw new Error(`Expected Ember Stack ${riskLevel} ${strategy} simulation to report success, bust, EV, max win, cashout, and average stack stats.`);
+    }
+  }
+}
+const emberStackTableSim = simulateTableGame("emberStack", 50000);
+if (emberStackTableSim.observedRtp > 0.95 || emberStackTableConfig.houseEdgeTarget < 0.05) {
+  throw new Error("Expected Ember Stack table simulation and config target to stay below 95%.");
+}
+if (
+  emberStackUiMarkers.gameName !== "Ember Stack" ||
+  !emberStackUiMarkers.playheaterBranding ||
+  !emberStackUiMarkers.goldBonusToggle ||
+  !emberStackUiMarkers.riskSelector ||
+  !emberStackUiMarkers.movingPlatformLoop ||
+  !emberStackUiMarkers.noStopButton ||
+  !emberStackUiMarkers.cpuRunStacking ||
+  !emberStackUiMarkers.cashoutContinueDecision ||
+  !emberStackUiMarkers.cleanSliceAnimation ||
+  !emberStackUiMarkers.fallingCutPiece ||
+  !emberStackUiMarkers.impactParticles ||
+  !emberStackUiMarkers.perfectStackBonus ||
+  !emberStackUiMarkers.perfectComboCounter ||
+  !emberStackUiMarkers.widthRestoreOnPerfect ||
+  !emberStackUiMarkers.shortStarterBlocks ||
+  !emberStackUiMarkers.riskBasedCpuSuccessChances ||
+  !emberStackUiMarkers.cpuOutcomePerfectGoodBadMiss ||
+  !emberStackUiMarkers.premiumRasterAssets ||
+  !emberStackUiMarkers.outcomeMatchedLockAnimation ||
+  !emberStackUiMarkers.cutLineAnimation ||
+  emberStackUiMarkers.cameraRiseVisual ||
+  !emberStackUiMarkers.multiplierMilestones ||
+  !emberStackUiMarkers.cashoutPayoutSequence ||
+  !emberStackUiMarkers.bustShakeSequence ||
+  !emberStackUiMarkers.noHeaderPlayheaterText ||
+  !emberStackUiMarkers.noHeaderGemIcon ||
+  !emberStackUiMarkers.infoBesideGameName ||
+  !emberStackUiMarkers.balanceInBottomControls ||
+  !emberStackUiMarkers.noStandaloneMeterBoxes ||
+  !emberStackUiMarkers.boardIntegratedMultiplierHud ||
+  !emberStackUiMarkers.rowMultiplierMarkers ||
+  !emberStackUiMarkers.fullMultiplierLadder ||
+  !emberStackUiMarkers.noBoardCashoutHeightStats ||
+  !emberStackUiMarkers.noDecisionStatusPanel ||
+  !emberStackUiMarkers.noResolvedResultStrip ||
+  !emberStackUiMarkers.boardResolvedResultOverlay ||
+  !emberStackUiMarkers.boardClickContinue ||
+  !emberStackUiMarkers.simplifiedMultiplierHud ||
+  emberStackUiMarkers.readableNextBlockMultiplier ||
+  !emberStackUiMarkers.noBoardWideComboGlow ||
+  !emberStackUiMarkers.rasterPlatformSprites ||
+  !emberStackUiMarkers.singleBottomPlatform ||
+  !emberStackUiMarkers.noInBlockMultiplierLabels ||
+  !emberStackUiMarkers.nextMultiplierInTopHud ||
+  !emberStackUiMarkers.fixedBoardNoCameraScroll ||
+  !emberStackUiMarkers.tieredPlatformColors ||
+  !emberStackUiMarkers.cleanArcadeStackerBackdrop ||
+  !emberStackUiMarkers.noBackgroundBurstOnBust ||
+  !emberStackUiMarkers.slowMissFallAnimation ||
+  !emberStackUiMarkers.singleBustMessage ||
+  !emberStackUiMarkers.cpuLockTimingMatchesOutcome ||
+  !emberStackUiMarkers.nextBlockMovesDuringDecision ||
+  emberStackUiMarkers.nextMultiplierOnMovingBlock ||
+  !emberStackUiMarkers.multiplierCurve ||
+  !emberStackUiMarkers.speedScalingByRiskAndProgression ||
+  !emberStackUiMarkers.cpuSuccessChanceMath ||
+  !emberStackUiMarkers.cpuSimulationReportsEv ||
+  !emberStackUiMarkers.cpuRiskSimulations ||
+  !emberStackUiMarkers.cpuRtpUnder95 ||
+  !emberStackUiMarkers.mobileFirstBoardDominant ||
+  !emberStackUiMarkers.sharedSoundToggle ||
+  !emberStackUiMarkers.audioHooks ||
+  !emberStackUiMarkers.stackerMechanicsOnly ||
+  !emberStackUiMarkers.nonPhysicsTimingModel
+) {
+  throw new Error("Expected Ember Stack UI markers for CPU stacker gameplay, perfect combo, RTP controls, and mobile board dominance.");
+}
+if (
+  emberStackAnimationTimings.cutMs < 500 ||
+  emberStackAnimationTimings.cutMs > 900 ||
+  emberStackAnimationTimings.cpuAttemptMs < 500 ||
+  emberStackAnimationTimings.cpuAttemptMs > 900 ||
+  emberStackAnimationTimings.lockMs < 120 ||
+  emberStackAnimationTimings.lockMs > 260 ||
+  emberStackAnimationTimings.perfectMs < 600 ||
+  emberStackAnimationTimings.cashoutMs < 800 ||
+  emberStackAnimationTimings.bustMs < 1200
+) {
+  throw new Error("Expected Ember Stack animation pacing to leave room for slice, perfect, cashout, and bust effects.");
+}
 console.log("tableGames.devtest passed");

@@ -36,6 +36,10 @@ const tableRouteIds: Record<string, TableGameId> = {
   brickBreakBonus: "brickBreakBonus",
   "balloon-pop": "balloonPop",
   balloonPop: "balloonPop",
+  "lava-run": "lavaRun",
+  lavaRun: "lavaRun",
+  "ember-stack": "emberStack",
+  emberStack: "emberStack",
 };
 
 function getInitialRoute(): { view: AppView; slotGameId: string | null; tableGameId: TableGameId | null } {
@@ -124,7 +128,7 @@ export function AppShell() {
   function playTableGame(gameId: TableGameId) {
     setActiveTableGameId(gameId);
     setActiveView("tableGames");
-    window.history.pushState(null, "", `/games/${gameId === "treasureDig" ? "treasure-dig" : gameId === "brickBreakBonus" ? "brick-break-bonus" : gameId === "balloonPop" ? "balloon-pop" : gameId}`);
+    window.history.pushState(null, "", `/games/${gameId === "treasureDig" ? "treasure-dig" : gameId === "brickBreakBonus" ? "brick-break-bonus" : gameId === "balloonPop" ? "balloon-pop" : gameId === "lavaRun" ? "lava-run" : gameId === "emberStack" ? "ember-stack" : gameId}`);
   }
 
   const hideMobileNav = (activeView === "games" && Boolean(activeGameId)) || (activeView === "tableGames" && Boolean(activeTableGameId));

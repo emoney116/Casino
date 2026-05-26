@@ -1,6 +1,8 @@
 import type { BlackjackConfig, CrashConfig, DiceConfig, RouletteConfig, TableGameConfig, TreasureDigConfig } from "./types";
 import { brickBreakBonusConfig } from "./brickBreakBonusEngine";
 import { balloonPopConfig } from "./balloonPopEngine";
+import { lavaRunConfig } from "./lavaRunEngine";
+import { emberStackConfig } from "./emberStackEngine";
 import { COMPLIANCE_COPY } from "../lib/compliance";
 import { DEMO_MAX_PAYOUT, DEMO_MAX_SINGLE_BET, DEMO_MAX_TOTAL_BET } from "../economy/limits";
 
@@ -14,6 +16,8 @@ const tableGameArtwork = {
   treasureDig: new URL("../assets/branding/game-logos/treasure_dig_logo.png", import.meta.url).href,
   brickBreakBonus: new URL("../assets/branding/game-logos/brickbreak_logo.png", import.meta.url).href,
   balloonPop: new URL("../assets/branding/game-logos/balloon_pop_logo.png", import.meta.url).href,
+  lavaRun: new URL("../assets/branding/game-logos/lava_run_logo.png", import.meta.url).href,
+  emberStack: new URL("../assets/branding/game-logos/ember_stack_logo.png", import.meta.url).href,
 } as const;
 
 export const blackjackConfig: BlackjackConfig = {
@@ -188,4 +192,40 @@ export const balloonPopTableConfig: TableGameConfig = {
   rules: ["Choose 3 balloons", "Prize map is generated before darts are thrown", "Multipliers apply to current round winnings"],
 };
 
-export const tableGameConfigs: TableGameConfig[] = [balloonPopTableConfig, brickBreakBonusTableConfig, blackjackConfig, rouletteConfig, diceConfig, crashConfig, treasureDigConfig];
+export const lavaRunTableConfig: TableGameConfig = {
+  id: "lavaRun",
+  name: lavaRunConfig.name,
+  theme: lavaRunConfig.theme,
+  minBet: lavaRunConfig.minBet,
+  maxBet: lavaRunConfig.maxBet,
+  minBetGold: lavaRunConfig.minBetGold,
+  maxBetGold: lavaRunConfig.maxBetGold,
+  minBetRealCentsPlaceholder: lavaRunConfig.minBetRealCentsPlaceholder,
+  maxBetRealCentsPlaceholder: lavaRunConfig.maxBetRealCentsPlaceholder,
+  maxPayout: lavaRunConfig.maxPayout,
+  houseEdgeTarget: 1 - lavaRunConfig.targetRtp,
+  currency: "GOLD",
+  demoOnlyCopy,
+  artwork: tableGameArtwork.lavaRun,
+  rules: ["Choose Low, Medium, or High risk", "Pick lava platforms one row at a time", "Cash out after safe steps or risk the next reveal"],
+};
+
+export const emberStackTableConfig: TableGameConfig = {
+  id: "emberStack",
+  name: emberStackConfig.name,
+  theme: emberStackConfig.theme,
+  minBet: emberStackConfig.minBet,
+  maxBet: emberStackConfig.maxBet,
+  minBetGold: emberStackConfig.minBetGold,
+  maxBetGold: emberStackConfig.maxBetGold,
+  minBetRealCentsPlaceholder: emberStackConfig.minBetRealCentsPlaceholder,
+  maxBetRealCentsPlaceholder: emberStackConfig.maxBetRealCentsPlaceholder,
+  maxPayout: emberStackConfig.maxPayout,
+  houseEdgeTarget: 1 - emberStackConfig.targetRtp,
+  currency: "GOLD",
+  demoOnlyCopy,
+  artwork: tableGameArtwork.emberStack,
+  rules: ["Start a CPU-run stack attempt", "Perfect, good, and thin stacks raise the multiplier", "Cash out after a success or continue the run"],
+};
+
+export const tableGameConfigs: TableGameConfig[] = [emberStackTableConfig, lavaRunTableConfig, balloonPopTableConfig, brickBreakBonusTableConfig, blackjackConfig, rouletteConfig, diceConfig, crashConfig, treasureDigConfig];

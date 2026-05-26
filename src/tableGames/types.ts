@@ -1,6 +1,6 @@
 import type { Currency, Transaction } from "../types";
 
-export type TableGameId = "blackjack" | "roulette" | "dice" | "crash" | "treasureDig" | "brickBreakBonus" | "balloonPop";
+export type TableGameId = "blackjack" | "roulette" | "dice" | "crash" | "treasureDig" | "brickBreakBonus" | "balloonPop" | "lavaRun" | "emberStack";
 export type TableGameStatus = "IDLE" | "BETTING" | "PLAYER_TURN" | "DEALER_TURN" | "RESOLVED" | "ERROR";
 
 export interface TableGameConfig {
@@ -113,7 +113,7 @@ export interface RouletteResult {
   settlement: TableSettlement;
 }
 
-export type DiceDirection = "over" | "under";
+export type DiceDirection = "over" | "under" | "exact";
 
 export interface DiceConfig extends TableGameConfig {
   edge: number;

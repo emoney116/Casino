@@ -1,4 +1,4 @@
-import { ArrowUpDown, CircleDot, Gem, Grid3X3, Rocket, Spade, Target } from "lucide-react";
+import { ArrowUpDown, CircleDot, Flame, Gem, Grid3X3, Rocket, Spade, Target } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { TableGameConfig } from "./types";
 
@@ -10,15 +10,14 @@ const icons = {
   treasureDig: Gem,
   brickBreakBonus: Grid3X3,
   balloonPop: Target,
+  lavaRun: Flame,
+  emberStack: Flame,
 };
 
 export function TableGameCard({ game, onPlay }: { game: TableGameConfig; onPlay: (gameId: TableGameConfig["id"]) => void }) {
   const Icon = icons[game.id];
   return (
     <button type="button" className={`table-game-card title-card ${game.id}`} onClick={() => onPlay(game.id)}>
-      <div className="game-card-badges table-badges" aria-label={`${game.name} tags`}>
-        <span>Max {game.maxPayout}</span>
-      </div>
       <div className="table-game-art">
         {game.artwork ? (
           <img className="table-game-raster-art" src={game.artwork} alt={`${game.name} game art`} />

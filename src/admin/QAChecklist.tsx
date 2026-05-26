@@ -17,6 +17,8 @@ const checks = [
   { id: "treasure", label: "Treasure Dig bet/win works", ok: () => readData().transactions.some((tx) => tx.metadata?.tableGameId === "treasureDig") },
   { id: "brick", label: "Brick Break bet/win works", ok: () => readData().transactions.some((tx) => tx.metadata?.arcadeGameId === "brickBreakBonus") },
   { id: "balloon", label: "Balloon Pop bet/win works", ok: () => readData().transactions.some((tx) => tx.metadata?.arcadeGameId === "balloonPop") },
+  { id: "lava-run", label: "Lava Run bet/win works", ok: () => readData().transactions.some((tx) => tx.metadata?.game === "lava-run") },
+  { id: "ember-stack", label: "Ember Stack bet/win works", ok: () => readData().transactions.some((tx) => tx.metadata?.game === "ember-stack") },
   { id: "simulations", label: "Simulations pass", ok: () => slotConfigs.every((game) => game.targetRtp <= 0.95) && tableGameConfigs.every((game) => 1 - game.houseEdgeTarget <= 0.95) },
   { id: "mobile-320", label: "Mobile layout pass: 320px", ok: () => true },
   { id: "mobile-375", label: "Mobile layout pass: 375px", ok: () => true },
