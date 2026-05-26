@@ -120,7 +120,7 @@ export const crashConfig: CrashConfig = {
   maxBetGold: 500,
   minBetRealCentsPlaceholder: 1,
   maxBetRealCentsPlaceholder: 500,
-  maxPayout: 25000,
+  maxPayout: DEMO_MAX_PAYOUT,
   houseEdgeTarget: 0.06,
   currency: "GOLD",
   demoOnlyCopy,

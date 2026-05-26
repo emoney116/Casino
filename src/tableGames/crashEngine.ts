@@ -7,8 +7,7 @@ import type { CrashConfig, CrashRound } from "./types";
 export function generateCrashPoint(randomValue = Math.random(), config: CrashConfig = crashConfig) {
   const u = Math.min(0.999999, Math.max(0, randomValue));
   const raw = (1 - config.edge) / (1 - u);
-  const bounded = Math.max(config.minCrashPoint, Math.min(config.maxCrashPoint, raw));
-  return Math.floor(bounded * 100) / 100;
+  return normalizeCrashPoint(raw, config);
 }
 
 export function getCrashMultiplier(elapsedMs: number) {
@@ -21,7 +20,7 @@ export function startCrashRound({
   userId,
   currency,
   betAmount,
-  crashPoint = generateCrashPoint(),
+  crashPoint,
   now = Date.now(),
   config = crashConfig,
 }: {
@@ -32,13 +31,14 @@ export function startCrashRound({
   now?: number;
   config?: CrashConfig;
 }): CrashRound {
-  placeTableBet(userId, currency, betAmount, config, { crashPoint });
+  const resolvedCrashPoint = normalizeCrashPoint(crashPoint ?? generateCrashPoint(Math.random(), config), config);
+  placeTableBet(userId, currency, betAmount, config, { crashPoint: resolvedCrashPoint });
   return {
     id: createId("crash"),
     status: "RUNNING",
     currency,
     betAmount,
-    crashPoint,
+    crashPoint: resolvedCrashPoint,
     startedAt: now,
   };
 }
@@ -57,8 +57,9 @@ export function cashOutCrashRound({
   config?: CrashConfig;
 }): CrashRound {
   if (round.status !== "RUNNING") return round;
-  const cashOutMultiplier = Math.max(1, Math.floor(multiplier * 100) / 100);
-  if (cashOutMultiplier >= round.crashPoint) {
+  const cashOutMultiplier = Math.min(config.maxCrashPoint, Math.max(1, Math.floor(multiplier * 100) / 100));
+  const reachedMaxWin = cashOutMultiplier >= config.maxCrashPoint && round.crashPoint >= config.maxCrashPoint;
+  if (cashOutMultiplier >= round.crashPoint && !reachedMaxWin) {
     return crashCrashRound({ round, userId, multiplier: round.crashPoint, now, config });
   }
   const settlement = settleTableResult({
@@ -68,7 +69,7 @@ export function cashOutCrashRound({
     result: "WIN",
     amountPaid: round.betAmount * cashOutMultiplier,
     wagered: round.betAmount,
-    metadata: { crashPoint: round.crashPoint, cashOutMultiplier },
+    metadata: { crashPoint: round.crashPoint, cashOutMultiplier, autoMaxWin: reachedMaxWin || undefined },
   });
   return {
     ...round,
@@ -94,7 +95,7 @@ export function crashCrashRound({
   config?: CrashConfig;
 }): CrashRound {
   if (round.status !== "RUNNING") return round;
-  const shownMultiplier = Math.max(1, Math.floor((multiplier ?? round.crashPoint) * 100) / 100);
+  const shownMultiplier = Math.min(config.maxCrashPoint, Math.max(1, Math.floor((multiplier ?? round.crashPoint) * 100) / 100));
   const settlement = settleTableResult({
     userId,
     currency: round.currency,
@@ -112,4 +113,9 @@ export function crashCrashRound({
     totalPaid: 0,
     settlement,
   };
+}
+
+function normalizeCrashPoint(value: number, config: CrashConfig) {
+  const bounded = Math.max(config.minCrashPoint, Math.min(config.maxCrashPoint, value));
+  return Math.floor(bounded * 100) / 100;
 }

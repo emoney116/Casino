@@ -107,9 +107,12 @@ export function playBonus() { mark("playBonus"); tone(900, 0.12); tone(1120, 0.1
 export function playExpansionHit() { mark("playExpansionHit"); swoosh(260, 820, 0.18, 0.018); tone(720, 0.08, 0.02, 0.09); }
 export function playMultiplierTick() { mark("playMultiplierTick"); tone(680, 0.035, 0.012); tone(910, 0.04, 0.012, 0.035); }
 export function playError() { mark("playError"); tone(120, 0.075, 0.018); tone(95, 0.09, 0.016, 0.085); }
+export function playCrashTakeoff() { mark("playCrashTakeoff"); swoosh(210, 760, 0.18, 0.018); tone(520, 0.055, 0.018, 0.08); }
+export function playCrashRisingLoop(multiplier = 1) { mark("playCrashRisingLoop"); swoosh(260 + multiplier * 10, Math.min(1120, 520 + multiplier * 58), 0.07, 0.008); }
 export function playCrashTick(multiplier = 1) { mark("playCrashTick"); tone(Math.min(980, 250 + multiplier * 90), 0.025, 0.01); }
 export function playCrashCashOut() { mark("playCrashCashOut"); tone(620, 0.07, 0.024); tone(920, 0.08, 0.022, 0.06); }
 export function playCrashSound() { mark("playCrashSound"); tone(170, 0.08, 0.024); tone(85, 0.16, 0.022, 0.07); }
+export function playCrashBigWin() { mark("playCrashBigWin"); swoosh(340, 1320, 0.2, 0.022); tone(760, 0.08, 0.026, 0.08); tone(1080, 0.11, 0.02, 0.17); }
 export function playRouletteTick(step = 1) { mark("playRouletteTick"); tone(Math.min(900, 360 + step * 26), 0.018, 0.008); }
 export function playRouletteChipPlace() { mark("playRouletteChipPlace"); tone(580, 0.024, 0.018); tone(310, 0.035, 0.011, 0.018); }
 export function playRouletteSpinStart() { mark("playRouletteSpinStart"); swoosh(180, 520, 0.32, 0.018); tone(130, 0.09, 0.018); tone(260, 0.11, 0.014, 0.08); }
@@ -142,3 +145,9 @@ export function playEmberStackCombo() { mark("playEmberStackCombo"); swoosh(420,
 export function playEmberStackMultiplier() { mark("playEmberStackMultiplier"); tone(690, 0.032, 0.012); tone(1120, 0.044, 0.012, 0.032); }
 export function playEmberStackCashout() { mark("playEmberStackCashout"); swoosh(440, 1160, 0.18, 0.02); tone(820, 0.07, 0.024, 0.08); tone(1180, 0.09, 0.019, 0.15); }
 export function playEmberStackBust() { mark("playEmberStackBust"); tone(115, 0.1, 0.025); tone(68, 0.18, 0.021, 0.07); }
+export function playTreasureDigClick() { mark("playTreasureDigClick"); tone(310, 0.025, 0.012); tone(520, 0.028, 0.009, 0.022); }
+export function playTreasureDigReveal() { mark("playTreasureDigReveal"); swoosh(420, 820, 0.09, 0.012); tone(640, 0.034, 0.012, 0.045); }
+export function playTreasureDigTreasure(streak = 1) { mark("playTreasureDigTreasure"); tone(Math.min(980, 560 + streak * 38), 0.05, 0.018); tone(Math.min(1220, 760 + streak * 46), 0.06, 0.015, 0.052); }
+export function playTreasureDigPayout() { mark("playTreasureDigPayout"); swoosh(360, 1180, 0.18, 0.02); tone(760, 0.075, 0.024, 0.07); tone(1080, 0.09, 0.02, 0.14); }
+export function playTreasureDigTrap() { mark("playTreasureDigTrap"); tone(150, 0.08, 0.024); tone(72, 0.16, 0.021, 0.055); }
+export function playTreasureDigStreak(streak = 1) { mark("playTreasureDigStreak"); tone(Math.min(1320, 720 + streak * 70), 0.035, 0.014); tone(Math.min(1500, 980 + streak * 84), 0.044, 0.012, 0.034); }

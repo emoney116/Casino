@@ -1126,6 +1126,17 @@ const crashTooLate = cashOutCrashRound({ round: crashTooLateRound, userId: user.
 if (crashTooLate.status !== "CRASHED" || crashTooLate.totalPaid !== 0) {
   throw new Error("Expected late Crash cash out to resolve as a crash loss.");
 }
+const crashMaxWinRound = startCrashRound({
+  userId: user.id,
+  currency: "GOLD",
+  betAmount: 100,
+  crashPoint: crashConfig.maxCrashPoint,
+  now: 5000,
+});
+const crashMaxWin = cashOutCrashRound({ round: crashMaxWinRound, userId: user.id, multiplier: crashConfig.maxCrashPoint, now: 26000 });
+if (crashMaxWin.status !== "CASHED_OUT" || crashMaxWin.cashOutMultiplier !== crashConfig.maxCrashPoint || crashMaxWin.totalPaid !== 100 * crashConfig.maxCrashPoint) {
+  throw new Error("Expected Crash to auto cash out at the 100x max win ceiling instead of crashing.");
+}
 const lowCrashUser = "low-crash-user";
 creditCurrency({ userId: lowCrashUser, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: crashConfig.minBet - 1 });
 try {
@@ -1146,9 +1157,12 @@ if (
   !crashUiMarkers.lastFiveResults ||
   !crashUiMarkers.sharedResultBanner ||
   !crashUiMarkers.sharedSoundToggle ||
-  !crashUiMarkers.compactBottomBetControls
+  !crashUiMarkers.compactBottomBetControls ||
+  !crashUiMarkers.crashPointMarker ||
+  !crashUiMarkers.hundredXGraphScale ||
+  !crashUiMarkers.autoCashoutAtMaxWin
 ) {
-  throw new Error("Expected Crash UI markers for multiplier, graph, cash out, crash feedback, sound, currency, and compact betting.");
+  throw new Error("Expected Crash UI markers for multiplier, graph, cash out, crash feedback, 100x scale, sound, currency, and compact betting.");
 }
 
 const treasureMultiplierOne = getTreasureDigMultiplier({ safePicks: 1, trapCount: 3 });
