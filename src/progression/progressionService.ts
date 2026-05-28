@@ -1,4 +1,5 @@
 import { updateData, readData } from "../lib/storage";
+import { assertSafeRewardGrant } from "../retention/rewardConfig";
 import { creditCurrency } from "../wallet/walletService";
 import type { PlayerProgression } from "../types";
 
@@ -65,10 +66,11 @@ export function recordSpinProgress(input: {
   });
 
   if (leveledUp) {
+    assertSafeRewardGrant({ currency: "GOLD", amount: levelReward(newLevel) }, `Level ${newLevel} reward`);
     creditCurrency({
       userId: input.userId,
       type: "LEVEL_REWARD",
-      currency: "BONUS",
+      currency: "GOLD",
       amount: levelReward(newLevel),
       metadata: { level: newLevel, boosts: { "bonus-coin-boost": levelBoostReward(newLevel) }, note: "Virtual level-up reward only." },
     });

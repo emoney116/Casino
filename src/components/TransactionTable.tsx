@@ -11,12 +11,51 @@ function titleCase(value: string) {
 export function TransactionTable({
   transactions,
   onSelect,
+  variant = "table",
 }: {
   transactions: Transaction[];
   onSelect?: (transaction: Transaction) => void;
+  variant?: "table" | "cashier";
 }) {
   if (transactions.length === 0) {
     return <div className="empty-state">No transactions yet. Ledger entries will appear here.</div>;
+  }
+
+  if (variant === "cashier") {
+    return (
+      <div className="cashier-transaction-list">
+        {transactions.map((tx) => {
+          const content = (
+            <>
+              <span className="cashier-transaction-main">
+                <span>
+                  <strong>{titleCase(tx.type)}</strong>
+                  <small>{formatDateTime(tx.createdAt)}</small>
+                </span>
+                <strong className={tx.amount >= 0 ? "positive" : "negative"}>
+                  {tx.amount >= 0 ? "+" : ""}
+                  {formatCoins(tx.amount)} {tx.currency}
+                </strong>
+              </span>
+              <span className="cashier-transaction-meta">
+                <span>{titleCase(tx.status)}</span>
+                <span>Balance {formatCoins(tx.balanceAfter)}</span>
+              </span>
+            </>
+          );
+
+          if (!onSelect) {
+            return <div className="cashier-transaction-row" key={tx.id}>{content}</div>;
+          }
+
+          return (
+            <button className="cashier-transaction-row" key={tx.id} type="button" onClick={() => onSelect(tx)}>
+              {content}
+            </button>
+          );
+        })}
+      </div>
+    );
   }
 
   return (

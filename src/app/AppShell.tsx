@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { ComplianceNotice } from "../components/ComplianceNotice";
 import { BalanceToggle } from "../components/BalanceCard";
@@ -15,6 +15,7 @@ import type { AppView } from "./navigation";
 import { visibleNavItems } from "./navigation";
 import { MobileTabBar } from "./MobileTabBar";
 import { Modal } from "../components/Modal";
+import { useToast } from "../components/ToastContext";
 import { dismissOnboarding, hasDismissedOnboarding } from "./onboarding";
 import { TableGamesPage } from "../tableGames/TableGamesPage";
 import type { TableGameId } from "../tableGames/types";
@@ -22,6 +23,12 @@ import { RewardsPage } from "../retention/RewardsPage";
 import { COMPLIANCE_COPY } from "../lib/compliance";
 import { LegalPage } from "../legal/LegalPage";
 import { PLAYHEATER_BRAND, PlayheaterBrandLockup, PlayheaterMark } from "../branding/playheater";
+import {
+  RESPONSIBLE_PLAY_UPDATED_EVENT,
+  getProfilePreferences,
+  isSelfExcluded,
+  type ResponsiblePlaySettings,
+} from "../account/profileService";
 
 const tableRouteIds: Record<string, TableGameId> = {
   blackjack: "blackjack",
@@ -40,10 +47,10 @@ const tableRouteIds: Record<string, TableGameId> = {
   lavaRun: "lavaRun",
   "ember-stack": "emberStack",
   emberStack: "emberStack",
+  safecracker: "safecracker",
 };
 
-function getInitialRoute(): { view: AppView; slotGameId: string | null; tableGameId: TableGameId | null } {
-  const path = window.location.pathname;
+function getRouteFromPath(path: string): { view: AppView; slotGameId: string | null; tableGameId: TableGameId | null } {
   const [, section, rawId] = path.split("/");
   const tableGameId = rawId ? tableRouteIds[rawId] : null;
   if (section === "slots") return { view: "games", slotGameId: rawId ?? null, tableGameId: null };
@@ -55,6 +62,7 @@ function getInitialRoute(): { view: AppView; slotGameId: string | null; tableGam
   if (section === "wallet") return { view: "wallet", slotGameId: null, tableGameId: null };
   if (section === "redemption") return { view: "redemption", slotGameId: null, tableGameId: null };
   if (section === "account") return { view: "account", slotGameId: null, tableGameId: null };
+  if (section === "support") return { view: "support", slotGameId: null, tableGameId: null };
   if (section === "terms") return { view: "terms", slotGameId: null, tableGameId: null };
   if (section === "sweepstakes-rules") return { view: "sweepstakesRules", slotGameId: null, tableGameId: null };
   if (section === "privacy") return { view: "privacy", slotGameId: null, tableGameId: null };
@@ -64,8 +72,13 @@ function getInitialRoute(): { view: AppView; slotGameId: string | null; tableGam
   return { view: "lobby", slotGameId: null, tableGameId: null };
 }
 
+function getInitialRoute() {
+  return getRouteFromPath(window.location.pathname);
+}
+
 export function AppShell() {
   const { user } = useAuth();
+  const notify = useToast();
   const initialRoute = getInitialRoute();
   const [activeView, setActiveView] = useState<AppView>(initialRoute.view);
   const [activeGameId, setActiveGameId] = useState<string | null>(initialRoute.slotGameId);
@@ -76,12 +89,72 @@ export function AppShell() {
   const [walletPanelKey, setWalletPanelKey] = useState(0);
   const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => (user ? !hasDismissedOnboarding(user.id) : false));
+  const [responsiblePlaySettings, setResponsiblePlaySettings] = useState<ResponsiblePlaySettings | null>(
+    () => user ? getProfilePreferences(user.id).responsiblePlay : null,
+  );
+  const [sessionReminderOpen, setSessionReminderOpen] = useState(false);
+  const [sessionReminderNonce, setSessionReminderNonce] = useState(0);
+
+  useEffect(() => {
+    function syncRouteFromHistory() {
+      const nextRoute = getInitialRoute();
+      setActiveView(nextRoute.view);
+      setActiveGameId(nextRoute.slotGameId);
+      setActiveTableGameId(nextRoute.tableGameId);
+      if (nextRoute.view === "wallet") setWalletPanel(null);
+      if (nextRoute.view === "redemption") setWalletPanel("redeem");
+    }
+
+    window.addEventListener("popstate", syncRouteFromHistory);
+    return () => window.removeEventListener("popstate", syncRouteFromHistory);
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    setResponsiblePlaySettings(getProfilePreferences(user.id).responsiblePlay);
+    setSessionReminderOpen(false);
+
+    function syncResponsiblePlay(event: Event) {
+      const detail = (event as CustomEvent<{ userId: string; settings: ResponsiblePlaySettings }>).detail;
+      if (detail?.userId === user?.id) setResponsiblePlaySettings(detail.settings);
+    }
+
+    window.addEventListener(RESPONSIBLE_PLAY_UPDATED_EVENT, syncResponsiblePlay);
+    return () => window.removeEventListener(RESPONSIBLE_PLAY_UPDATED_EVENT, syncResponsiblePlay);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || !responsiblePlaySettings?.sessionReminderEnabled || sessionReminderOpen) return;
+    const delayMs = responsiblePlaySettings.sessionReminderMinutes * 60 * 1000;
+    const timer = window.setTimeout(() => setSessionReminderOpen(true), delayMs);
+    return () => window.clearTimeout(timer);
+  }, [responsiblePlaySettings, sessionReminderNonce, sessionReminderOpen, user]);
+
+  useEffect(() => {
+    if (!user || !isSelfExcluded(user.id)) return;
+    const route = getRouteFromPath(window.location.pathname);
+    if (!route.slotGameId && !route.tableGameId) return;
+    notify("Self-exclusion is active. Gameplay is locked until the support team reviews the account.", "error");
+    setActiveGameId(null);
+    setActiveTableGameId(null);
+    setActiveView("account");
+    window.history.replaceState(null, "", "/account");
+  }, [notify, user]);
 
   if (!user) return null;
-  const balances = getBalance(user.id);
-  const nav = visibleNavItems(user.roles);
+  const currentUser = user;
+  const balances = getBalance(currentUser.id);
+  const nav = visibleNavItems(currentUser.roles);
+
+  function gameplayBlockedBySelfExclusion() {
+    if (!isSelfExcluded(currentUser.id)) return false;
+    notify("Self-exclusion is active. Gameplay is locked until the support team reviews the account.", "error");
+    setView("account");
+    return true;
+  }
 
   function playGame(gameId: string) {
+    if (gameplayBlockedBySelfExclusion()) return;
     setActiveGameId(gameId);
     setActiveView("games");
     window.history.pushState(null, "", `/slots/${gameId}`);
@@ -105,27 +178,40 @@ export function AppShell() {
               ? "/redemption"
               : view === "account"
                 ? "/account"
-                : view === "terms"
-                  ? "/terms"
-                  : view === "sweepstakesRules"
-                    ? "/sweepstakes-rules"
-                    : view === "privacy"
-                      ? "/privacy"
-                      : view === "responsiblePlay"
-                        ? "/responsible-play"
-                        : view === "eligibility"
-                          ? "/eligibility"
-                          : view === "admin"
-                            ? "/admin"
-                            : "/";
+                : view === "support"
+                  ? "/support"
+                  : view === "terms"
+                    ? "/terms"
+                    : view === "sweepstakesRules"
+                      ? "/sweepstakes-rules"
+                      : view === "privacy"
+                        ? "/privacy"
+                        : view === "responsiblePlay"
+                          ? "/responsible-play"
+                          : view === "eligibility"
+                            ? "/eligibility"
+                            : view === "admin"
+                              ? "/admin"
+                              : "/";
     window.history.pushState(null, "", route);
   }
 
+  function accountBack(event: MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+    setView("account");
+  }
+
   function openPurchasePacks() {
+    if (isSelfExcluded(currentUser.id)) {
+      notify("Self-exclusion is active. Coin purchases are locked until the support team reviews the account.", "error");
+      setView("account");
+      return;
+    }
     setPurchaseModalOpen(true);
   }
 
   function playTableGame(gameId: TableGameId) {
+    if (gameplayBlockedBySelfExclusion()) return;
     setActiveTableGameId(gameId);
     setActiveView("tableGames");
     window.history.pushState(null, "", `/games/${gameId === "treasureDig" ? "treasure-dig" : gameId === "brickBreakBonus" ? "brick-break-bonus" : gameId === "balloonPop" ? "balloon-pop" : gameId === "lavaRun" ? "lava-run" : gameId === "emberStack" ? "ember-stack" : gameId}`);
@@ -154,7 +240,7 @@ export function AppShell() {
             );
           })}
         </nav>
-        <ComplianceNotice compact />
+        {activeView !== "wallet" && activeView !== "redemption" && activeView !== "account" && <ComplianceNotice compact />}
       </aside>
 
       <main className="main-panel">
@@ -230,18 +316,21 @@ export function AppShell() {
         {activeView === "wallet" && <WalletPage key={`wallet-${walletPanelKey}`} initialPanel={walletPanel} />}
         {activeView === "redemption" && <WalletPage initialPanel="redeem" />}
         {activeView === "account" && <AccountPage />}
-        {activeView === "terms" && <LegalPage kind="terms" />}
-        {activeView === "sweepstakesRules" && <LegalPage kind="sweepstakesRules" />}
-        {activeView === "privacy" && <LegalPage kind="privacy" />}
-        {activeView === "responsiblePlay" && <LegalPage kind="responsiblePlay" />}
-        {activeView === "eligibility" && <LegalPage kind="eligibility" />}
-        {activeView === "admin" && user.roles.includes("ADMIN") && <AdminPage />}
-        <div className="mobile-compliance">
-          <ComplianceNotice compact />
-        </div>
+        {activeView === "support" && <LegalPage kind="support" onBack={accountBack} />}
+        {activeView === "terms" && <LegalPage kind="terms" onBack={accountBack} />}
+        {activeView === "sweepstakesRules" && <LegalPage kind="sweepstakesRules" onBack={accountBack} />}
+        {activeView === "privacy" && <LegalPage kind="privacy" onBack={accountBack} />}
+        {activeView === "responsiblePlay" && <LegalPage kind="responsiblePlay" onBack={accountBack} />}
+        {activeView === "eligibility" && <LegalPage kind="eligibility" onBack={accountBack} />}
+        {activeView === "admin" && currentUser.roles.includes("ADMIN") && <AdminPage />}
+        {activeView !== "wallet" && activeView !== "redemption" && activeView !== "account" && (
+          <div className="mobile-compliance">
+            <ComplianceNotice compact />
+          </div>
+        )}
       </main>
 
-      {!hideMobileNav && <MobileTabBar activeView={activeView} roles={user.roles} onChange={setView} />}
+      {!hideMobileNav && <MobileTabBar activeView={activeView} roles={currentUser.roles} onChange={setView} />}
       {showOnboarding && (
         <Modal title={`Welcome to ${PLAYHEATER_BRAND.name}`} onClose={() => undefined}>
           <div className="modal-stack">
@@ -252,12 +341,47 @@ export function AppShell() {
             <button
               className="primary-button"
               onClick={() => {
-                dismissOnboarding(user.id);
+                dismissOnboarding(currentUser.id);
                 setShowOnboarding(false);
               }}
             >
               Stay Hot
             </button>
+          </div>
+        </Modal>
+      )}
+      {sessionReminderOpen && responsiblePlaySettings?.sessionReminderEnabled && (
+        <Modal title="Session Reminder" onClose={() => {
+          setSessionReminderOpen(false);
+          setSessionReminderNonce((value) => value + 1);
+        }}>
+          <div className="modal-stack">
+            <p>You have been playing for {responsiblePlaySettings.sessionReminderMinutes} minutes.</p>
+            <div className="notice-card">
+              Take a break, check your balance, or continue when you are ready.
+            </div>
+            <div className="modal-actions">
+              <button
+                className="ghost-button"
+                type="button"
+                onClick={() => {
+                  setSessionReminderOpen(false);
+                  setView("account");
+                }}
+              >
+                Account
+              </button>
+              <button
+                className="primary-button"
+                type="button"
+                onClick={() => {
+                  setSessionReminderOpen(false);
+                  setSessionReminderNonce((value) => value + 1);
+                }}
+              >
+                Continue
+              </button>
+            </div>
           </div>
         </Modal>
       )}

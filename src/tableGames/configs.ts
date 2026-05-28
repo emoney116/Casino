@@ -3,6 +3,7 @@ import { brickBreakBonusConfig } from "./brickBreakBonusEngine";
 import { balloonPopConfig } from "./balloonPopEngine";
 import { lavaRunConfig } from "./lavaRunEngine";
 import { emberStackConfig } from "./emberStackEngine";
+import { safecrackerConfig } from "./safecrackerEngine";
 import { COMPLIANCE_COPY } from "../lib/compliance";
 import { DEMO_MAX_PAYOUT, DEMO_MAX_SINGLE_BET, DEMO_MAX_TOTAL_BET } from "../economy/limits";
 
@@ -18,6 +19,7 @@ const tableGameArtwork = {
   balloonPop: new URL("../assets/branding/game-logos/balloon_pop_logo.png", import.meta.url).href,
   lavaRun: new URL("../assets/branding/game-logos/lava_run_logo.png", import.meta.url).href,
   emberStack: new URL("../assets/branding/game-logos/ember_stack_logo.png", import.meta.url).href,
+  safecracker: new URL("../assets/branding/game-logos/safecracker_logo.png", import.meta.url).href,
 } as const;
 
 export const blackjackConfig: BlackjackConfig = {
@@ -228,4 +230,22 @@ export const emberStackTableConfig: TableGameConfig = {
   rules: ["Start a CPU-run stack attempt", "Perfect, good, and thin stacks raise the multiplier", "Cash out after a success or continue the run"],
 };
 
-export const tableGameConfigs: TableGameConfig[] = [emberStackTableConfig, lavaRunTableConfig, balloonPopTableConfig, brickBreakBonusTableConfig, blackjackConfig, rouletteConfig, diceConfig, crashConfig, treasureDigConfig];
+export const safecrackerTableConfig: TableGameConfig = {
+  id: "safecracker",
+  name: safecrackerConfig.name,
+  theme: safecrackerConfig.theme,
+  minBet: safecrackerConfig.minBet,
+  maxBet: safecrackerConfig.maxBet,
+  minBetGold: safecrackerConfig.minBetGold,
+  maxBetGold: safecrackerConfig.maxBetGold,
+  minBetRealCentsPlaceholder: safecrackerConfig.minBetRealCentsPlaceholder,
+  maxBetRealCentsPlaceholder: safecrackerConfig.maxBetRealCentsPlaceholder,
+  maxPayout: safecrackerConfig.maxPayout,
+  houseEdgeTarget: 1 - safecrackerConfig.targetRtp,
+  currency: "GOLD",
+  demoOnlyCopy,
+  artwork: tableGameArtwork.safecracker,
+  rules: ["Choose Low, Medium, or High risk", "Tap PICK LOCK or the safe to spend picks", "Outcome bands and multipliers are generated before the animation resolves"],
+};
+
+export const tableGameConfigs: TableGameConfig[] = [safecrackerTableConfig, emberStackTableConfig, lavaRunTableConfig, balloonPopTableConfig, brickBreakBonusTableConfig, blackjackConfig, rouletteConfig, diceConfig, crashConfig, treasureDigConfig];

@@ -5,6 +5,8 @@ import { creditCurrency, getBalance, getTransactions } from "../wallet/walletSer
 import type { User } from "../types";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { GameCard } from "../components/GameCard";
+import { slotGameSortOptions, sortSlotGames } from "./GamesPage";
 import { clearRecentGames, getRecentGames, recordRecentGame } from "./recentGames";
 import { dismissOnboarding, hasDismissedOnboarding } from "../app/onboarding";
 import { frontierUiAssets, requiredFrontierUiAssetKeys } from "./frontierAssets";
@@ -58,6 +60,24 @@ if (!exposedSlotConfigs.some((candidate) => candidate.id === "frontier-fortune")
 }
 const exposedFrontier = exposedSlotConfigs.find((candidate) => candidate.id === "frontier-fortune");
 if (!exposedFrontier) throw new Error("Expected exposed Frontier Fortune config.");
+if (slotGameSortOptions.map((option) => option.key).join(",") !== "name,popular,recent") {
+  throw new Error("Expected slots lobby sort controls to expose Name, Popular, and Recent.");
+}
+const slotNameAsc = sortSlotGames(exposedSlotConfigs, "name", "asc").map((candidate) => candidate.name);
+const slotNameDesc = sortSlotGames(exposedSlotConfigs, "name", "desc").map((candidate) => candidate.name);
+if (slotNameAsc[0] !== "Frontier Fortune" || slotNameDesc[0] !== "Gold Rush Showdown") {
+  throw new Error(`Expected slot name sorting to work in both directions, got ${slotNameAsc[0]} and ${slotNameDesc[0]}.`);
+}
+if (sortSlotGames(exposedSlotConfigs, "popular", "desc")[0]?.id !== "gold-rush-showdown") {
+  throw new Error("Expected slots lobby popular sorting to surface Gold Rush Showdown first.");
+}
+if (sortSlotGames(exposedSlotConfigs, "recent", "desc")[0]?.id !== "frontier-fortune") {
+  throw new Error("Expected slots lobby recent sorting to surface Frontier Fortune first.");
+}
+const slotCardMarkup = renderToStaticMarkup(createElement(GameCard, { game: exposedFrontier, onPlay: () => undefined }));
+if (slotCardMarkup.includes(`>${exposedFrontier.volatility}<`) || slotCardMarkup.includes(`${exposedFrontier.maxPayoutMultiplier}x`)) {
+  throw new Error("Expected slot lobby cards to hide volatility and max payout badges.");
+}
 const requiredFrontierAssets = [
   "sun_hawk.png",
   "canyon_ram.png",
@@ -1602,7 +1622,7 @@ resetRetention(user.id);
 const retentionTxBefore = getTransactions(user.id).filter((tx) => tx.type === "RETENTION_REWARD").length;
 recordRetentionRound({ userId: user.id, gameId: "frontier-fortune", wager: 100, won: 0, multiplier: 0 });
 recordRetentionRound({ userId: user.id, gameId: "blackjack", wager: 100, won: 200, multiplier: 2 });
-recordRetentionRound({ userId: user.id, gameId: "crash", wager: 100, won: 250, multiplier: 2.5 });
+recordRetentionRound({ userId: user.id, gameId: "crash", wager: 100, won: 250, multiplier: 10 });
 if (getRetentionState(user.id).dailyGameIds.length !== 3) {
   throw new Error("Expected retention state to track distinct daily games.");
 }

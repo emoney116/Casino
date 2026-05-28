@@ -151,3 +151,11 @@ export function playTreasureDigTreasure(streak = 1) { mark("playTreasureDigTreas
 export function playTreasureDigPayout() { mark("playTreasureDigPayout"); swoosh(360, 1180, 0.18, 0.02); tone(760, 0.075, 0.024, 0.07); tone(1080, 0.09, 0.02, 0.14); }
 export function playTreasureDigTrap() { mark("playTreasureDigTrap"); tone(150, 0.08, 0.024); tone(72, 0.16, 0.021, 0.055); }
 export function playTreasureDigStreak(streak = 1) { mark("playTreasureDigStreak"); tone(Math.min(1320, 720 + streak * 70), 0.035, 0.014); tone(Math.min(1500, 980 + streak * 84), 0.044, 0.012, 0.034); }
+export function playSafecrackerInsert() { mark("playSafecrackerInsert"); swoosh(720, 260, 0.11, 0.012); tone(420, 0.028, 0.012, 0.08); }
+export function playSafecrackerTension() { mark("playSafecrackerTension"); tone(210, 0.05, 0.009); tone(260, 0.05, 0.008, 0.065); }
+export function playSafecrackerClick() { mark("playSafecrackerClick"); tone(620, 0.035, 0.018); tone(920, 0.045, 0.014, 0.032); }
+export function playSafecrackerSnap() { mark("playSafecrackerSnap"); tone(850, 0.018, 0.018); tone(130, 0.075, 0.019, 0.022); }
+export function playSafecrackerUnlock() { mark("playSafecrackerUnlock"); swoosh(220, 860, 0.22, 0.02); tone(480, 0.08, 0.02, 0.08); tone(720, 0.1, 0.018, 0.16); }
+export function playSafecrackerOpen() { mark("playSafecrackerOpen"); swoosh(180, 520, 0.28, 0.019); tone(340, 0.12, 0.018, 0.1); }
+export function playSafecrackerPayout() { mark("playSafecrackerPayout"); tone(760, 0.07, 0.024); tone(1040, 0.08, 0.02, 0.07); tone(1280, 0.1, 0.016, 0.15); }
+export function playSafecrackerJackpot() { mark("playSafecrackerJackpot"); swoosh(340, 1480, 0.26, 0.024); tone(820, 0.1, 0.026, 0.08); tone(1120, 0.12, 0.022, 0.18); tone(1480, 0.14, 0.018, 0.31); }

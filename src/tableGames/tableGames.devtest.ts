@@ -72,6 +72,7 @@ import { treasureDigUiMarkers } from "./TreasureDigPage";
 import { brickBreakBonusUiMarkers } from "./BrickBreakBonusPage";
 import { formatLavaRunMultiplier, getLavaRunAvatarTarget, getLavaRunCameraWindow, getLavaRunMultiplierTier, getLavaRunPlatformVisual, getLavaRunVisualIntensity, isLavaRunPlatformClickable, lavaRunAnimationTimings, lavaRunUiMarkers, shouldRevealLavaRunBoardState } from "./LavaRunPage";
 import { emberStackAnimationTimings, emberStackAssetManifest, emberStackUiMarkers, formatEmberStackMultiplier, getEmberStackBoardHudRows, getEmberStackBoardMood, getEmberStackCutLineStyle, getEmberStackCutStyle, getEmberStackMultiplierMilestone, getEmberStackOutcomeVisualState, getEmberStackParticleStyle, getEmberStackPlatformClass, getEmberStackPlatformStyle, getEmberStackPlatformTier, getEmberStackQualityCopy, getEmberStackRoundStatusCopy, getEmberStackRowMarkerStyle } from "./EmberStackPage";
+import { sortTableGames, tableGameSortOptions } from "./TableGamesPage";
 import { CoinBurst, GameResultBanner, WinOverlay, feedbackUiMarkers } from "../feedback/components";
 import {
   getFeedbackDebugCount,
@@ -1497,6 +1498,18 @@ if (!tableGameConfigs.some((game) => game.id === "lavaRun" && game.name === "Lav
 }
 if (!lavaRunTableConfig.artwork?.includes("/assets/branding/game-logos/lava_run_logo.png")) {
   throw new Error("Expected Lava Run lobby card to use the branded raster logo.");
+}
+if (tableGameSortOptions.map((option) => option.key).join(",") !== "name,popular,recent") {
+  throw new Error("Expected table games lobby sort controls to support name, popular, and recent ordering.");
+}
+if (sortTableGames(tableGameConfigs, "name", "asc")[0].name !== "Balloon Pop" || sortTableGames(tableGameConfigs, "name", "desc")[0].name !== "Treasure Dig") {
+  throw new Error("Expected table games lobby name sorting to support ascending and descending order.");
+}
+if (sortTableGames(tableGameConfigs, "popular", "desc")[0].id !== "safecracker" || sortTableGames(tableGameConfigs, "recent", "desc")[0].id !== "safecracker") {
+  throw new Error("Expected table games lobby popular and recent sorting to put the newest featured arcade game first when descending.");
+}
+if (sortTableGames(tableGameConfigs, "recent", "asc")[0].id !== "blackjack") {
+  throw new Error("Expected table games lobby recent sorting to support oldest-first order.");
 }
 
 const lavaRunGoldLimits = getLavaRunBetLimits("GOLD");

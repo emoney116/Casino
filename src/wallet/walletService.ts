@@ -1,6 +1,7 @@
 import { createId } from "../lib/ids";
 import { readData, updateData } from "../lib/storage";
 import { getRepository, mirrorToBackend } from "../repositories";
+import { assertResponsiblePlayAllowsDebit } from "../account/profileService";
 import type { Currency, Transaction, TransactionType, WalletBalances } from "../types";
 
 export const emptyBalances: WalletBalances = { GOLD: 0, BONUS: 0 };
@@ -104,6 +105,7 @@ export function recordWalletEvent(input: LedgerInput): Transaction {
 
 export function debitCurrency(input: LedgerInput): Transaction {
   if (!Number.isFinite(input.amount) || input.amount <= 0) throw new Error("Debit amount must be positive.");
+  assertResponsiblePlayAllowsDebit(input);
 
   let created: Transaction | undefined;
   updateData((data) => {

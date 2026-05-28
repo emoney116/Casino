@@ -2,8 +2,10 @@ import { creditCurrency } from "../wallet/walletService";
 import type { Currency, User } from "../types";
 import { coinPacks, formatPackPrice } from "./coinPacks";
 import { getCurrencyMeta } from "../config/currencyConfig";
+import { assertCanPurchaseCoins } from "../account/profileService";
 
 export function fakePurchasePack(user: User, packId: string) {
+  assertCanPurchaseCoins(user.id);
   const pack = coinPacks.find((candidate) => candidate.id === packId);
   if (!pack) throw new Error("Coin pack not found.");
 
@@ -45,6 +47,7 @@ export function assertCurrencyCanBePurchasedDirectly(currency: Currency) {
 
 export function fakeDirectCurrencyPurchase(user: User, currency: Currency, amount: number) {
   assertCurrencyCanBePurchasedDirectly(currency);
+  assertCanPurchaseCoins(user.id);
   return creditCurrency({
     userId: user.id,
     type: "GOLD_PURCHASE_DEMO",

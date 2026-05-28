@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
-import type { Transaction, User, WalletBalances } from "../types";
+import type { DailyStreak, Transaction, User, WalletBalances } from "../types";
 import type { CasinoRepository } from "./types";
 
 function requireSupabase() {
@@ -20,6 +20,23 @@ export const supabaseRepository: CasinoRepository = {
       role: user.roles.includes("ADMIN") ? "ADMIN" : "USER",
       roles: user.roles,
       account_status: user.accountStatus,
+    });
+    if (error) throw error;
+  },
+  async syncProfileAvatar(userId: string, avatarDataUrl?: string) {
+    const client = requireSupabase();
+    const { error } = await client.from("profiles").update({
+      avatar_data_url: avatarDataUrl ?? null,
+    }).eq("id", userId);
+    if (error) throw error;
+  },
+  async syncStreak(streak: DailyStreak) {
+    const client = requireSupabase();
+    const { error } = await client.from("streaks").upsert({
+      user_id: streak.userId,
+      day: streak.day,
+      current_streak_days: streak.currentStreakDays,
+      last_claimed_at: streak.lastClaimedAt ?? null,
     });
     if (error) throw error;
   },

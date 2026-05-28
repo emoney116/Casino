@@ -50,6 +50,7 @@ async function getSupabaseProfile(authUserId: string, email: string): Promise<Us
     lastLoginAt: data?.last_login_at ?? now,
     roles,
     accountStatus: data?.account_status ?? "ACTIVE",
+    avatarDataUrl: data?.avatar_data_url ?? undefined,
   };
 }
 

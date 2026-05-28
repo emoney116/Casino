@@ -14,15 +14,16 @@ function createCoinPack({
   name,
   usdPrice,
   gcAmount,
+  scBonus,
   badge = "",
   highlight = false,
-}: Omit<CoinPack, "scBonus" | "gcPerDollar" | "badge" | "highlight"> & Partial<Pick<CoinPack, "badge" | "highlight">>): CoinPack {
+}: Omit<CoinPack, "gcPerDollar" | "badge" | "highlight"> & Partial<Pick<CoinPack, "badge" | "highlight">>): CoinPack {
   return {
     id,
     name,
     usdPrice,
     gcAmount,
-    scBonus: Math.round(usdPrice),
+    scBonus,
     gcPerDollar: Math.round(gcAmount / usdPrice),
     badge,
     highlight,
@@ -32,51 +33,58 @@ function createCoinPack({
 export const coinPacks = [
   createCoinPack({
     id: "starter",
-    name: "Starter",
-    usdPrice: 4.99,
+    name: "Mini",
+    usdPrice: 5,
     gcAmount: 5000,
+    scBonus: 5,
   }),
   createCoinPack({
     id: "value",
-    name: "Value",
-    usdPrice: 19.99,
-    gcAmount: 25000,
-    badge: "Most Popular",
+    name: "Standard",
+    usdPrice: 10,
+    gcAmount: 12500,
+    scBonus: 10,
+  }),
+  createCoinPack({
+    id: "popular",
+    name: "Popular",
+    usdPrice: 20,
+    gcAmount: 30000,
+    scBonus: 20,
     highlight: true,
   }),
   createCoinPack({
     id: "mega",
     name: "Mega",
-    usdPrice: 49.99,
-    gcAmount: 75000,
+    usdPrice: 50,
+    gcAmount: 85000,
+    scBonus: 50,
   }),
   createCoinPack({
     id: "whale",
-    name: "Whale",
-    usdPrice: 99.99,
-    gcAmount: 190000,
-    badge: "Best Value",
-    highlight: true,
+    name: "Elite",
+    usdPrice: 100,
+    gcAmount: 200000,
+    scBonus: 100,
+  }),
+  createCoinPack({
+    id: "vault",
+    name: "Vault",
+    usdPrice: 200,
+    gcAmount: 450000,
+    scBonus: 200,
   }),
 ] satisfies CoinPack[];
-
-const starterGcPerDollar = coinPacks[0].gcPerDollar;
 
 export function formatPackPrice(pack: CoinPack) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(pack.usdPrice);
 }
 
 export function formatScBonusValue(pack: CoinPack) {
-  return `${pack.scBonus.toLocaleString()} SC`;
-}
-
-export function getPackValueTag(pack: CoinPack) {
-  if (pack.id === "starter") return "Starter value";
-  const lift = Math.round(((pack.gcPerDollar - starterGcPerDollar) / starterGcPerDollar) * 100);
-  return `+${lift}% more Gold Coins`;
+  return `${pack.scBonus.toLocaleString("en-US")} SC`;
 }

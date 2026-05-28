@@ -1,16 +1,11 @@
 import { readData, updateData } from "../lib/storage";
 import { creditCurrency } from "../wallet/walletService";
 import { setProgressionStreak } from "../progression/progressionService";
+import { STREAK_REWARDS, assertSafeRewardGrant, getStreakRewardForDay, getStreakRewardGrants } from "../retention/rewardConfig";
+import { getRepository, mirrorToBackend } from "../repositories";
+import type { DailyStreak } from "../types";
 
-export const streakRewards = [
-  { day: 1, bonus: 1000, gold: 0 },
-  { day: 2, bonus: 1250, gold: 0 },
-  { day: 3, bonus: 1500, gold: 0 },
-  { day: 4, bonus: 2000, gold: 0 },
-  { day: 5, bonus: 2500, gold: 0 },
-  { day: 6, bonus: 3500, gold: 0 },
-  { day: 7, bonus: 5000, gold: 500 },
-];
+export const streakRewards = STREAK_REWARDS;
 
 function hoursSince(value?: string) {
   if (!value) return Infinity;
@@ -30,32 +25,48 @@ export function claimStreak(userId: string) {
   if (!canClaimStreak(userId)) throw new Error("Daily streak already claimed.");
   let reward = streakRewards[0];
   let nextStreakDays = 1;
+  let savedStreak: DailyStreak | undefined;
 
   updateData((data) => {
     const current = data.streaks[userId] ?? { userId, day: 1, currentStreakDays: 0 };
     const missed = hoursSince(current.lastClaimedAt) > 48;
-    const claimDay = missed ? 1 : current.day;
-    reward = streakRewards[claimDay - 1];
+    const claimDay = missed ? 1 : normalizeStreakDay(current.day);
+    reward = getStreakRewardForDay(claimDay);
     nextStreakDays = missed ? 1 : current.currentStreakDays + 1;
-    data.streaks[userId] = {
+    savedStreak = {
       userId,
-      day: claimDay === 7 ? 1 : claimDay + 1,
+      day: claimDay + 1,
       currentStreakDays: nextStreakDays,
       lastClaimedAt: new Date().toISOString(),
     };
+    data.streaks[userId] = savedStreak;
   });
 
-  creditCurrency({ userId, type: "STREAK_REWARD", currency: "BONUS", amount: reward.bonus, metadata: { day: reward.day } });
-  if (reward.gold > 0) {
-    creditCurrency({ userId, type: "STREAK_REWARD", currency: "GOLD", amount: reward.gold, metadata: { day: reward.day } });
+  const streakSnapshot = savedStreak as DailyStreak;
+  mirrorToBackend(async () => {
+    await getRepository().syncStreak(streakSnapshot);
+  });
+
+  for (const grant of getStreakRewardGrants(reward)) {
+    assertSafeRewardGrant(grant, `Streak day ${reward.day}`);
+    creditCurrency({ userId, type: "STREAK_REWARD", currency: grant.currency, amount: grant.amount, metadata: { day: reward.day } });
   }
   setProgressionStreak(userId, nextStreakDays);
   return reward;
 }
 
 export function resetStreak(userId: string) {
+  const resetSnapshot: DailyStreak = { userId, day: 1, currentStreakDays: 0 };
   updateData((data) => {
     delete data.streaks[userId];
   });
+  mirrorToBackend(async () => {
+    await getRepository().syncStreak(resetSnapshot);
+  });
   setProgressionStreak(userId, 0);
+}
+
+function normalizeStreakDay(day: number) {
+  if (!Number.isFinite(day)) return 1;
+  return Math.max(Math.round(day), 1);
 }

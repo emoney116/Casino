@@ -8,6 +8,7 @@ import { getBrickBreakMathWarnings, simulateBrickBreakBonus } from "./brickBreak
 import { getBalloonPopMathWarnings, simulateBalloonPop } from "./balloonPopEngine";
 import { getLavaRunMathWarnings, simulateLavaRun } from "./lavaRunEngine";
 import { getEmberStackMathWarnings, simulateEmberStack } from "./emberStackEngine";
+import { getSafecrackerMathWarnings, simulateSafecracker } from "./safecrackerEngine";
 import type { TableGameConfig, TableGameId, TableSimulationResult } from "./types";
 
 export function simulateTableGame(gameId: TableGameId, rounds = 100000): TableSimulationResult {
@@ -64,6 +65,20 @@ export function simulateTableGame(gameId: TableGameId, rounds = 100000): TableSi
       biggestWin: result.biggestWin,
       maxPayoutCapHits: result.maxPayoutCapHits,
       bustRate: result.bustRate,
+      averagePayout: result.averagePayout,
+      maxCapHitRate: result.maxCapHitRate,
+    };
+  }
+  if (gameId === "safecracker") {
+    const result = simulateSafecracker("medium", rounds);
+    return {
+      totalWagered: result.totalWagered,
+      totalPaid: result.totalPaid,
+      observedRtp: result.observedRtp,
+      houseEdge: result.houseEdge,
+      biggestWin: result.biggestWin,
+      maxPayoutCapHits: result.maxPayoutCapHits,
+      bustRate: result.failRate,
       averagePayout: result.averagePayout,
       maxCapHitRate: result.maxCapHitRate,
     };
@@ -226,6 +241,9 @@ export function getTableMathWarnings(config: TableGameConfig, simulation?: Table
   }
   if (config.id === "emberStack") {
     return getEmberStackMathWarnings();
+  }
+  if (config.id === "safecracker") {
+    return getSafecrackerMathWarnings();
   }
   const warnings: string[] = [];
   if (simulation?.observedRtp && simulation.observedRtp > 0.95) warnings.push(`${config.name} observed RTP is above 95%.`);

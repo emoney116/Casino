@@ -3,14 +3,15 @@ import { recordMissionEvent } from "../missions/missionService";
 import { recordSpinProgress } from "../progression/progressionService";
 import type { RetentionState } from "../types";
 import { creditCurrency, getBalance } from "../wallet/walletService";
+import { assertSafeRewardGrant } from "./rewardConfig";
 
 const LOW_BALANCE_THRESHOLD = 250;
 const LOW_BALANCE_REWARD = 1200;
 const SWITCH_REWARD = 900;
 
 export const promotionDefs = [
-  { id: "bonus-2x", title: "2x Sweeps Coins", reward: 2000, durationMinutes: 1440 },
-  { id: "limited-reward", title: "Limited Time Reward", reward: 1500, durationMinutes: 90 },
+  { id: "bonus-2x", title: "SC Promo Drop", reward: 0.1, currency: "BONUS" as const, promoApproved: true, durationMinutes: 1440 },
+  { id: "limited-reward", title: "Limited GC Boost", reward: 1500, currency: "GOLD" as const, durationMinutes: 90 },
 ];
 
 function dayKey(date = new Date()) {
@@ -89,10 +90,11 @@ export function recordGameSwitchProgress(userId: string, gameId: string, wager =
   });
 
   if (!shouldReward) return null;
+  assertSafeRewardGrant({ currency: "GOLD", amount: SWITCH_REWARD }, "Game switch reward");
   return creditCurrency({
     userId,
     type: "RETENTION_REWARD",
-    currency: "BONUS",
+    currency: "GOLD",
     amount: SWITCH_REWARD,
     metadata: { source: "game_switching", distinctGames: 3 },
   });
@@ -123,10 +125,11 @@ export function claimLowBalanceOffer(userId: string) {
     state.lowBalanceClaims[dayKey()] = { claimedAt: new Date().toISOString() };
     data.retention[userId] = state;
   });
+  assertSafeRewardGrant({ currency: "GOLD", amount: LOW_BALANCE_REWARD }, "Low balance reward");
   return creditCurrency({
     userId,
     type: "RETENTION_REWARD",
-    currency: "BONUS",
+    currency: "GOLD",
     amount: LOW_BALANCE_REWARD,
     metadata: { source: "low_balance_offer", virtualOnly: true },
   });
@@ -156,10 +159,11 @@ export function claimPromotion(userId: string, promoId: string) {
     state.promotionClaims[`${promoId}:${dayKey()}`] = { claimedAt: new Date().toISOString() };
     data.retention[userId] = state;
   });
+  assertSafeRewardGrant({ currency: promo.currency, amount: promo.reward, promoApproved: promo.promoApproved }, `Promotion ${promo.id}`);
   return creditCurrency({
     userId,
     type: "PROMO_REWARD",
-    currency: "BONUS",
+    currency: promo.currency,
     amount: promo.reward,
     metadata: { source: promo.id, title: promo.title, virtualOnly: true },
   });

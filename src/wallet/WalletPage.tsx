@@ -1,21 +1,21 @@
-import { Download, History, Landmark, ShoppingCart } from "lucide-react";
+import { ChevronRight, Download } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { Modal } from "../components/Modal";
 import { TransactionTable } from "../components/TransactionTable";
 import { redemptionConfig } from "../config/complianceConfig";
-import { getCurrencyBrandedDisplayName, getCurrencyDisplayName, getCurrencyMeta, getCurrencyShortName, redeemableCurrency } from "../config/currencyConfig";
-import { COMPLIANCE_COPY } from "../lib/compliance";
+import { getCurrencyShortName, redeemableCurrency } from "../config/currencyConfig";
 import { formatCoins, formatDateTime } from "../lib/format";
 import { getEligibilityFlags, getKycStatus, getRedemptionRequests } from "../redemption/redemptionService";
 import type { Transaction, TransactionType } from "../types";
+import { CashierIcon } from "./CashierIcons";
 import { PurchaseCoinsModal } from "./PurchaseCoinsModal";
 import { getBalance, getTransactions } from "./walletService";
 
-type Filter = "ALL" | "PURCHASES" | "BONUSES" | "BETS" | "WINS" | "ADMIN";
+export type WalletTransactionFilter = "ALL" | "PURCHASES" | "BONUSES" | "BETS" | "WINS" | "ADMIN";
 export type WalletPanel = "purchase" | "redeem" | "history" | null;
 
-const filterMap: Record<Filter, TransactionType[]> = {
+export const walletTransactionFilterMap: Record<WalletTransactionFilter, TransactionType[]> = {
   ALL: [],
   PURCHASES: ["PURCHASE_FAKE", "GOLD_PURCHASE_DEMO"],
   BONUSES: ["DAILY_BONUS", "STREAK_REWARD", "MISSION_REWARD", "LEVEL_REWARD", "RETENTION_REWARD", "PROMO_REWARD", "SWEEPS_BONUS_GRANT"],
@@ -25,32 +25,116 @@ const filterMap: Record<Filter, TransactionType[]> = {
 };
 
 function titleCase(value: string) {
-  return value.toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return value.toLowerCase().replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+const walletActivityGameNames: Record<string, string> = {
+  "gold-rush-showdown": "Gold Rush",
+  "frontier-fortune": "Frontier Fortune",
+  "frontier-fortune-legacy": "Frontier Fortune",
+  blackjack: "Blackjack",
+  roulette: "Roulette",
+  dice: "Over/Under",
+  crash: "Crash",
+  treasureDig: "Treasure Dig",
+  "treasure-dig": "Treasure Dig",
+  brickBreakBonus: "Brick Break",
+  "brick-break-bonus": "Brick Break",
+  balloonPop: "Balloon Pop",
+  "balloon-pop": "Balloon Pop",
+  lavaRun: "Lava Run",
+  "lava-run": "Lava Run",
+  emberStack: "Ember Stack",
+  "ember-stack": "Ember Stack",
+  safecracker: "Safecracker",
+};
+
+function stringFromMetadata(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function getMetadataString(metadata: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = stringFromMetadata(metadata[key]);
+    if (value) return value;
+  }
+  return null;
+}
+
+function displayGameName(value: string) {
+  return walletActivityGameNames[value] ?? walletActivityGameNames[value.replaceAll("_", "-")] ?? titleCase(value.replace(/[-_]+/g, " "));
+}
+
+function getActivityGameName(tx: Transaction) {
+  const metadata = tx.metadata ?? {};
+  const displayName = getMetadataString(metadata, ["gameName", "tableGame", "arcadeGame", "slotName", "gameTitle"]);
+  if (displayName) return walletActivityGameNames[displayName] ?? displayName.replace(" Showdown", "");
+  const gameId = getMetadataString(metadata, ["gameId", "tableGameId", "arcadeGameId", "game", "slotId"]);
+  return gameId ? displayGameName(gameId) : null;
+}
+
+function getActivityAction(tx: Transaction) {
+  const metadata = tx.metadata ?? {};
+  const result = getMetadataString(metadata, ["result", "attemptResult"])?.toLowerCase().replaceAll("_", "-");
+
+  if (tx.type === "TABLE_LOSS") return "Loss";
+  if (tx.type === "TABLE_PUSH") return "Push";
+  if (tx.type === "TABLE_REFUND") return "Refund";
+  if (tx.type === "GAME_BET" || tx.type === "TABLE_BET" || tx.type === "ARCADE_BET") return "Bet";
+  if (tx.type === "BUY_BONUS") return "Bonus Buy";
+  if (tx.type === "JACKPOT_WIN") return "Jackpot";
+  if (tx.type === "BONUS_WIN") return "Bonus Win";
+
+  if (result === "cashout" || typeof metadata.cashOutMultiplier === "number") return "Cashout";
+  if (result === "unlock") return "Unlock";
+  if (result === "bust" || result === "fail" || result === "trap") return "Loss";
+
+  if (tx.type === "GAME_WIN" || tx.type === "TABLE_WIN" || tx.type === "ARCADE_WIN") return "Win";
+  if (tx.type === "GOLD_PURCHASE_DEMO" || tx.type === "PURCHASE_FAKE") return "Purchase";
+  if (tx.type.includes("BONUS") || tx.type.includes("REWARD")) return "Reward";
+  if (tx.type.includes("REDEMPTION")) return "Redemption";
+  if (tx.type.includes("ADMIN")) return "Admin";
+  return titleCase(tx.type);
+}
+
+export function getWalletActivityLabel(tx: Transaction) {
+  const gameName = getActivityGameName(tx);
+  const action = getActivityAction(tx);
+  return gameName ? `${gameName} ${action}` : action;
+}
+
+export function getWalletActivityTone(tx: Transaction) {
+  const action = getActivityAction(tx);
+  if (action === "Loss" || tx.amount < 0) return "negative";
+  if (tx.amount > 0 && ["Win", "Cashout", "Unlock", "Bonus Win", "Jackpot", "Reward"].includes(action)) return "positive";
+  if (tx.amount > 0) return "positive";
+  return "neutral";
+}
+
+export function filterWalletTransactions(transactions: Transaction[], filter: WalletTransactionFilter) {
+  const allowed = walletTransactionFilterMap[filter];
+  return transactions.filter((tx) => allowed.length === 0 || allowed.includes(tx.type));
 }
 
 export function WalletPage({ initialPanel = null }: { initialPanel?: WalletPanel } = {}) {
   const { user } = useAuth();
   const [activePanel, setActivePanel] = useState<WalletPanel>(initialPanel);
-  const [filter, setFilter] = useState<Filter>("ALL");
+  const [filter, setFilter] = useState<WalletTransactionFilter>("ALL");
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
-  const [version, setVersion] = useState(0);
+  const [, setVersion] = useState(0);
 
   if (!user) return null;
   const currentUser = user;
-  const filters: Filter[] = currentUser.roles.includes("ADMIN")
+  const filters: WalletTransactionFilter[] = currentUser.roles.includes("ADMIN")
     ? ["ALL", "PURCHASES", "BONUSES", "BETS", "WINS", "ADMIN"]
     : ["ALL", "PURCHASES", "BONUSES", "BETS", "WINS"];
   const balances = getBalance(currentUser.id);
   const kycStatus = getKycStatus(currentUser.id);
   const eligibilityFlags = getEligibilityFlags(currentUser.id);
   const redemptionRequests = getRedemptionRequests(currentUser.id);
-  const redeemableMeta = getCurrencyMeta(redeemableCurrency);
   const allTransactions = getTransactions(currentUser.id);
-  const transactions = allTransactions.filter((tx) => {
-    const allowed = filterMap[filter];
-    return allowed.length === 0 || allowed.includes(tx.type);
-  });
-  const latestTransactions = allTransactions.slice(0, 4);
+  const transactions = filterWalletTransactions(allTransactions, filter);
+  const latestTransactions = allTransactions.slice(0, 3);
 
   function exportJson() {
     const blob = new Blob([JSON.stringify(getTransactions(currentUser.id), null, 2)], { type: "application/json" });
@@ -68,89 +152,70 @@ export function WalletPage({ initialPanel = null }: { initialPanel?: WalletPanel
   }
 
   return (
-    <section className="page-stack wallet-dashboard">
-      <div className="page-heading">
+    <section className="page-stack wallet-dashboard wallet-cashier-page">
+      <div className="page-heading wallet-cashier-heading">
         <div>
-          <p className="eyebrow">Wallet & Redemption</p>
-          <h1>Coins at a glance</h1>
-          <p className="muted">{COMPLIANCE_COPY}</p>
+          <h1>Wallet</h1>
         </div>
       </div>
 
-      <section className="wallet-command-center">
+      <section className="wallet-balance-hero">
         <div className="wallet-balance-panel">
           <article className="wallet-balance-tile gold">
-            <span>{getCurrencyBrandedDisplayName("GOLD")}</span>
-            <strong>{formatCoins(balances.GOLD)}</strong>
-            <small>Entertainment balance. Gold Coins have no cash value.</small>
+            <CashierIcon kind="goldStack" />
+            <span>Gold Coins</span>
+            <strong>{formatCoins(balances.GOLD)} <small>GC</small></strong>
           </article>
           <article className="wallet-balance-tile sweeps">
-            <span>{getCurrencyBrandedDisplayName("BONUS")}</span>
-            <strong>{formatCoins(balances.BONUS)}</strong>
-            <small>{getCurrencyDisplayName("BONUS")} promotional balance. Prototype mode. Redemptions are not currently enabled.</small>
+            <CashierIcon kind="sweepsToken" />
+            <span>Sweeps Coins</span>
+            <strong>{formatCoins(balances.BONUS)} <small>SC</small></strong>
           </article>
         </div>
-
-        <div className="wallet-action-panel">
-          <p className="eyebrow">Wallet actions</p>
-          <button className="wallet-action-button purchase" type="button" onClick={() => setActivePanel("purchase")}>
-            <ShoppingCart size={20} />
-            <span>
-              <strong>Purchase Coins</strong>
-              <small>Open demo packs and Sweeps bonus details</small>
-            </span>
-          </button>
-          <button className="wallet-action-button redeem" type="button" onClick={() => setActivePanel("redeem")}>
-            <Landmark size={20} />
-            <span>
-              <strong>Redemption Status</strong>
-              <small>View disabled prototype redemption details</small>
-            </span>
-          </button>
-          <button className="wallet-action-button history" type="button" onClick={() => setActivePanel("history")}>
-            <History size={20} />
-            <span>
-              <strong>Transaction History</strong>
-              <small>See ledger records and export JSON</small>
-            </span>
-          </button>
-        </div>
+        <button className="wallet-cashier-cta" type="button" onClick={() => setActivePanel("purchase")}>
+          <CashierIcon kind="purchaseBag" />
+          <span>
+            <strong>Buy Coins</strong>
+          </span>
+          <ChevronRight size={19} />
+        </button>
       </section>
 
-      <div className="wallet-summary-grid">
-        <article className="card wallet-summary-card">
+      <div className="wallet-summary-grid cashier-summary-grid">
+        <article className="card wallet-summary-card cashier-status-card">
           <div>
-            <Landmark size={18} />
             <h2>Redemption Status</h2>
           </div>
           <div className="compact-detail-list">
-            <span>Redeemable balance</span><strong>{formatCoins(balances[redeemableCurrency])} {getCurrencyShortName(redeemableCurrency)}</strong>
-            <span>Minimum placeholder</span><strong>{formatCoins(redemptionConfig.minimumRedemptionAmount)}</strong>
+            <span>Redeemable SC</span><strong>{formatCoins(balances[redeemableCurrency])} {getCurrencyShortName(redeemableCurrency)}</strong>
+            <span>Minimum</span><strong>{formatCoins(redemptionConfig.minimumRedemptionAmount)} {getCurrencyShortName(redeemableCurrency)}</strong>
             <span>Status</span><strong>Not enabled</strong>
           </div>
-          <button className="ghost-button" type="button" onClick={() => setActivePanel("redeem")}>View Status</button>
+          <button className="ghost-button" type="button" onClick={() => setActivePanel("redeem")}>Redeem</button>
         </article>
 
-        <article className="card wallet-summary-card">
+        <article className="card wallet-summary-card cashier-activity-card">
           <div>
-            <History size={18} />
             <h2>Recent Activity</h2>
           </div>
           {latestTransactions.length === 0 ? (
-            <p className="muted">No transactions yet. Your ledger will appear here after play or demo purchases.</p>
+            <p className="muted">No wallet activity yet.</p>
           ) : (
             <div className="wallet-mini-ledger">
               {latestTransactions.map((tx) => (
                 <div key={tx.id}>
-                  <span>{titleCase(tx.type.replaceAll("_", " "))}</span>
-                  <strong className={tx.amount >= 0 ? "positive" : "negative"}>
-                    {tx.amount >= 0 ? "+" : ""}{formatCoins(tx.amount)}
+                  <span>
+                    <strong>{getWalletActivityLabel(tx)}</strong>
+                    <small>{formatDateTime(tx.createdAt)}</small>
+                  </span>
+                  <strong className={getWalletActivityTone(tx)}>
+                    {tx.amount > 0 ? "+" : ""}{formatCoins(tx.amount)} {getCurrencyShortName(tx.currency)}
                   </strong>
                 </div>
               ))}
             </div>
           )}
-          <button className="ghost-button" type="button" onClick={() => setActivePanel("history")}>Open History</button>
+          <button className="ghost-button" type="button" onClick={() => setActivePanel("history")}>View All</button>
         </article>
       </div>
 
@@ -159,81 +224,72 @@ export function WalletPage({ initialPanel = null }: { initialPanel?: WalletPanel
       )}
 
       {activePanel === "redeem" && (
-        <Modal title="Redemption" onClose={closePanel}>
+        <Modal title="Redemption Status" onClose={closePanel} className="cashier-modal-card cashier-redemption-modal">
           <div className="modal-stack wallet-modal-stack">
             <div className="wallet-redeem-hero">
-              <span>Redeemable balance placeholder</span>
+              <span>Redeemable SC</span>
               <strong>{formatCoins(balances[redeemableCurrency])} {getCurrencyShortName(redeemableCurrency)}</strong>
-              <small>{getCurrencyDisplayName(redeemableCurrency)} redemption is disabled in this prototype.</small>
+              <small>Status: Not enabled</small>
             </div>
-            <div className="grid two wallet-modal-grid">
-              <article className="card detail-card">
-                <h3>Status</h3>
-                <div className="detail-list">
-                  <span>Currency</span><strong>{redeemableMeta.displayName}</strong>
-                  <span>Minimum placeholder</span><strong>{formatCoins(redemptionConfig.minimumRedemptionAmount)}</strong>
-                  <span>Redemption enabled</span><strong>{String(redeemableMeta.redemptionEnabled && redemptionConfig.enabled)}</strong>
-                  <span>KYC</span><strong>{kycStatus}</strong>
-                  <span>Eligibility</span><strong>{eligibilityFlags.reviewRequired ? "Review required" : "Not evaluated"}</strong>
-                </div>
+
+            <div className="cashier-redemption-grid">
+              <article className="cashier-redemption-panel">
+                <CashierIcon kind="rewardSafe" />
+                <span>Minimum redemption</span>
+                <strong>{formatCoins(redemptionConfig.minimumRedemptionAmount)} {getCurrencyShortName(redeemableCurrency)}</strong>
               </article>
-              <article className="card detail-card">
-                <h3>Future Requirements</h3>
-                <p className="muted">
-                  Future redemption would require eligibility review, identity checks, applicable terms, and operational approval.
-                </p>
-                <button className="primary-button" type="button" disabled>Request Disabled</button>
+              <article className="cashier-redemption-panel">
+                <CashierIcon kind="rewardSafe" />
+                <span>KYC</span>
+                <strong>{titleCase(kycStatus)}</strong>
               </article>
             </div>
-            <article className="card">
-              <div className="section-title">
-                <h3>Request History Placeholder</h3>
-                <span>{redemptionRequests.length} requests</span>
+
+            <div className="cashier-requirements">
+              <span>Identity check</span>
+              <span>Eligible balance</span>
+              <span>Terms approval</span>
+            </div>
+
+            <div className="cashier-redemption-status">
+              <div className="compact-detail-list">
+                <span>Status</span><strong>Not enabled</strong>
+                <span>Eligibility</span><strong>{eligibilityFlags.reviewRequired ? "Review required" : "Not started"}</strong>
+                <span>Requests</span><strong>{redemptionRequests.length}</strong>
               </div>
-              {redemptionRequests.length === 0 ? (
-                <div className="empty-state">No redemption requests. Request creation is disabled.</div>
-              ) : (
-                <div className="redemption-request-list">
-                  {redemptionRequests.map((request) => (
-                    <div className="detail-list" key={request.id}>
-                      <span>{request.status}</span>
-                      <strong>{formatCoins(request.amount)} {request.currency}</strong>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </article>
+              <button className="primary-button" type="button" disabled>Request Disabled</button>
+            </div>
           </div>
         </Modal>
       )}
 
       {activePanel === "history" && (
-        <Modal title="Transaction History" onClose={closePanel}>
+        <Modal title="Transaction History" onClose={closePanel} className="cashier-modal-card cashier-history-modal">
           <div className="modal-stack wallet-modal-stack">
-            <div className="section-title">
-              <p className="muted">{transactions.length} ledger records</p>
+            <div className="cashier-history-toolbar">
+              <p className="muted">{transactions.length} records</p>
               <button className="ghost-button icon-button wallet-export-button" type="button" onClick={exportJson}>
-                <Download size={17} />
+                <Download size={16} />
                 Export JSON
               </button>
             </div>
-            <div className="filter-row">
+            <div className="filter-row cashier-filter-row">
               {filters.map((item) => (
                 <button className={filter === item ? "active" : ""} key={item} onClick={() => setFilter(item)}>
                   {titleCase(item)}
                 </button>
               ))}
             </div>
-            <TransactionTable transactions={transactions} onSelect={setSelectedTx} />
+            <TransactionTable transactions={transactions} onSelect={setSelectedTx} variant="cashier" />
           </div>
         </Modal>
       )}
 
       {selectedTx && (
-        <Modal title="Transaction Detail" onClose={() => setSelectedTx(null)}>
+        <Modal title="Transaction Detail" onClose={() => setSelectedTx(null)} className="cashier-modal-card">
           <div className="detail-list">
             <span>ID</span><strong>{selectedTx.id}</strong>
-            <span>Type</span><strong>{titleCase(selectedTx.type.replaceAll("_", " "))}</strong>
+            <span>Type</span><strong>{titleCase(selectedTx.type)}</strong>
             <span>Currency</span><strong>{titleCase(selectedTx.currency)}</strong>
             <span>Amount</span><strong>{formatCoins(selectedTx.amount)}</strong>
             <span>Balance After</span><strong>{formatCoins(selectedTx.balanceAfter)}</strong>

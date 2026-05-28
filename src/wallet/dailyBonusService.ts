@@ -1,8 +1,10 @@
 import { updateData } from "../lib/storage";
+import { DAILY_REWARD, assertSafeRewardGrant } from "../retention/rewardConfig";
 import { creditCurrency } from "./walletService";
 import type { User } from "../types";
 
-export const DAILY_BONUS_AMOUNT = 1000;
+export const DAILY_BONUS_AMOUNT = DAILY_REWARD.amount;
+export const DAILY_BONUS_CURRENCY = DAILY_REWARD.currency;
 
 export function canClaimDailyBonus(user: User) {
   if (!user.lastDailyBonusClaimAt) return true;
@@ -18,11 +20,12 @@ export function claimDailyBonus(userId: string) {
     user.lastDailyBonusClaimAt = now;
   });
 
+  assertSafeRewardGrant(DAILY_REWARD, "Daily claim");
   return creditCurrency({
     userId,
     type: "DAILY_BONUS",
-    currency: "BONUS",
-    amount: DAILY_BONUS_AMOUNT,
+    currency: DAILY_REWARD.currency,
+    amount: DAILY_REWARD.amount,
     metadata: { source: "daily_bonus" },
   });
 }

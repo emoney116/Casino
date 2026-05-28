@@ -5,6 +5,12 @@ export const localRepository: CasinoRepository = {
   async syncProfile() {
     return undefined;
   },
+  async syncProfileAvatar() {
+    return undefined;
+  },
+  async syncStreak() {
+    return undefined;
+  },
   async syncWalletBalance() {
     return undefined;
   },

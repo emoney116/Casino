@@ -57,7 +57,7 @@ if (navItems.some((item) => item.id === "redemption")) {
 }
 
 const routes = [
-  { path: "/wallet", text: "Coins at a glance" },
+  { path: "/wallet", text: "Wallet" },
   { path: "/slots/frontier-fortune", text: "Loading slot..." },
   { path: "/slots/gold-rush-showdown", text: "Gold Rush Showdown" },
   { path: "/games/blackjack", text: "Loading game..." },
@@ -69,10 +69,12 @@ const routes = [
   { path: "/games/balloon-pop", text: "Loading game..." },
   { path: "/games/lava-run", text: "Loading game..." },
   { path: "/games/ember-stack", text: "Loading game..." },
+  { path: "/games/safecracker", text: "Loading game..." },
   { path: "/redemption", text: "Redemption" },
+  { path: "/support", text: "Support" },
   { path: "/terms", text: "Terms" },
-  { path: "/sweepstakes-rules", text: "Sweepstakes Rules" },
-  { path: "/privacy", text: "Privacy Policy" },
+  { path: "/sweepstakes-rules", text: "Sweeps Rules" },
+  { path: "/privacy", text: "Privacy" },
   { path: "/responsible-play", text: "Responsible Play" },
   { path: "/eligibility", text: "Eligibility" },
 ];
@@ -99,9 +101,13 @@ for (const route of routes) {
   if (!markup.includes("Prototype mode. Redemptions are not currently enabled.")) {
     throw new Error(`Expected ${route.path} to render compliance copy.`);
   }
-  if (["/terms", "/sweepstakes-rules", "/privacy", "/responsible-play", "/eligibility"].includes(route.path)
+  if (["/support", "/terms", "/sweepstakes-rules", "/privacy", "/responsible-play", "/eligibility"].includes(route.path)
     && !markup.includes("Draft placeholder. Not legal advice. Must be reviewed by qualified counsel before launch.")) {
     throw new Error(`Expected ${route.path} to render legal placeholder copy.`);
+  }
+  if (["/support", "/terms", "/sweepstakes-rules", "/privacy", "/responsible-play", "/eligibility"].includes(route.path)
+    && !markup.includes('href="/account"')) {
+    throw new Error(`Expected ${route.path} to render Account back link.`);
   }
 }
 

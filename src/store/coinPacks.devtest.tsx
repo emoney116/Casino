@@ -5,6 +5,7 @@ import { ToastProvider } from "../components/ToastContext";
 import type { CasinoData, User } from "../types";
 import { getBalance, getTransactions } from "../wallet/walletService";
 import { PurchaseCoinsModal } from "../wallet/PurchaseCoinsModal";
+import { saveResponsiblePlaySettings } from "../account/profileService";
 import { coinPacks, formatPackPrice, formatScBonusValue } from "./coinPacks";
 import { fakeDirectCurrencyPurchase, fakePurchasePack } from "./fakePurchaseService";
 import { StorePage } from "./StorePage";
@@ -55,13 +56,26 @@ const seed: Partial<CasinoData> = {
 
 localStorage.setItem("casino-prototype-data-v1", JSON.stringify(seed));
 
+const expectedScBonuses: Record<string, number> = {
+  starter: 5,
+  value: 10,
+  popular: 20,
+  mega: 50,
+  whale: 100,
+  vault: 200,
+};
+
 for (const pack of coinPacks) {
-  if (pack.scBonus !== Math.round(pack.usdPrice)) {
-    throw new Error(`${pack.id} SC bonus must equal the rounded USD pack value.`);
+  if (pack.scBonus !== expectedScBonuses[pack.id]) {
+    throw new Error(`${pack.id} SC bonus should match the 1 SC per $1 purchase value.`);
   }
 
-  if (!Number.isInteger(pack.gcAmount) || !Number.isInteger(pack.scBonus)) {
-    throw new Error(`${pack.id} pack values must be whole numbers.`);
+  if (pack.scBonus !== Math.round(pack.usdPrice)) {
+    throw new Error(`${pack.id} SC bonus should equal the rounded USD package price.`);
+  }
+
+  if (!Number.isInteger(pack.gcAmount)) {
+    throw new Error(`${pack.id} GC amount must be a whole number.`);
   }
 }
 
@@ -80,6 +94,21 @@ try {
   }
 }
 
+const excludedUser: User = { ...user, id: "excluded-pack-user" };
+saveResponsiblePlaySettings(excludedUser.id, {
+  sessionReminderEnabled: false,
+  sessionReminderMinutes: 30,
+  spendingLimitEnabled: false,
+  dailyGcLimit: 10000,
+  selfExclusionEnabled: true,
+});
+try {
+  fakePurchasePack(excludedUser, "starter");
+  throw new Error("Self-exclusion should block demo coin purchases.");
+} catch (error) {
+  if (!(error instanceof Error) || !error.message.includes("Coin purchases are locked")) throw error;
+}
+
 const markup = renderToStaticMarkup(
   createElement(ToastProvider, null,
     createElement(AuthProvider, { initialUser: user, children: <PurchaseCoinsModal onClose={() => undefined} /> }),
@@ -88,10 +117,9 @@ const markup = renderToStaticMarkup(
 
 for (const pack of coinPacks) {
   for (const expected of [
-    formatPackPrice(pack),
-    `${pack.name} Pack`,
     pack.gcAmount.toLocaleString(),
-    `+ ${formatScBonusValue(pack)}`,
+    `+${formatScBonusValue(pack)}`,
+    `>Buy ${formatPackPrice(pack)}</button>`,
   ]) {
     if (!markup.includes(expected)) {
       throw new Error(`Purchase modal should render ${pack.id} value: ${expected}.`);
@@ -99,20 +127,42 @@ for (const pack of coinPacks) {
   }
 }
 
-for (const requiredCopy of [
-  "Play more. Get bonus SC.",
-  "Gold Coins have no cash value",
-  "SC are promotional bonus coins",
-  "No purchase necessary placeholder.",
-  "Prototype mode. Redemptions not enabled.",
-]) {
-  if (!markup.includes(requiredCopy)) {
-    throw new Error(`Purchase modal missing compliance copy: ${requiredCopy}`);
+for (const removedName of ["Mini", "Standard", "Popular", "Mega", "Elite"]) {
+  if (markup.includes(`>${removedName}<`)) {
+    throw new Error(`Purchase modal should not render package names: ${removedName}`);
   }
 }
 
-if (!markup.includes("BEST VALUE") || !markup.includes("MOST POPULAR")) {
-  throw new Error("Expected highlighted pack badges to render.");
+if (
+  !markup.includes("purchase-pack-tile-grid") ||
+  !markup.includes("purchase-pack-tile") ||
+  markup.includes("wallet-pack-standard-list") ||
+  markup.includes("purchase-pack-main") ||
+  markup.includes("purchase-pack-price") ||
+  markup.includes("purchase-pack-badge-slot") ||
+  markup.includes("Most Popular") ||
+  markup.includes("Starter value") ||
+  markup.includes("more Gold Coins") ||
+  markup.includes("PACKAGE") ||
+  markup.includes("Demo purchase only") ||
+  markup.includes("SC included as promotional Sweeps Coins.") ||
+  markup.includes("$4.99") ||
+  markup.includes("$9.99") ||
+  markup.includes("$19.99") ||
+  markup.includes("$49.99") ||
+  markup.includes("$99.99")
+) {
+  throw new Error("Purchase modal should render compact package tiles with price-only buttons and whole-dollar bundles.");
+}
+
+for (const removedName of ["Starter Pack", "Value Pack", "Whale Pack", "Buy $4.99", "Gold Coin packages with Sweeps Coins"]) {
+  if (markup.includes(removedName)) {
+    throw new Error(`Purchase modal should not render old package/CTA copy: ${removedName}`);
+  }
+}
+
+if (countText(markup, " featured") !== 1 || markup.includes("Best Value")) {
+  throw new Error("Purchase modal should render exactly one featured package through card styling only.");
 }
 
 const storeMarkup = renderToStaticMarkup(
@@ -121,12 +171,22 @@ const storeMarkup = renderToStaticMarkup(
   ),
 );
 
-if (!storeMarkup.includes("Coin Store") || !storeMarkup.includes("Play more. Get bonus SC.")) {
+if (!storeMarkup.includes("Coin Store") || !storeMarkup.includes("GC packages with bonus SC.")) {
   throw new Error("Store page should render the premium shop heading.");
 }
 
 if (!storeMarkup.includes("Running low on coins?") || !storeMarkup.includes("Get Coins")) {
   throw new Error("Low balance store banner should render when GOLD balance is below the UI threshold.");
+}
+
+if (!storeMarkup.includes("coin-store-grid") || !storeMarkup.includes("purchase-pack-tile")) {
+  throw new Error("Store page should render compact two-column package tiles.");
+}
+
+for (const removedName of ["Mini", "Standard", "Popular", "Mega", "Elite"]) {
+  if (storeMarkup.includes(`>${removedName}<`)) {
+    throw new Error(`Store page should not render package names: ${removedName}`);
+  }
 }
 
 const confirmMarkup = renderToStaticMarkup(
@@ -136,14 +196,14 @@ const confirmMarkup = renderToStaticMarkup(
 );
 
 for (const expected of [
-  "Starter Pack",
-  "$4.99",
+  "Coin Package",
+  "$5",
   "5,000",
   "5 SC",
   "Gold Coins have no cash value",
   "SC are promotional bonus coins",
-  "Prototype mode. Redemptions not enabled",
-  "Confirm",
+  "Demo purchase only",
+  "Add Demo Coins",
 ]) {
   if (!confirmMarkup.includes(expected)) {
     throw new Error(`Purchase confirmation modal should render: ${expected}`);
@@ -174,3 +234,7 @@ if (scEntries.length !== 1 || scEntries[0].amount !== selectedPack.scBonus) {
 }
 
 console.log("coinPacks.devtest passed");
+
+function countText(markup: string, text: string) {
+  return markup.split(text).length - 1;
+}

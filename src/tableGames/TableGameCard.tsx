@@ -1,6 +1,7 @@
-import { ArrowUpDown, CircleDot, Flame, Gem, Grid3X3, Rocket, Spade, Target } from "lucide-react";
+import { ArrowUpDown, CircleDot, Flame, Gem, Grid3X3, KeyRound, Rocket, Spade, Target } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { TableGameConfig } from "./types";
+import type { GameCardBadge } from "../components/GameCard";
 
 const icons = {
   blackjack: Spade,
@@ -12,12 +13,31 @@ const icons = {
   balloonPop: Target,
   lavaRun: Flame,
   emberStack: Flame,
+  safecracker: KeyRound,
 };
 
-export function TableGameCard({ game, onPlay }: { game: TableGameConfig; onPlay: (gameId: TableGameConfig["id"]) => void }) {
+export function TableGameCard({
+  game,
+  onPlay,
+  badges = [],
+}: {
+  game: TableGameConfig;
+  onPlay: (gameId: TableGameConfig["id"]) => void;
+  badges?: GameCardBadge[];
+}) {
   const Icon = icons[game.id];
   return (
     <button type="button" className={`table-game-card title-card ${game.id}`} onClick={() => onPlay(game.id)}>
+      {badges.length > 0 && (
+        <div className="game-card-badges table-badges" aria-label={`${game.name} tags`}>
+          {badges.map((badge) => (
+            <span key={badge} className={badge === "HOT" ? "hot-badge" : `game-badge-${badge.toLowerCase().replace(/\s+/g, "-")}`}>
+              {badge === "HOT" && <Flame size={12} />}
+              {badge}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="table-game-art">
         {game.artwork ? (
           <img className="table-game-raster-art" src={game.artwork} alt={`${game.name} game art`} />

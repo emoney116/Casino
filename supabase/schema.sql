@@ -10,7 +10,8 @@ create table if not exists public.profiles (
   last_login_at timestamptz not null default now(),
   role text not null default 'USER',
   roles text[] not null default array['USER'],
-  account_status text not null default 'ACTIVE'
+  account_status text not null default 'ACTIVE',
+  avatar_data_url text
 );
 
 create table if not exists public.wallet_balances (

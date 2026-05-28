@@ -9,6 +9,7 @@ export type AppView =
   | "wallet"
   | "redemption"
   | "account"
+  | "support"
   | "terms"
   | "sweepstakesRules"
   | "privacy"

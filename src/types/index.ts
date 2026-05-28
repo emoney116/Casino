@@ -42,6 +42,7 @@ export interface User {
   roles: Role[];
   accountStatus: AccountStatus;
   lastDailyBonusClaimAt?: string;
+  avatarDataUrl?: string;
 }
 
 export interface Session {

@@ -86,12 +86,16 @@ const markup = renderToStaticMarkup(
   ),
 );
 
-if (!markup.includes("Request Disabled") || !markup.includes("Prototype mode. Redemptions are not currently enabled.")) {
+if (!markup.includes("Request Disabled")) {
   throw new Error("Redemption page should render the disabled request state.");
 }
 
-if (!markup.includes("Redeemable balance placeholder")) {
-  throw new Error("Redemption page should render the redeemable balance placeholder.");
+if (markup.includes("Prototype mode. Redemptions are not currently enabled.")) {
+  throw new Error("Redemption page should not render the old wallet compliance footer.");
+}
+
+if (!markup.includes("Redeemable SC")) {
+  throw new Error("Redemption page should render the redeemable balance status.");
 }
 
 const purchaseMarkup = renderToStaticMarkup(
@@ -102,13 +106,15 @@ const purchaseMarkup = renderToStaticMarkup(
 
 for (const expected of [
   "5,000",
-  "+ 5 SC",
-  "25,000",
-  "+ 20 SC",
-  "75,000",
-  "+ 50 SC",
-  "190,000",
-  "+ 100 SC",
+  "+5 SC",
+  "12,500",
+  "+10 SC",
+  "30,000",
+  "+20 SC",
+  "85,000",
+  "+50 SC",
+  "200,000",
+  "+100 SC",
 ]) {
   if (!purchaseMarkup.includes(expected)) {
     throw new Error(`Expected purchase modal to render pack value: ${expected}.`);

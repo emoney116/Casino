@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { formatCoins } from "../lib/format";
-import { coinPacks, formatPackPrice, formatScBonusValue, getPackValueTag } from "./coinPacks";
-import { getCurrencyDisplayName, getCurrencyShortName } from "../config/currencyConfig";
+import { coinPacks, formatPackPrice, formatScBonusValue } from "./coinPacks";
+import { getCurrencyDisplayName } from "../config/currencyConfig";
 import { PurchaseCoinsModal } from "../wallet/PurchaseCoinsModal";
 import { useAuth } from "../auth/AuthContext";
 import { getBalance } from "../wallet/walletService";
@@ -19,7 +19,7 @@ export function StorePage({ onBack }: { onBack: () => void }) {
       <div className="page-heading coin-store-heading">
         <div>
           <h2>Coin Store</h2>
-          <p>Play more. Get bonus {getCurrencyShortName("BONUS")}.</p>
+          <p>GC packages with bonus SC.</p>
         </div>
         <button className="ghost-button" onClick={onBack}>
           Back
@@ -35,25 +35,21 @@ export function StorePage({ onBack }: { onBack: () => void }) {
 
       <div className="wallet-pack-grid coin-store-grid">
         {coinPacks.map((pack) => (
-          <article className={`wallet-pack-card${pack.highlight ? " highlight" : ""}`} key={pack.id}>
-            {pack.badge && <span className="purchase-pack-badge">{pack.badge.toUpperCase()}</span>}
-            <div className="purchase-pack-heading">
-              <h3>{pack.name} Pack</h3>
-              <p className="purchase-pack-price">{formatPackPrice(pack)}</p>
-            </div>
-            <div className="purchase-pack-amounts">
-              <strong><span>{formatCoins(pack.gcAmount)}</span> {getCurrencyDisplayName("GOLD")}</strong>
-              <em>+ {formatScBonusValue(pack)}</em>
-            </div>
-            <span className="purchase-pack-value-tag">{getPackValueTag(pack)}</span>
-            <button className="primary-button purchase-buy-button" onClick={() => setSelectedPackId(pack.id)}>
-              Buy
+          <article className={`wallet-pack-card compact purchase-pack-tile${pack.highlight ? " featured" : ""}`} key={pack.id}>
+            <strong className="purchase-pack-gc">{formatCoins(pack.gcAmount)} GC</strong>
+            <em className="purchase-pack-sc">+{formatScBonusValue(pack)}</em>
+            <button
+              className="primary-button purchase-buy-button"
+              aria-label={`Buy ${formatCoins(pack.gcAmount)} GC package`}
+              onClick={() => setSelectedPackId(pack.id)}
+            >
+              Buy {formatPackPrice(pack)}
             </button>
           </article>
         ))}
       </div>
       <p className="coin-store-footer-copy">
-        {getCurrencyDisplayName("GOLD")} have no cash value. {getCurrencyShortName("BONUS")} are promotional bonus coins. Prototype mode. Redemptions not enabled.
+        SC included as promotional Sweeps Coins. {getCurrencyDisplayName("GOLD")} have no cash value.
       </p>
 
       {selectedPackId && (

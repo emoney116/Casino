@@ -2,6 +2,7 @@ import { readData, updateData } from "../lib/storage";
 import { creditCurrency } from "../wallet/walletService";
 import type { MissionProgress, MissionState } from "../types";
 import { missionDefs } from "./missionDefs";
+import { assertSafeRewardGrant } from "../retention/rewardConfig";
 
 function periodExpired(lastResetAt: string, period: "DAILY" | "WEEKLY") {
   const ageHours = (Date.now() - new Date(lastResetAt).getTime()) / 36e5;
@@ -43,7 +44,7 @@ export function recordMissionEvent(input: {
       if (def.metric === "WAGER") mission.progress += input.wager;
       if (def.metric === "BONUS" && input.bonusTriggered) mission.progress += 1;
       if (def.metric === "LEVEL" && input.leveledUp) mission.progress += 1;
-      if (def.metric === "MULTIPLIER" && (input.multiplier ?? 0) > 2) mission.progress += 1;
+      if (def.metric === "MULTIPLIER" && (input.multiplier ?? 0) >= (def.multiplierTarget ?? 2)) mission.progress += 1;
       if (def.metric === "GAMES") {
         const played = new Set(mission.playedGames ?? []);
         played.add(input.gameId);
@@ -69,6 +70,7 @@ export function claimMission(userId: string, missionId: string) {
     state[missionId].status = "CLAIMED";
     data.missions[userId] = state;
   });
+  assertSafeRewardGrant({ currency: def.rewardCurrency, amount: def.rewardAmount, promoApproved: def.promoApproved }, `Mission ${def.id}`);
   return creditCurrency({
     userId,
     type: "MISSION_REWARD",
