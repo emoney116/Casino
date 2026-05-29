@@ -11,11 +11,15 @@ import {
   getCurrencyAmountFitClass,
 } from "../lib/format";
 import { updateData } from "../lib/storage";
+import { setRepositoryOverrideForTests } from "../repositories";
+import type { CasinoRepository } from "../repositories/types";
 import { LegalPage, type LegalPageKind } from "../legal/LegalPage";
 import type { CasinoData, User } from "../types";
 import { getBalance } from "../wallet/walletService";
-import { AccountPage, VipDetailsContent } from "./AccountPage";
+import { AccountPage, AvatarCropModalBody, AvatarUploadNotice, VipDetailsContent } from "./AccountPage";
 import {
+  PROFILE_IMAGE_ACCEPT,
+  PROFILE_IMAGE_MAX_BYTES,
   SELF_EXCLUSION_WARNING,
   assertCanPurchaseCoins,
   assertResponsiblePlayAllowsDebit,
@@ -23,10 +27,12 @@ import {
   checkDisplayNameAvailable,
   getDailyGcSpent,
   getDisplayNameError,
+  getProfileImageValidationError,
   getProfilePreferences,
   isSelfExcluded,
   saveAvatarDataUrl,
   saveDisplayName,
+  saveProfilePreferences,
   saveResponsiblePlaySettings,
   validateDisplayName,
 } from "./profileService";
@@ -209,9 +215,58 @@ if (
   canSaveAccountProfile({ displayName: user.username, savedDisplayName: user.username, userId: user.id, avatarChanged: false }) ||
   canSaveAccountProfile({ displayName: "TakenName", savedDisplayName: user.username, userId: user.id, avatarChanged: false }) ||
   !canSaveAccountProfile({ displayName: "FreshName", savedDisplayName: user.username, userId: user.id, avatarChanged: false }) ||
+  !canSaveAccountProfile({ displayName: "FreshName", savedDisplayName: user.username, userId: user.id, avatarChanged: false, avatarError: "Image must be 10 MB or smaller." }) ||
   canSaveAccountProfile({ displayName: user.username, savedDisplayName: user.username, userId: user.id, avatarChanged: true })
 ) {
   throw new Error("Save state should only enable for valid display name changes; avatar saves automatically.");
+}
+
+if (
+  PROFILE_IMAGE_MAX_BYTES !== 10 * 1024 * 1024 ||
+  !PROFILE_IMAGE_ACCEPT.includes("image/jpeg") ||
+  !PROFILE_IMAGE_ACCEPT.includes("image/png") ||
+  !PROFILE_IMAGE_ACCEPT.includes("image/webp")
+) {
+  throw new Error("Profile image upload should accept JPG, PNG, and WebP up to 10 MB.");
+}
+
+for (const acceptedType of ["image/jpeg", "image/png", "image/webp"]) {
+  if (getProfileImageValidationError({ type: acceptedType, size: PROFILE_IMAGE_MAX_BYTES })) {
+    throw new Error(`${acceptedType} should be accepted at the 10 MB limit.`);
+  }
+}
+
+if (
+  getProfileImageValidationError({ type: "image/gif", size: 1 }) !== "Image must be JPG, PNG, or WebP." ||
+  getProfileImageValidationError({ type: "video/mp4", size: 1 }) !== "Image must be JPG, PNG, or WebP." ||
+  getProfileImageValidationError({ type: "image/jpeg", size: PROFILE_IMAGE_MAX_BYTES + 1 }) !== "Image must be 10 MB or smaller."
+) {
+  throw new Error("Profile image validation should reject unsupported types and files over 10 MB.");
+}
+
+const avatarNoticeMarkup = renderToStaticMarkup(
+  createElement(AvatarUploadNotice, { message: "Image must be 10 MB or smaller.", tone: "error" }),
+);
+if (!avatarNoticeMarkup.includes("account-avatar-popover error") || avatarNoticeMarkup.includes("account-error-box")) {
+  throw new Error("Avatar upload errors should render in the avatar popover, not the Profile Settings error box.");
+}
+
+const cropModalMarkup = renderToStaticMarkup(
+  createElement(AvatarCropModalBody, {
+    crop: { src: "data:image/png;base64,crop", offsetX: 0, offsetY: 0, zoom: 1 },
+    avatarSaving: false,
+    onStartDrag: () => undefined,
+    onMoveDrag: () => undefined,
+    onEndDrag: () => undefined,
+    onZoomChange: () => undefined,
+    onCancel: () => undefined,
+    onSave: () => undefined,
+  }),
+);
+for (const expected of ["Drag image to crop profile photo", "Photo zoom", "Cancel", "Save Photo"]) {
+  if (!cropModalMarkup.includes(expected)) {
+    throw new Error(`Crop modal should render after valid image selection: ${expected}`);
+  }
 }
 
 try {
@@ -227,13 +282,80 @@ if (savedName !== "FreshName" || !memory["casino-prototype-data-v1"].includes('"
 }
 
 const avatarDataUrl = "data:image/png;base64,abc123";
-saveAvatarDataUrl(user.id, avatarDataUrl);
+await saveAvatarDataUrl(user.id, avatarDataUrl);
 if (getProfilePreferences(user.id).avatarDataUrl !== avatarDataUrl) {
   throw new Error("Avatar data URL should persist locally.");
 }
 if (!memory["casino-prototype-data-v1"].includes('"avatarDataUrl":"data:image/png;base64,abc123"')) {
   throw new Error("Avatar data URL should persist into local profile data.");
 }
+
+function createSupabaseAvatarMock() {
+  let syncedAvatarDataUrl: string | null = null;
+  const repository: CasinoRepository = {
+    mode: "supabase",
+    async fetchWalletBalance() {
+      return null;
+    },
+    async fetchWalletTransactions() {
+      return [];
+    },
+    async ensureVipProgress() {
+      return undefined;
+    },
+    async fetchVipLifetimeSCWagered() {
+      return null;
+    },
+    async recordVipWager() {
+      return undefined;
+    },
+    async syncProfile() {
+      return undefined;
+    },
+    async syncProfileAvatar(_userId, nextAvatarDataUrl) {
+      syncedAvatarDataUrl = nextAvatarDataUrl ?? null;
+    },
+    async syncStreak() {
+      return undefined;
+    },
+    async syncWalletBalance() {
+      return undefined;
+    },
+    async syncWalletTransaction() {
+      return undefined;
+    },
+  };
+  return {
+    repository,
+    getSyncedAvatar: () => syncedAvatarDataUrl,
+  };
+}
+
+const staleLocalAvatarDataUrl = "data:image/png;base64,stale-local";
+const supabaseAvatarDataUrl = "data:image/webp;base64,supabase-profile";
+const savedSupabaseAvatarDataUrl = "data:image/webp;base64,supabase-saved";
+saveProfilePreferences(user.id, {
+  ...getProfilePreferences(user.id),
+  avatarDataUrl: staleLocalAvatarDataUrl,
+});
+updateData((data) => {
+  const current = data.users.find((candidate) => candidate.id === user.id);
+  if (current) current.avatarDataUrl = supabaseAvatarDataUrl;
+});
+const supabaseAvatarMock = createSupabaseAvatarMock();
+setRepositoryOverrideForTests(supabaseAvatarMock.repository);
+if (getProfilePreferences(user.id).avatarDataUrl !== supabaseAvatarDataUrl) {
+  throw new Error("Supabase profile avatar should override stale local profile preference data.");
+}
+await saveAvatarDataUrl(user.id, savedSupabaseAvatarDataUrl);
+if (supabaseAvatarMock.getSyncedAvatar() !== savedSupabaseAvatarDataUrl) {
+  throw new Error("Supabase profile avatar save should update profiles.avatar_data_url.");
+}
+if (getProfilePreferences(user.id).avatarDataUrl !== savedSupabaseAvatarDataUrl) {
+  throw new Error("Saved Supabase avatar should persist through profile reload preferences.");
+}
+setRepositoryOverrideForTests(null);
+await saveAvatarDataUrl(user.id, avatarDataUrl);
 
 saveResponsiblePlaySettings(user.id, {
   sessionReminderEnabled: true,
@@ -468,7 +590,7 @@ for (const expected of [
   "VIP perks are promotional and subject to change.",
   "Change profile photo",
   'type="file"',
-  'accept="image/*"',
+  'accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"',
   avatarDataUrl,
   'aria-readonly="true"',
   "Every 60 min",

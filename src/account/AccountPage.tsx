@@ -30,11 +30,12 @@ import { getStreak } from "../streaks/streakService";
 import { CashierIcon } from "../wallet/CashierIcons";
 import { getBalance, refreshWalletFromRepository, WALLET_BALANCE_UPDATED_EVENT } from "../wallet/walletService";
 import {
-  PROFILE_IMAGE_MAX_BYTES,
+  PROFILE_IMAGE_ACCEPT,
   SELF_EXCLUSION_WARNING,
   canSaveAccountProfile,
   defaultResponsiblePlaySettings,
   getDisplayNameError,
+  getProfileImageValidationError,
   getProfilePreferences,
   normalizeDisplayName,
   saveAvatarDataUrl,
@@ -54,11 +55,13 @@ import {
 } from "./vipService";
 import { vipBadgeSrcByTier } from "./vipBadgeAssets";
 
-const AVATAR_CROP_OUTPUT_SIZE = 256;
+const AVATAR_CROP_OUTPUT_SIZE = 512;
 const AVATAR_CROP_FRAME_SIZE = 220;
 const AVATAR_CROP_OFFSET_LIMIT = 110;
 
-interface AvatarCropDraft {
+type AvatarNoticeTone = "error" | "success";
+
+export interface AvatarCropDraft {
   src: string;
   offsetX: number;
   offsetY: number;
@@ -98,9 +101,9 @@ function readFileAsDataUrl(file: File) {
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === "string") resolve(reader.result);
-      else reject(new Error("Unable to read image."));
+      else reject(new Error("Could not load image."));
     };
-    reader.onerror = () => reject(new Error("Unable to read image."));
+    reader.onerror = () => reject(new Error("Could not load image."));
     reader.readAsDataURL(file);
   });
 }
@@ -113,7 +116,7 @@ function loadImage(src: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("Unable to load image."));
+    image.onerror = () => reject(new Error("Could not load image."));
     image.src = src;
   });
 }
@@ -137,7 +140,78 @@ async function createCroppedAvatarDataUrl(crop: AvatarCropDraft) {
   context.fillStyle = "#070a12";
   context.fillRect(0, 0, AVATAR_CROP_OUTPUT_SIZE, AVATAR_CROP_OUTPUT_SIZE);
   context.drawImage(image, x, y, width, height);
-  return canvas.toDataURL("image/png");
+  return canvas.toDataURL("image/webp", 0.8);
+}
+
+export function AvatarUploadNotice({ message, tone }: { message: string; tone: AvatarNoticeTone }) {
+  return (
+    <div className={`account-avatar-popover ${tone}`} role={tone === "error" ? "alert" : "status"}>
+      {message}
+    </div>
+  );
+}
+
+export function AvatarCropModalBody({
+  crop,
+  avatarSaving,
+  onStartDrag,
+  onMoveDrag,
+  onEndDrag,
+  onZoomChange,
+  onCancel,
+  onSave,
+}: {
+  crop: AvatarCropDraft;
+  avatarSaving: boolean;
+  onStartDrag: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onMoveDrag: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onEndDrag: () => void;
+  onZoomChange: (zoom: number) => void;
+  onCancel: () => void;
+  onSave: () => void;
+}) {
+  return (
+    <div className="modal-stack account-crop-stack">
+      <div
+        className="account-crop-stage"
+        onPointerDown={onStartDrag}
+        onPointerMove={onMoveDrag}
+        onPointerUp={onEndDrag}
+        onPointerCancel={onEndDrag}
+        role="application"
+        aria-label="Drag image to crop profile photo"
+      >
+        <img
+          alt=""
+          draggable={false}
+          src={crop.src}
+          style={{
+            transform: `translate(calc(-50% + ${crop.offsetX}px), calc(-50% + ${crop.offsetY}px)) scale(${crop.zoom})`,
+          }}
+        />
+      </div>
+      <label className="account-crop-control">
+        <span>Zoom</span>
+        <input
+          aria-label="Photo zoom"
+          type="range"
+          min="1"
+          max="2.5"
+          step="0.05"
+          value={crop.zoom}
+          onChange={(event) => onZoomChange(Number(event.target.value))}
+        />
+      </label>
+      <div className="account-modal-actions">
+        <button className="account-secondary-button" type="button" onClick={onCancel}>
+          Cancel
+        </button>
+        <button className="account-save-button" type="button" onClick={onSave} disabled={avatarSaving}>
+          {avatarSaving ? "Saving..." : "Save Photo"}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function VipBadgeArt({ tier, size, className = "" }: { tier: VipTierConfig; size: "hero" | "card" | "ladder" | "pill"; className?: string }) {
@@ -259,8 +333,9 @@ export function AccountPage() {
   const [draftDisplayName, setDraftDisplayName] = useState(() => initialPreferences?.displayName ?? user?.username ?? "");
   const [savedAvatarDataUrl, setSavedAvatarDataUrl] = useState(() => initialPreferences?.avatarDataUrl ?? "");
   const [draftAvatarDataUrl, setDraftAvatarDataUrl] = useState(() => initialPreferences?.avatarDataUrl ?? "");
-  const [avatarError, setAvatarError] = useState("");
+  const [avatarNotice, setAvatarNotice] = useState<{ message: string; tone: AvatarNoticeTone } | null>(null);
   const [avatarCrop, setAvatarCrop] = useState<AvatarCropDraft | null>(null);
+  const [avatarPreparing, setAvatarPreparing] = useState(false);
   const [avatarSaving, setAvatarSaving] = useState(false);
   const [cropDragStart, setCropDragStart] = useState<{
     pointerX: number;
@@ -288,7 +363,7 @@ export function AccountPage() {
     setSavedAvatarDataUrl(preferences.avatarDataUrl ?? "");
     setDraftAvatarDataUrl(preferences.avatarDataUrl ?? "");
     setResponsiblePlay(preferences.responsiblePlay);
-    setAvatarError("");
+    setAvatarNotice(null);
     setProfileError("");
     setSaveMessage("");
   }, [user]);
@@ -368,7 +443,6 @@ export function AccountPage() {
     savedDisplayName: savedProfile.displayName,
     userId: currentUser.id,
     avatarChanged: false,
-    avatarError,
   }) && !saving;
   const avatarPreview = draftAvatarDataUrl || savedAvatarDataUrl;
 
@@ -387,45 +461,48 @@ export function AccountPage() {
   }
 
   async function chooseAvatar(file: File | undefined) {
-    setAvatarError("");
+    setAvatarNotice(null);
     setSaveMessage("");
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setAvatarError("Choose an image file.");
+    const validationError = getProfileImageValidationError(file);
+    if (validationError) {
+      setAvatarNotice({ tone: "error", message: validationError });
       return;
     }
-    if (file.size > PROFILE_IMAGE_MAX_BYTES) {
-      setAvatarError("Image must be 2 MB or smaller.");
-      return;
-    }
-
+    setAvatarPreparing(true);
     try {
+      const src = await readFileAsDataUrl(file);
+      await loadImage(src);
       setAvatarCrop({
-        src: await readFileAsDataUrl(file),
+        src,
         offsetX: 0,
         offsetY: 0,
         zoom: 1,
       });
     } catch (error) {
-      setAvatarError(error instanceof Error ? error.message : "Unable to read image.");
+      setAvatarNotice({ tone: "error", message: error instanceof Error ? error.message : "Could not load image." });
+    } finally {
+      setAvatarPreparing(false);
     }
   }
 
   async function saveCroppedAvatar() {
     if (!avatarCrop) return;
     setAvatarSaving(true);
-    setAvatarError("");
+    setAvatarNotice(null);
     setSaveMessage("");
     try {
       const cropped = await createCroppedAvatarDataUrl(avatarCrop);
-      saveAvatarDataUrl(currentUser.id, cropped);
-      setSavedAvatarDataUrl(cropped);
-      setDraftAvatarDataUrl(cropped);
+      await saveAvatarDataUrl(currentUser.id, cropped);
+      await refreshUser();
+      const persistedAvatar = getProfilePreferences(currentUser.id).avatarDataUrl ?? cropped;
+      setSavedAvatarDataUrl(persistedAvatar);
+      setDraftAvatarDataUrl(persistedAvatar);
       setAvatarCrop(null);
       setCropDragStart(null);
-      setSaveMessage("Photo updated.");
+      setAvatarNotice({ tone: "success", message: "Profile photo updated." });
     } catch (error) {
-      setAvatarError(error instanceof Error ? error.message : "Unable to save photo.");
+      setAvatarNotice({ tone: "error", message: error instanceof Error ? error.message : "Could not save profile photo." });
     } finally {
       setAvatarSaving(false);
     }
@@ -509,24 +586,29 @@ export function AccountPage() {
   return (
     <section className="account-page page-stack">
       <section className="account-hero" aria-label="Profile overview">
-        <label className="account-avatar-control">
-          <span className="account-avatar" aria-hidden="true">
-            {avatarPreview ? <img src={avatarPreview} alt="" /> : <User size={34} />}
-          </span>
-          <span className="account-avatar-badge" aria-hidden="true">
-            <Camera size={14} />
-          </span>
-          <span className="sr-only">Change profile photo</span>
-          <input
-            aria-label="Change profile photo"
-            type="file"
-            accept="image/*"
-            onChange={(event) => {
-              void chooseAvatar(event.target.files?.[0]);
-              event.currentTarget.value = "";
-            }}
-          />
-        </label>
+        <div className="account-avatar-shell">
+          <label className={`account-avatar-control ${avatarPreparing || avatarSaving ? "is-busy" : ""}`} aria-busy={avatarPreparing || avatarSaving}>
+            <span className="account-avatar" aria-hidden="true">
+              {avatarPreview ? <img src={avatarPreview} alt="" /> : <User size={34} />}
+            </span>
+            <span className="account-avatar-badge" aria-hidden="true">
+              <Camera size={14} />
+            </span>
+            {(avatarPreparing || avatarSaving) && <span className="account-avatar-spinner" aria-hidden="true" />}
+            <span className="sr-only">Change profile photo</span>
+            <input
+              aria-label="Change profile photo"
+              type="file"
+              accept={PROFILE_IMAGE_ACCEPT}
+              disabled={avatarPreparing || avatarSaving}
+              onChange={(event) => {
+                void chooseAvatar(event.target.files?.[0]);
+                event.currentTarget.value = "";
+              }}
+            />
+          </label>
+          {avatarNotice && <AvatarUploadNotice message={avatarNotice.message} tone={avatarNotice.tone} />}
+        </div>
         <div className="account-hero-copy">
           <div className="account-hero-title-row">
             <h1>{normalizedDisplayName || savedProfile.displayName}</h1>
@@ -616,7 +698,7 @@ export function AccountPage() {
               </div>
             </label>
           </div>
-          {(avatarError || profileError) && <div className="account-error-box">{avatarError || profileError}</div>}
+          {profileError && <div className="account-error-box">{profileError}</div>}
           <div className="account-save-row">
             <button className="account-save-button" type="submit" disabled={!canSaveProfile}>
               {saving ? "Saving..." : "Save Changes"}
@@ -777,46 +859,16 @@ export function AccountPage() {
 
       {avatarCrop && (
         <Modal title="Adjust Photo" onClose={() => setAvatarCrop(null)} className="account-modal account-crop-modal">
-          <div className="modal-stack account-crop-stack">
-            <div
-              className="account-crop-stage"
-              onPointerDown={startCropDrag}
-              onPointerMove={moveCropDrag}
-              onPointerUp={() => setCropDragStart(null)}
-              onPointerCancel={() => setCropDragStart(null)}
-              role="application"
-              aria-label="Drag image to crop profile photo"
-            >
-              <img
-                alt=""
-                draggable={false}
-                src={avatarCrop.src}
-                style={{
-                  transform: `translate(calc(-50% + ${avatarCrop.offsetX}px), calc(-50% + ${avatarCrop.offsetY}px)) scale(${avatarCrop.zoom})`,
-                }}
-              />
-            </div>
-            <label className="account-crop-control">
-              <span>Zoom</span>
-              <input
-                aria-label="Photo zoom"
-                type="range"
-                min="1"
-                max="2.5"
-                step="0.05"
-                value={avatarCrop.zoom}
-                onChange={(event) => updateAvatarCrop({ zoom: Number(event.target.value) })}
-              />
-            </label>
-            <div className="account-modal-actions">
-              <button className="account-secondary-button" type="button" onClick={() => setAvatarCrop(null)}>
-                Cancel
-              </button>
-              <button className="account-save-button" type="button" onClick={() => void saveCroppedAvatar()} disabled={avatarSaving}>
-                {avatarSaving ? "Saving..." : "Save Photo"}
-              </button>
-            </div>
-          </div>
+          <AvatarCropModalBody
+            crop={avatarCrop}
+            avatarSaving={avatarSaving}
+            onStartDrag={startCropDrag}
+            onMoveDrag={moveCropDrag}
+            onEndDrag={() => setCropDragStart(null)}
+            onZoomChange={(zoom) => updateAvatarCrop({ zoom })}
+            onCancel={() => setAvatarCrop(null)}
+            onSave={() => void saveCroppedAvatar()}
+          />
         </Modal>
       )}
 

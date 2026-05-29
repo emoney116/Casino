@@ -81,7 +81,7 @@ export const supabaseRepository: CasinoRepository = {
   },
   async syncProfile(user: User) {
     const client = requireSupabase();
-    const { error } = await client.from("profiles").upsert({
+    const profileRow: Record<string, unknown> = {
       id: user.id,
       email: user.email,
       username: user.username,
@@ -90,7 +90,9 @@ export const supabaseRepository: CasinoRepository = {
       role: user.roles.includes("ADMIN") ? "ADMIN" : "USER",
       roles: user.roles,
       account_status: user.accountStatus,
-    });
+    };
+    if (user.avatarDataUrl !== undefined) profileRow.avatar_data_url = user.avatarDataUrl ?? null;
+    const { error } = await client.from("profiles").upsert(profileRow);
     if (error) throw error;
   },
   async syncProfileAvatar(userId: string, avatarDataUrl?: string) {

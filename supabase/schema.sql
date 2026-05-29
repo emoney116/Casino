@@ -14,6 +14,9 @@ create table if not exists public.profiles (
   avatar_data_url text
 );
 
+alter table public.profiles
+add column if not exists avatar_data_url text;
+
 create table if not exists public.wallet_balances (
   user_id text primary key references public.profiles(id) on delete cascade,
   gold numeric not null default 0 check (gold >= 0),

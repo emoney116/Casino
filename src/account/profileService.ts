@@ -19,7 +19,9 @@ export interface AccountProfilePreferences {
   responsiblePlay: ResponsiblePlaySettings;
 }
 
-export const PROFILE_IMAGE_MAX_BYTES = 2 * 1024 * 1024;
+export const PROFILE_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
+export const PROFILE_IMAGE_ACCEPT = "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp";
+export const PROFILE_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 export const RESPONSIBLE_PLAY_UPDATED_EVENT = "playheater:responsible-play-updated";
 export const SELF_EXCLUSION_WARNING =
   "This will lock gameplay, coin purchases, and wagering in this prototype. Access can only be restored after review by the support team.";
@@ -98,7 +100,13 @@ export function canSaveAccountProfile(input: {
 }) {
   const displayNameChanged = normalizeDisplayName(input.displayName) !== normalizeDisplayName(input.savedDisplayName);
   const displayNameError = getDisplayNameError(input.displayName, input.userId, input.savedDisplayName);
-  return displayNameChanged && !displayNameError && !input.avatarError;
+  return displayNameChanged && !displayNameError;
+}
+
+export function getProfileImageValidationError(file: Pick<File, "type" | "size">) {
+  if (!PROFILE_IMAGE_TYPES.has(file.type)) return "Image must be JPG, PNG, or WebP.";
+  if (file.size > PROFILE_IMAGE_MAX_BYTES) return "Image must be 10 MB or smaller.";
+  return "";
 }
 
 export function saveDisplayName(userId: string, displayName: string) {
@@ -128,8 +136,10 @@ export function saveDisplayName(userId: string, displayName: string) {
 }
 
 export function getProfilePreferences(userId: string): AccountProfilePreferences {
+  const repository = getRepository();
+  const repositoryAvatarDataUrl = localAvatarDataUrl(userId);
   const fallback = {
-    avatarDataUrl: localAvatarDataUrl(userId),
+    avatarDataUrl: repositoryAvatarDataUrl,
     responsiblePlay: { ...defaultResponsiblePlaySettings },
   };
   if (typeof localStorage === "undefined") return fallback;
@@ -140,7 +150,11 @@ export function getProfilePreferences(userId: string): AccountProfilePreferences
     const parsed = JSON.parse(raw) as Partial<AccountProfilePreferences>;
     return {
       displayName: typeof parsed.displayName === "string" ? parsed.displayName : undefined,
-      avatarDataUrl: typeof parsed.avatarDataUrl === "string" ? parsed.avatarDataUrl : fallback.avatarDataUrl,
+      avatarDataUrl: repository.mode === "supabase"
+        ? repositoryAvatarDataUrl
+        : typeof parsed.avatarDataUrl === "string"
+          ? parsed.avatarDataUrl
+          : fallback.avatarDataUrl,
       responsiblePlay: {
         ...defaultResponsiblePlaySettings,
         ...(parsed.responsiblePlay ?? {}),
@@ -156,8 +170,7 @@ export function saveProfilePreferences(userId: string, preferences: AccountProfi
   localStorage.setItem(profilePrefsKey(userId), JSON.stringify(preferences));
 }
 
-export function saveAvatarDataUrl(userId: string, avatarDataUrl?: string) {
-  const current = getProfilePreferences(userId);
+function cacheAvatarDataUrl(userId: string, avatarDataUrl?: string) {
   let savedUser = undefined as ReturnType<typeof readData>["users"][number] | undefined;
   updateData((data) => {
     const user = data.users.find((candidate) => candidate.id === userId);
@@ -166,16 +179,29 @@ export function saveAvatarDataUrl(userId: string, avatarDataUrl?: string) {
     else delete user.avatarDataUrl;
     savedUser = { ...user };
   });
+  return savedUser;
+}
+
+export async function saveAvatarDataUrl(userId: string, avatarDataUrl?: string) {
+  const current = getProfilePreferences(userId);
+  const repository = getRepository();
+
+  if (repository.mode === "supabase") {
+    if (repository.syncProfileAvatar) await repository.syncProfileAvatar(userId, avatarDataUrl);
+    const savedUser = cacheAvatarDataUrl(userId, avatarDataUrl);
+    if (!savedUser && readData().users.length > 0) throw new Error("Unable to save profile photo.");
+    return;
+  }
+
+  const savedUser = cacheAvatarDataUrl(userId, avatarDataUrl);
   saveProfilePreferences(userId, {
     ...current,
     avatarDataUrl: avatarDataUrl || undefined,
   });
-  const userToMirror = savedUser;
-  if (userToMirror) {
+  if (savedUser) {
     mirrorToBackend(async () => {
-      const repository = getRepository();
       if (repository.syncProfileAvatar) await repository.syncProfileAvatar(userId, avatarDataUrl);
-      else await repository.syncProfile(userToMirror);
+      else await repository.syncProfile(savedUser);
     });
   }
 }

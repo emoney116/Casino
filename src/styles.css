@@ -42849,6 +42849,12 @@ button.cashier-transaction-row:hover {
   }
 }
 
+@keyframes account-avatar-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (min-width: 760px) {
   .account-hero {
     grid-template-columns: auto minmax(0, 1fr) minmax(210px, 0.5fr);
@@ -42958,6 +42964,10 @@ button.cashier-transaction-row:hover {
     animation: none;
   }
 
+  .account-avatar-spinner {
+    animation: none;
+  }
+
   .account-action,
   .account-toggle-row,
   .account-legal-link,
@@ -42984,13 +42994,23 @@ button.cashier-transaction-row:hover {
   border: 0;
 }
 
-.account-avatar-control {
+.account-avatar-shell {
   position: relative;
   z-index: 1;
   width: 58px;
   height: 58px;
+}
+
+.account-avatar-control {
+  position: relative;
+  width: 58px;
+  height: 58px;
   display: block;
   cursor: pointer;
+}
+
+.account-avatar-control.is-busy {
+  pointer-events: none;
 }
 
 .account-avatar-control input[type="file"] {
@@ -43023,6 +43043,42 @@ button.cashier-transaction-row:hover {
   background: linear-gradient(180deg, #fff7d1, var(--account-gold) 58%, var(--account-ember));
   border: 2px solid rgba(7, 10, 18, 0.95);
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3);
+}
+
+.account-avatar-spinner {
+  position: absolute;
+  z-index: 4;
+  inset: 9px;
+  border: 3px solid rgba(255, 247, 237, 0.28);
+  border-top-color: var(--account-gold);
+  border-radius: 50%;
+  animation: account-avatar-spin 760ms linear infinite;
+}
+
+.account-avatar-popover {
+  position: absolute;
+  z-index: 6;
+  left: 0;
+  top: calc(100% + 8px);
+  width: min(240px, calc(100vw - 34px));
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.74rem;
+  font-weight: 900;
+  line-height: 1.25;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.34);
+}
+
+.account-avatar-popover.error {
+  border: 1px solid rgba(248, 113, 113, 0.42);
+  color: #fecaca;
+  background: rgba(80, 16, 24, 0.96);
+}
+
+.account-avatar-popover.success {
+  border: 1px solid rgba(134, 239, 172, 0.42);
+  color: #bbf7d0;
+  background: rgba(6, 48, 28, 0.96);
 }
 
 .account-logout-section {
@@ -43419,9 +43475,14 @@ button.cashier-transaction-row:hover {
 }
 
 @media (max-width: 380px) {
+  .account-avatar-shell,
   .account-avatar-control {
     width: 52px;
     height: 52px;
+  }
+
+  .account-avatar-spinner {
+    inset: 8px;
   }
 }
 
