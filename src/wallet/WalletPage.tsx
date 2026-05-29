@@ -5,7 +5,15 @@ import { Modal } from "../components/Modal";
 import { TransactionTable } from "../components/TransactionTable";
 import { redemptionConfig } from "../config/complianceConfig";
 import { getCurrencyShortName, redeemableCurrency } from "../config/currencyConfig";
-import { formatCoins, formatDateTime } from "../lib/format";
+import { getDisplayBalances } from "../lib/displayBalanceStress";
+import {
+  formatCoins,
+  formatCurrencyDisplay,
+  formatCurrencyDisplayWithCode,
+  formatCurrencyFullDisplay,
+  formatDateTime,
+  getCurrencyAmountFitClass,
+} from "../lib/format";
 import { getEligibilityFlags, getKycStatus, getRedemptionRequests } from "../redemption/redemptionService";
 import type { Transaction, TransactionType } from "../types";
 import { CashierIcon } from "./CashierIcons";
@@ -129,6 +137,9 @@ export function WalletPage({ initialPanel = null }: { initialPanel?: WalletPanel
     ? ["ALL", "PURCHASES", "BONUSES", "BETS", "WINS", "ADMIN"]
     : ["ALL", "PURCHASES", "BONUSES", "BETS", "WINS"];
   const balances = getBalance(currentUser.id);
+  const displayBalances = getDisplayBalances(balances);
+  const goldBalanceDisplay = formatCurrencyFullDisplay(displayBalances.GOLD, "GOLD");
+  const sweepsBalanceDisplay = formatCurrencyFullDisplay(displayBalances.BONUS, "BONUS");
   const kycStatus = getKycStatus(currentUser.id);
   const eligibilityFlags = getEligibilityFlags(currentUser.id);
   const redemptionRequests = getRedemptionRequests(currentUser.id);
@@ -161,15 +172,17 @@ export function WalletPage({ initialPanel = null }: { initialPanel?: WalletPanel
 
       <section className="wallet-balance-hero">
         <div className="wallet-balance-panel">
-          <article className="wallet-balance-tile gold">
+          <article className="wallet-balance-tile gold" aria-label={`Gold Coins balance ${goldBalanceDisplay} GC`}>
             <CashierIcon kind="goldStack" />
-            <span>Gold Coins</span>
-            <strong>{formatCoins(balances.GOLD)} <small>GC</small></strong>
+            <strong className={`currency-full-amount ${getCurrencyAmountFitClass(goldBalanceDisplay)}`} title={`${goldBalanceDisplay} GC`}>
+              <span className="currency-amount-text">{goldBalanceDisplay}</span> <small>GC</small>
+            </strong>
           </article>
-          <article className="wallet-balance-tile sweeps">
+          <article className="wallet-balance-tile sweeps" aria-label={`Sweeps Coins balance ${sweepsBalanceDisplay} SC`}>
             <CashierIcon kind="sweepsToken" />
-            <span>Sweeps Coins</span>
-            <strong>{formatCoins(balances.BONUS)} <small>SC</small></strong>
+            <strong className={`currency-full-amount ${getCurrencyAmountFitClass(sweepsBalanceDisplay)}`} title={`${sweepsBalanceDisplay} SC`}>
+              <span className="currency-amount-text">{sweepsBalanceDisplay}</span> <small>SC</small>
+            </strong>
           </article>
         </div>
         <button className="wallet-cashier-cta" type="button" onClick={() => setActivePanel("purchase")}>
@@ -187,7 +200,7 @@ export function WalletPage({ initialPanel = null }: { initialPanel?: WalletPanel
             <h2>Redemption Status</h2>
           </div>
           <div className="compact-detail-list">
-            <span>Redeemable SC</span><strong>{formatCoins(balances[redeemableCurrency])} {getCurrencyShortName(redeemableCurrency)}</strong>
+            <span>Redeemable SC</span><strong title={`${formatCoins(balances[redeemableCurrency])} ${getCurrencyShortName(redeemableCurrency)}`}>{formatCurrencyDisplayWithCode(displayBalances[redeemableCurrency], redeemableCurrency)}</strong>
             <span>Minimum</span><strong>{formatCoins(redemptionConfig.minimumRedemptionAmount)} {getCurrencyShortName(redeemableCurrency)}</strong>
             <span>Status</span><strong>Not enabled</strong>
           </div>
@@ -209,7 +222,7 @@ export function WalletPage({ initialPanel = null }: { initialPanel?: WalletPanel
                     <small>{formatDateTime(tx.createdAt)}</small>
                   </span>
                   <strong className={getWalletActivityTone(tx)}>
-                    {tx.amount > 0 ? "+" : ""}{formatCoins(tx.amount)} {getCurrencyShortName(tx.currency)}
+                    {tx.amount > 0 ? "+" : ""}{formatCurrencyDisplay(tx.amount, tx.currency)} {getCurrencyShortName(tx.currency)}
                   </strong>
                 </div>
               ))}
@@ -228,7 +241,7 @@ export function WalletPage({ initialPanel = null }: { initialPanel?: WalletPanel
           <div className="modal-stack wallet-modal-stack">
             <div className="wallet-redeem-hero">
               <span>Redeemable SC</span>
-              <strong>{formatCoins(balances[redeemableCurrency])} {getCurrencyShortName(redeemableCurrency)}</strong>
+              <strong title={`${formatCoins(balances[redeemableCurrency])} ${getCurrencyShortName(redeemableCurrency)}`}>{formatCurrencyDisplayWithCode(displayBalances[redeemableCurrency], redeemableCurrency)}</strong>
               <small>Status: Not enabled</small>
             </div>
 
@@ -291,8 +304,8 @@ export function WalletPage({ initialPanel = null }: { initialPanel?: WalletPanel
             <span>ID</span><strong>{selectedTx.id}</strong>
             <span>Type</span><strong>{titleCase(selectedTx.type)}</strong>
             <span>Currency</span><strong>{titleCase(selectedTx.currency)}</strong>
-            <span>Amount</span><strong>{formatCoins(selectedTx.amount)}</strong>
-            <span>Balance After</span><strong>{formatCoins(selectedTx.balanceAfter)}</strong>
+            <span>Amount</span><strong title={formatCoins(selectedTx.amount)}>{formatCurrencyDisplay(selectedTx.amount, selectedTx.currency)}</strong>
+            <span>Balance After</span><strong title={formatCoins(selectedTx.balanceAfter)}>{formatCurrencyDisplay(selectedTx.balanceAfter, selectedTx.currency)}</strong>
             <span>Created</span><strong>{formatDateTime(selectedTx.createdAt)}</strong>
             <span>Metadata</span><pre>{JSON.stringify(selectedTx.metadata, null, 2)}</pre>
           </div>

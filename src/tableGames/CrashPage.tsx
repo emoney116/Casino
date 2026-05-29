@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ChevronLeft, CirclePlay, Info, Minus, Plus, X, Zap } from "lucide-react";
+import { ChevronLeft, CirclePlay, Info, X, Zap } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
 import { CoinBurst, GameResultBanner, ScreenShake, SoundToggle, WinOverlay } from "../feedback/components";
@@ -13,12 +13,13 @@ import {
   playCrashTick,
   playError,
 } from "../feedback/feedbackService";
-import { formatCoins } from "../lib/format";
+import { formatCurrencyDisplay } from "../lib/format";
 import { recordRetentionRound } from "../retention/retentionService";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
 import { cashOutCrashRound, crashCrashRound, getCrashMultiplier, startCrashRound } from "./crashEngine";
 import { crashConfig } from "./configs";
+import { BetControls, clampBetAmount } from "./BetControls";
 import type { CrashRound } from "./types";
 import { COMPLIANCE_COPY } from "../lib/compliance";
 
@@ -74,7 +75,6 @@ export function CrashPage({ onExit }: { onExit?: () => void }) {
   const notify = useToast();
   const [currency, setCurrency] = useState<Currency>("GOLD");
   const [betAmount, setBetAmount] = useState(crashBetLimits.GOLD.minBet);
-  const [betInput, setBetInput] = useState(formatBetInput(crashBetLimits.GOLD.minBet, "GOLD"));
   const [round, setRound] = useState<CrashRound | null>(null);
   const [multiplier, setMultiplier] = useState(1);
   const [graphPoints, setGraphPoints] = useState<Array<{ x: number; y: number }>>([{ x: CRASH_GRAPH_START_X, y: CRASH_GRAPH_START_Y }]);
@@ -102,7 +102,6 @@ export function CrashPage({ onExit }: { onExit?: () => void }) {
   if (!user) return null;
   const currentUser = user;
   const betLimits = crashBetLimits[currency];
-  const currencyLabel = currencyCopy[currency].short;
   const activeCrashConfig = { ...crashConfig, minBet: betLimits.minBet, maxBet: betLimits.maxBet };
   const graphMaxMultiplier = activeCrashConfig.maxCrashPoint;
   const balance = getBalance(currentUser.id, currency);
@@ -141,24 +140,17 @@ export function CrashPage({ onExit }: { onExit?: () => void }) {
 
   function clampBet(value: number, nextCurrency = currency) {
     const limits = crashBetLimits[nextCurrency];
-    if (!Number.isFinite(value)) return limits.minBet;
-    const normalized = nextCurrency === "BONUS" ? Math.round(value * 100) / 100 : Math.round(value);
-    return Math.max(limits.minBet, Math.min(limits.maxBet, normalized));
+    return clampBetAmount(value, {
+      minBet: limits.minBet,
+      maxBet: limits.maxBet,
+      balance: getBalance(currentUser.id, nextCurrency),
+      allowDecimals: nextCurrency === "BONUS",
+    });
   }
 
   function setBet(value: number, nextCurrency = currency) {
     const next = clampBet(value, nextCurrency);
     setBetAmount(next);
-    setBetInput(formatBetInput(next, nextCurrency));
-  }
-
-  function updateBetInput(value: string) {
-    setBetInput(value);
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      const normalized = currency === "BONUS" ? Math.round(parsed * 100) / 100 : Math.round(parsed);
-      setBetAmount(Math.max(0, Math.min(betLimits.maxBet, normalized)));
-    }
   }
 
   function selectCurrency(nextCurrency: Currency) {
@@ -381,32 +373,17 @@ export function CrashPage({ onExit }: { onExit?: () => void }) {
       </ScreenShake>
 
       <section className="crash-controls">
-        <div className={balance < betAmount ? "crash-bet-bank warning" : "crash-bet-bank"}>
-          <div className="crash-bet-row">
-            <button type="button" aria-label="Decrease bet" disabled={running} onClick={() => setBet(betAmount - betLimits.step)}><Minus size={18} /></button>
-            <label>
-              <span>Bet</span>
-              <input
-                aria-label="Bet amount"
-                inputMode={currency === "BONUS" ? "decimal" : "numeric"}
-                type="text"
-                value={betInput}
-                disabled={running}
-                onChange={(event) => updateBetInput(event.target.value)}
-                onBlur={(event) => setBet(Number(event.target.value))}
-              />
-            </label>
-            <button type="button" aria-label="Increase bet" disabled={running} onClick={() => setBet(betAmount + betLimits.step)}><Plus size={18} /></button>
-          </div>
-          <div className="crash-balance-summary">
-            <span>{currencyLabel} Balance</span>
-            <strong>{formatCoins(balance)}</strong>
-          </div>
-        </div>
-        <div className={balance < betAmount ? "crash-note warning" : "crash-note"}>
-          <span>Min {currencyLabel}: {formatCoins(betLimits.minBet)}</span>
-          <strong>Max {currencyLabel}: {formatCoins(betLimits.maxBet)}</strong>
-        </div>
+        <BetControls
+          currentBet={betAmount}
+          minBet={betLimits.minBet}
+          maxBet={betLimits.maxBet}
+          balance={balance}
+          currency={currency}
+          increment={betLimits.step}
+          allowDecimals={currency === "BONUS"}
+          disabled={running}
+          onBetChange={(amount) => setBet(amount)}
+        />
         <button className={running ? "crash-main-action cashout" : "crash-main-action"} type="button" disabled={!running && !canStart} onClick={mainAction}>
           {running ? <Zap size={18} /> : <CirclePlay size={18} />}
           <span>{mainButtonLabel}</span>
@@ -497,9 +474,4 @@ function getCrashGraphProgress(value: number, maxMultiplier = crashConfig.maxCra
   const normalized = Math.max(1, Math.min(maxMultiplier, value));
   const max = Math.max(2, maxMultiplier);
   return Math.max(0, Math.min(1, Math.log(normalized) / Math.log(max)));
-}
-
-function formatBetInput(amount: number, currency: Currency) {
-  if (!Number.isFinite(amount)) return "0";
-  return currency === "BONUS" ? Number(amount.toFixed(2)).toString() : Math.round(amount).toString();
 }

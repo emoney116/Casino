@@ -73,6 +73,7 @@ import { brickBreakBonusUiMarkers } from "./BrickBreakBonusPage";
 import { formatLavaRunMultiplier, getLavaRunAvatarTarget, getLavaRunCameraWindow, getLavaRunMultiplierTier, getLavaRunPlatformVisual, getLavaRunVisualIntensity, isLavaRunPlatformClickable, lavaRunAnimationTimings, lavaRunUiMarkers, shouldRevealLavaRunBoardState } from "./LavaRunPage";
 import { emberStackAnimationTimings, emberStackAssetManifest, emberStackUiMarkers, formatEmberStackMultiplier, getEmberStackBoardHudRows, getEmberStackBoardMood, getEmberStackCutLineStyle, getEmberStackCutStyle, getEmberStackMultiplierMilestone, getEmberStackOutcomeVisualState, getEmberStackParticleStyle, getEmberStackPlatformClass, getEmberStackPlatformStyle, getEmberStackPlatformTier, getEmberStackQualityCopy, getEmberStackRoundStatusCopy, getEmberStackRowMarkerStyle } from "./EmberStackPage";
 import { sortTableGames, tableGameSortOptions } from "./TableGamesPage";
+import { BetControls, clampBetAmount, formatBetInputValue, getEffectiveBetMax, isValidBetInputDraft, parseBetInputValue } from "./BetControls";
 import { CoinBurst, GameResultBanner, WinOverlay, feedbackUiMarkers } from "../feedback/components";
 import {
   getFeedbackDebugCount,
@@ -156,6 +157,76 @@ const seed: Partial<CasinoData> = {
 localStorage.setItem("casino-prototype-data-v1", JSON.stringify(seed));
 creditCurrency({ userId: user.id, type: "ADMIN_ADJUSTMENT", currency: "GOLD", amount: 100000 });
 creditCurrency({ userId: user.id, type: "ADMIN_ADJUSTMENT", currency: "BONUS", amount: 100000 });
+
+const betClampBase = { minBet: 10, maxBet: 100, balance: 1000, allowDecimals: false };
+if (clampBetAmount(10 / 2, betClampBase) !== 10) {
+  throw new Error("Expected 1/2 bet control to clamp to the game minimum.");
+}
+if (clampBetAmount(80 * 2, { ...betClampBase, balance: 90 }) !== 90) {
+  throw new Error("Expected 2x bet control to clamp to the effective max.");
+}
+if (clampBetAmount(90 + 10, { ...betClampBase, balance: 95 }) !== 95) {
+  throw new Error("Expected + bet control to clamp to the effective max.");
+}
+if (clampBetAmount(10 - 5, betClampBase) !== 10) {
+  throw new Error("Expected - bet control to clamp to the game minimum.");
+}
+if (getEffectiveBetMax(100, 75) !== 75 || getEffectiveBetMax(100, 150) !== 100) {
+  throw new Error("Expected effective bet max to be min(game max, balance).");
+}
+const largeManualBet = parseBetInputValue("1000000", false);
+if (largeManualBet !== 1000000 || clampBetAmount(largeManualBet, { minBet: 1, maxBet: 1000000, balance: 1000000, allowDecimals: false }) !== 1000000) {
+  throw new Error("Expected manual bet input to accept large valid values.");
+}
+if (clampBetAmount(parseBetInputValue("2000000", false) ?? 0, { minBet: 1, maxBet: 1000000, balance: 5000000, allowDecimals: false }) !== 1000000) {
+  throw new Error("Expected manual bet input to clamp above game max.");
+}
+if (clampBetAmount(parseBetInputValue("200000", false) ?? 0, { minBet: 1, maxBet: 1000000, balance: 125000, allowDecimals: false }) !== 125000) {
+  throw new Error("Expected manual bet input to clamp above balance.");
+}
+if (clampBetAmount(parseBetInputValue("2", false) ?? 0, { minBet: 10, maxBet: 1000, balance: 1000, allowDecimals: false }) !== 10) {
+  throw new Error("Expected manual bet input to clamp below min.");
+}
+if (clampBetAmount(parseBetInputValue("12.34", true) ?? 0, { minBet: 0.01, maxBet: 200, balance: 200, allowDecimals: true }) !== 12.34) {
+  throw new Error("Expected SC decimal bet input to preserve cents.");
+}
+if (formatBetInputValue(12.6, false) !== "13" || isValidBetInputDraft("12.5", false)) {
+  throw new Error("Expected GC bet input to use whole-number display.");
+}
+if (parseBetInputValue("bad-value", true) !== null || isValidBetInputDraft("10..2", true)) {
+  throw new Error("Expected invalid manual bet input to be rejected cleanly.");
+}
+const verticalBetControlGameIds = ["blackjack", "dice", "crash", "treasureDig", "safecracker", "emberStack", "lavaRun", "balloonPop", "brickBreakBonus"] as const;
+if (
+  (verticalBetControlGameIds as readonly string[]).includes("roulette") ||
+  (verticalBetControlGameIds as readonly string[]).includes("slots")
+) {
+  throw new Error("Expected shared table bet controls to leave Roulette and Slots unchanged.");
+}
+const scBetControlsMarkup = renderToStaticMarkup(createElement(BetControls, {
+  currentBet: 1,
+  minBet: 0.01,
+  maxBet: 200,
+  balance: 5000,
+  currency: "BONUS",
+  onBetChange: () => undefined,
+  increment: 0.01,
+}));
+if (!scBetControlsMarkup.includes("5,000") || scBetControlsMarkup.includes(">5K<")) {
+  throw new Error("Expected shared SC bet controls to show the full balance.");
+}
+const gcBetControlsMarkup = renderToStaticMarkup(createElement(BetControls, {
+  currentBet: 1,
+  minBet: 1,
+  maxBet: 1000000,
+  balance: 1250000,
+  currency: "GOLD",
+  onBetChange: () => undefined,
+  increment: 1,
+}));
+if (!gcBetControlsMarkup.includes("1,250,000") || gcBetControlsMarkup.includes(">1.25M<")) {
+  throw new Error("Expected shared GC bet controls to show the full balance.");
+}
 
 setSoundEnabled(true);
 if (!isSoundEnabled() || localStorage.getItem("casino-feedback-sound-enabled") !== "true") {
@@ -1496,8 +1567,8 @@ if (tableGameConfigs.some((game) => game.id === removedLegacyGameId || game.name
 if (!tableGameConfigs.some((game) => game.id === "lavaRun" && game.name === "Lava Run")) {
   throw new Error("Expected Lava Run lobby card to be registered.");
 }
-if (!lavaRunTableConfig.artwork?.includes("/assets/branding/game-logos/lava_run_logo.png")) {
-  throw new Error("Expected Lava Run lobby card to use the branded raster logo.");
+if (!lavaRunTableConfig.artwork?.includes("/assets/branding/game-logos/lava_run_logo_no_bar.png")) {
+  throw new Error("Expected Lava Run lobby card to use the titled raster logo without the backing strip.");
 }
 if (tableGameSortOptions.map((option) => option.key).join(",") !== "name,popular,recent") {
   throw new Error("Expected table games lobby sort controls to support name, popular, and recent ordering.");
@@ -1862,6 +1933,18 @@ if (
   !lavaRunUiMarkers.rtpUnder95Warning ||
   !lavaRunUiMarkers.sharedSoundToggle ||
   !lavaRunUiMarkers.compactBottomBetControls ||
+  !lavaRunUiMarkers.balanceBesideBetControls ||
+  !lavaRunUiMarkers.compactStatusMetersRemoved ||
+  !lavaRunUiMarkers.topStatRailRemoved ||
+  !lavaRunUiMarkers.rasterCanyonBackdrop ||
+  !lavaRunUiMarkers.smallPhonePlatformSpacing ||
+  !lavaRunUiMarkers.circularHeaderButtons ||
+  !lavaRunUiMarkers.ovalCurrencyToggle ||
+  !lavaRunUiMarkers.seamlessRasterCanyonLoop ||
+  !lavaRunUiMarkers.activeStepGlowHierarchy ||
+  !lavaRunUiMarkers.recentRoundsHidden ||
+  !lavaRunUiMarkers.currencyTintedBetBalance ||
+  !lavaRunUiMarkers.plainNoteRow ||
   !lavaRunUiMarkers.ledgerMetadataIncludesPath
 ) {
   throw new Error("Expected Lava Run UI markers for simple path progression, controls, animations, RTP, and ledger metadata.");

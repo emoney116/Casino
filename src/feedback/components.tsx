@@ -1,6 +1,6 @@
 import { Volume2, VolumeX } from "lucide-react";
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { formatCoins } from "../lib/format";
+import { formatCurrencyDisplay } from "../lib/format";
 import { isSoundEnabled, setSoundEnabled } from "./feedbackService";
 
 export type GameResultTone = "win" | "big-win" | "loss" | "push" | "error" | "bonus";
@@ -131,5 +131,5 @@ function CountUpAmount({ value, large = false }: { value: number; large?: boolea
     return () => window.cancelAnimationFrame(frame);
   }, [value]);
 
-  return <em className={large ? "count-up-amount large" : "count-up-amount"}>+{formatCoins(display)}</em>;
+  return <em className={large ? "count-up-amount large" : "count-up-amount"}>+{formatCurrencyDisplay(display)}</em>;
 }

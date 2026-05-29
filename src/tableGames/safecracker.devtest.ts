@@ -285,7 +285,7 @@ if (
   !safecrackerUiMarkers.noComplianceFooter ||
   !safecrackerUiMarkers.roundHeaderButtons ||
   !safecrackerUiMarkers.ovalCurrencyToggle ||
-  !safecrackerUiMarkers.scBlueToggle ||
+  !safecrackerUiMarkers.scGreenToggle ||
   !safecrackerUiMarkers.riskTunedRtpBands ||
   !safecrackerUiMarkers.multiplierRevealNotPickCountBased ||
   !safecrackerUiMarkers.threeRiskVisualTones ||

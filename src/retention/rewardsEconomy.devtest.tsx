@@ -214,7 +214,7 @@ const daySevenMarkup = renderToStaticMarkup(
     createElement(AuthProvider, { initialUser: user, children: createElement(RewardsPage, { onWallet: () => undefined }) }),
   ),
 );
-if (!daySevenMarkup.includes("reward-sc.png") || !daySevenMarkup.includes("Day 7 - 5,000 GC + 0.02 SC")) {
+if (!daySevenMarkup.includes("sc_reference") || !daySevenMarkup.includes("Day 7 - 5,000 GC + 0.02 SC")) {
   throw new Error("Day 7 streak should render the SC reward icon and compact reward line.");
 }
 

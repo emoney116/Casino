@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
-import { formatCoins } from "../lib/format";
+import { formatCurrencyDisplay } from "../lib/format";
 import { claimMission, getMissions } from "./missionService";
 import { missionDefs } from "./missionDefs";
 
@@ -45,7 +45,7 @@ export function MissionsPanel({ compact = false }: { compact?: boolean }) {
                 <small>{Math.min(progress.progress, mission.target)} / {mission.target}</small>
               </div>
               <button className="ghost-button" disabled={progress.status !== "CLAIMABLE"} onClick={() => claim(mission.id)}>
-                {progress.status === "CLAIMED" ? "Claimed" : `${formatCoins(mission.rewardAmount)} ${mission.rewardCurrency}`}
+                {progress.status === "CLAIMED" ? "Claimed" : `${formatCurrencyDisplay(mission.rewardAmount, mission.rewardCurrency)} ${mission.rewardCurrency}`}
               </button>
             </div>
           );

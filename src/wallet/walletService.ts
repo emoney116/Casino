@@ -2,6 +2,7 @@ import { createId } from "../lib/ids";
 import { readData, updateData } from "../lib/storage";
 import { getRepository, mirrorToBackend } from "../repositories";
 import { assertResponsiblePlayAllowsDebit } from "../account/profileService";
+import { emitVipLedgerUpdated, isVipWagerTransaction } from "../account/vipService";
 import type { Currency, Transaction, TransactionType, WalletBalances } from "../types";
 
 export const emptyBalances: WalletBalances = { GOLD: 0, BONUS: 0 };
@@ -134,6 +135,7 @@ export function debitCurrency(input: LedgerInput): Transaction {
   });
 
   const tx = created as Transaction;
+  if (isVipWagerTransaction(tx)) emitVipLedgerUpdated(input.userId);
   const balances = getBalance(input.userId);
   mirrorToBackend(async () => {
     const repository = getRepository();

@@ -13,10 +13,11 @@ import {
   playLavaRunSelect,
   playLavaRunStart,
 } from "../feedback/feedbackService";
-import { formatCoins } from "../lib/format";
+import { formatCurrencyDisplay } from "../lib/format";
 import { recordRetentionRound } from "../retention/retentionService";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
+import { BetControls, clampBetAmount } from "./BetControls";
 import {
   cashOutLavaRunRound,
   getLavaRunBetLimits,
@@ -35,6 +36,7 @@ const cashoutBurstAsset = new URL("../assets/lava-run/cashout-burst.png", import
 const emberAvatarAsset = new URL("../assets/lava-run/ember-avatar.png", import.meta.url).href;
 const hiddenPlatformAsset = new URL("../assets/lava-run/hidden-platform.png", import.meta.url).href;
 const lavaBurstAsset = new URL("../assets/lava-run/lava-burst.png", import.meta.url).href;
+const lavaCanyonLevelAsset = new URL("../assets/lava-run/lava-canyon-level.png", import.meta.url).href;
 const lavaPlatformAsset = new URL("../assets/lava-run/lava-platform.png", import.meta.url).href;
 const lavaRunIconAsset = new URL("../assets/lava-run/lava-run-icon.png", import.meta.url).href;
 const safePlatformAsset = new URL("../assets/lava-run/safe-platform.png", import.meta.url).href;
@@ -46,7 +48,6 @@ const currencyCopy: Record<Currency, { short: string; label: string }> = {
 };
 
 const riskOrder: LavaRunRisk[] = ["low", "medium", "high"];
-type LavaRunRecentRound = { paid: number; multiplier: number; result: "cashout" | "bust" };
 type LavaRunPendingPick = { stepIndex: number; choiceIndex: number };
 type LavaRunAvatarState = "pending" | "safe" | "bust" | "escaped";
 type LavaRunAvatarTarget = LavaRunPendingPick & { state: LavaRunAvatarState };
@@ -105,6 +106,18 @@ export const lavaRunUiMarkers = {
   rtpUnder95Warning: true,
   sharedSoundToggle: true,
   compactBottomBetControls: true,
+  balanceBesideBetControls: true,
+  compactStatusMetersRemoved: true,
+  topStatRailRemoved: true,
+  rasterCanyonBackdrop: true,
+  smallPhonePlatformSpacing: true,
+  circularHeaderButtons: true,
+  ovalCurrencyToggle: true,
+  seamlessRasterCanyonLoop: true,
+  activeStepGlowHierarchy: true,
+  recentRoundsHidden: true,
+  currencyTintedBetBalance: true,
+  plainNoteRow: true,
   ledgerMetadataIncludesPath: true,
 };
 
@@ -213,12 +226,13 @@ export function getLavaRunPlatformVisual({
   const centeredLane = choiceIndex - (choices - 1) / 2;
   const jitterSeed = ((stepIndex + 1) * 17 + (choiceIndex + 3) * 11) % 9;
   const wave = jitterSeed - 4;
-  const riskTightness = risk === "high" ? 0.78 : risk === "medium" ? 1 : 1.18;
-  const lowRiskScale = risk === "low" ? 1.1 : risk === "medium" ? 1 : 0.94;
+  const riskTightness = risk === "high" ? 0.68 : risk === "medium" ? 0.84 : 1;
+  const verticalTightness = risk === "high" ? 0.56 : risk === "medium" ? 0.72 : 0.86;
+  const lowRiskScale = risk === "low" ? 1.04 : risk === "medium" ? 1 : 0.92;
   return {
-    offsetX: Math.round((centeredLane * 6 + wave * 2.2) * riskTightness),
-    offsetY: Math.round((((stepIndex + choiceIndex) % 2 === 0 ? -1 : 1) * (6 + Math.abs(wave))) / riskTightness),
-    tilt: Math.round((wave * 1.35 + centeredLane * 1.2) * 10) / 10,
+    offsetX: Math.round((centeredLane * 4 + wave * 1.4) * riskTightness),
+    offsetY: Math.round(((stepIndex + choiceIndex) % 2 === 0 ? -1 : 1) * (4 + Math.abs(wave) * 0.8) * verticalTightness),
+    tilt: Math.round((wave * 0.85 + centeredLane * 0.9) * 10) / 10,
     scale: Number((lowRiskScale + (wave % 3) * 0.012).toFixed(3)),
     floatDelayMs: (stepIndex * 90 + choiceIndex * 140) % 720,
   };
@@ -229,7 +243,6 @@ export function LavaRunPage({ onExit }: { onExit?: () => void }) {
   const notify = useToast();
   const [currency, setCurrency] = useState<Currency>("GOLD");
   const [betAmount, setBetAmount] = useState(getLavaRunBetLimits("GOLD").minBet);
-  const [betInput, setBetInput] = useState(formatBetInput(getLavaRunBetLimits("GOLD").minBet));
   const [risk, setRisk] = useState<LavaRunRisk>("medium");
   const [round, setRound] = useState<LavaRunRound | null>(null);
   const [pendingPick, setPendingPick] = useState<LavaRunPendingPick | null>(null);
@@ -237,7 +250,6 @@ export function LavaRunPage({ onExit }: { onExit?: () => void }) {
   const [multiplierPulse, setMultiplierPulse] = useState(false);
   const [animatedPayout, setAnimatedPayout] = useState(0);
   const [cashoutOverlay, setCashoutOverlay] = useState<{ amount: number; multiplier: number; key: number } | null>(null);
-  const [recentRounds, setRecentRounds] = useState<LavaRunRecentRound[]>([]);
   const [rulesOpen, setRulesOpen] = useState(false);
   const timersRef = useRef<number[]>([]);
 
@@ -273,7 +285,6 @@ export function LavaRunPage({ onExit }: { onExit?: () => void }) {
   const canCashOut = Boolean(active && round && !pendingReveal && !cashoutPending && round.stepsCompleted > 0);
   const activeCashOutAmount = active && round && round.stepsCompleted > 0 ? Math.round(round.betAmount * currentMultiplier * 100) / 100 : 0;
   const availableCashOutAmount = activeCashOutAmount > 0 ? activeCashOutAmount : round?.status === "CASHED_OUT" ? round.totalPaid : 0;
-  const nextDisplay = pendingReveal ? "Revealing" : cashoutPending ? "Escaping" : round?.status === "BUST" ? "Busted" : round?.status === "CASHED_OUT" ? "Escaped" : nextMultiplier ? formatLavaRunMultiplier(nextMultiplier) : active ? "Cash out" : "Start";
   const bigWin = Boolean(cashoutOverlay && cashoutOverlay.multiplier >= 10);
   const visualIntensity = getLavaRunVisualIntensity({
     stepIndex: Math.min(riskProfile.maxSteps - 1, round?.stepsCompleted ?? 0),
@@ -288,20 +299,17 @@ export function LavaRunPage({ onExit }: { onExit?: () => void }) {
 
   function clampBet(value: number, nextCurrency = currency) {
     const limits = getLavaRunBetLimits(nextCurrency);
-    const normalized = nextCurrency === "BONUS" ? Math.round(value * 100) / 100 : Math.round(value);
-    return Math.max(limits.minBet, Math.min(limits.maxBet, normalized));
+    return clampBetAmount(value, {
+      minBet: limits.minBet,
+      maxBet: limits.maxBet,
+      balance: getBalance(currentUser.id, nextCurrency),
+      allowDecimals: nextCurrency === "BONUS",
+    });
   }
 
   function setBet(value: number, nextCurrency = currency) {
     const next = clampBet(value, nextCurrency);
     setBetAmount(next);
-    setBetInput(formatBetInput(next));
-  }
-
-  function updateBetInput(value: string) {
-    setBetInput(value);
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) setBetAmount(Math.max(0, Math.min(betLimits.maxBet, parsed)));
   }
 
   function selectCurrency(nextCurrency: Currency) {
@@ -368,8 +376,6 @@ export function LavaRunPage({ onExit }: { onExit?: () => void }) {
           setRound(nextRound);
           setPendingPick(null);
           if (nextRound.status === "BUST") {
-            const bustRecent: LavaRunRecentRound = { paid: 0, multiplier: 0, result: "bust" };
-            setRecentRounds((current) => [bustRecent, ...current].slice(0, 5));
             recordLavaRetention(nextRound.betAmount, 0, 0);
             playLavaRunBust();
             refreshUser();
@@ -403,12 +409,10 @@ export function LavaRunPage({ onExit }: { onExit?: () => void }) {
       const cashoutTimer = window.setTimeout(() => {
         try {
           const completed = cashOutLavaRunRound({ round, userId: currentUser.id });
-          const cashoutRecent: LavaRunRecentRound = { paid: completed.totalPaid, multiplier: completed.finalMultiplier ?? completed.currentMultiplier, result: "cashout" };
           setRound(completed);
           setCashoutPending(false);
           setCashoutOverlay({ amount: completed.totalPaid, multiplier: completed.finalMultiplier ?? completed.currentMultiplier, key: Date.now() });
           animateCashoutPayout(completed.totalPaid);
-          setRecentRounds((current) => [cashoutRecent, ...current].slice(0, 5));
           recordLavaRetention(completed.betAmount, completed.totalPaid, completed.finalMultiplier ?? completed.currentMultiplier);
           playLavaRunCashout();
           if ((completed.finalMultiplier ?? 0) >= 10) playLavaRunBigWin();
@@ -482,6 +486,8 @@ export function LavaRunPage({ onExit }: { onExit?: () => void }) {
     const complete = round ? stepIndex < round.stepsCompleted : false;
     const future = round ? stepIndex > round.stepsCompleted : true;
     const next = active && stepIndex === (round?.stepsCompleted ?? 0) + 1;
+    const previewCurrent = !round && stepIndex === 0;
+    const previewNext = !round && stepIndex === 1;
     const fullReveal = shouldRevealLavaRunBoardState(round?.status);
     const pendingStage = pendingPick?.stepIndex === stepIndex;
     return [
@@ -489,6 +495,8 @@ export function LavaRunPage({ onExit }: { onExit?: () => void }) {
       `zone-${getLavaRunEnvironmentZone(stepIndex, riskProfile.maxSteps)}`,
       current ? "current-stage" : "",
       next ? "next-stage" : "",
+      previewCurrent ? "preview-current-stage" : "",
+      previewNext ? "preview-next-stage" : "",
       complete ? "completed-stage" : "",
       future && !fullReveal ? "future-stage" : "",
       fullReveal ? "revealed-stage" : "",
@@ -498,8 +506,8 @@ export function LavaRunPage({ onExit }: { onExit?: () => void }) {
 
   return (
     <section
-      className={`lava-run-page currency-${currency === "BONUS" ? "sc" : "gc"} risk-${displayedRisk} zone-${visualIntensity.zone} ${visualIntensity.multiplierTier} ${bigWin ? "big-win" : ""} ${pendingReveal ? "pending-reveal" : ""} ${cashoutPending ? "cashout-pending" : ""}`}
-      style={{ "--lava-run-heat": visualIntensity.heat } as CSSProperties}
+      className={`lava-run-page currency-${currency === "BONUS" ? "sc" : "gc"} risk-${displayedRisk} zone-${visualIntensity.zone} ${visualIntensity.multiplierTier} ${bigWin ? "big-win" : ""} ${pendingReveal ? "pending-reveal" : ""} ${cashoutPending ? "cashout-pending" : ""} ${multiplierPulse ? "multiplier-pulse" : ""}`}
+      style={{ "--lava-run-heat": visualIntensity.heat, "--lava-run-canyon-bg": `url("${lavaCanyonLevelAsset}")` } as CSSProperties}
     >
       <header className="lava-run-header">
         <button className="lava-run-back" type="button" onClick={onExit} aria-label="Back to games"><ChevronLeft size={18} /></button>
@@ -512,10 +520,6 @@ export function LavaRunPage({ onExit }: { onExit?: () => void }) {
           </div>
           <button className="lava-run-info-button" type="button" aria-label="Lava Run rules" onClick={() => setRulesOpen(true)}><Info size={14} /></button>
         </div>
-        <div className="lava-run-balance">
-          <span>{currencyCopy[currency].short} Balance</span>
-          <strong>{formatCoins(balance)}</strong>
-        </div>
         <div className="lava-run-currency-tabs" role="tablist" aria-label="Currency">
           <button type="button" className={currency === "GOLD" ? "active" : ""} disabled={controlsLocked} onClick={() => selectCurrency("GOLD")}>GC</button>
           <button type="button" className={currency === "BONUS" ? "active" : ""} disabled={controlsLocked} onClick={() => selectCurrency("BONUS")}>SC</button>
@@ -525,15 +529,7 @@ export function LavaRunPage({ onExit }: { onExit?: () => void }) {
 
       <ScreenShake active={round?.status === "BUST" || bigWin}>
         <main className={`lava-run-board ${cashoutPending ? "escaping" : round?.status?.toLowerCase() ?? "idle"}`}>
-          <section className="lava-run-stats" aria-live="polite">
-            <div className={multiplierPulse ? "pulse" : ""}><span>Current</span><strong>{formatLavaRunMultiplier(currentMultiplier)}</strong></div>
-            <div><span>Next</span><strong>{nextDisplay}</strong></div>
-            <div><span>Cashout</span><strong>{availableCashOutAmount > 0 ? formatCoins(availableCashOutAmount) : "0"}</strong></div>
-            <div><span>Step</span><strong>{round?.stepsCompleted ?? 0}/{riskProfile.maxSteps}</strong></div>
-            <div><span>Risk</span><strong>{riskProfile.label}</strong></div>
-          </section>
-
-          <div className="lava-run-canyon" aria-label="Lava Run platform path">
+          <div className="lava-run-canyon" aria-label="Lava Run platform path" style={{ "--canyon-offset": `${cameraWindow.start * -132}px` } as CSSProperties}>
             <div className={`lava-run-canyon-depth risk-${displayedRisk} zone-${getLavaRunEnvironmentZone(Math.min(riskProfile.maxSteps - 1, round?.stepsCompleted ?? 0), riskProfile.maxSteps)}`} aria-hidden="true" />
             <div className="lava-run-embers" aria-hidden="true">
               {Array.from({ length: 12 }, (_, index) => <i key={index} style={{ "--ember-delay": `${index * -170}ms` } as CSSProperties} />)}
@@ -613,7 +609,7 @@ export function LavaRunPage({ onExit }: { onExit?: () => void }) {
           {round?.status === "CASHED_OUT" && (
             <div className="lava-run-result win" role="status">
               <strong>Escaped</strong>
-              <span className="lava-run-payout-count">{formatCoins(Math.min(round.totalPaid, animatedPayout > 0 || cashoutOverlay ? animatedPayout : round.totalPaid))} at {formatLavaRunMultiplier(round.finalMultiplier ?? round.currentMultiplier)}.</span>
+              <span className="lava-run-payout-count">{formatCurrencyDisplay(Math.min(round.totalPaid, animatedPayout > 0 || cashoutOverlay ? animatedPayout : round.totalPaid), currency)} at {formatLavaRunMultiplier(round.finalMultiplier ?? round.currentMultiplier)}.</span>
             </div>
           )}
         </main>
@@ -627,33 +623,26 @@ export function LavaRunPage({ onExit }: { onExit?: () => void }) {
             </button>
           ))}
         </div>
-        <div className="lava-run-bet-row">
-          <button type="button" disabled={controlsLocked} onClick={() => setBet(betAmount - betLimits.minBet)}>-</button>
-          <label>
-            <span>Bet</span>
-            <input
-              aria-label="Bet amount"
-              inputMode={currency === "BONUS" ? "decimal" : "numeric"}
-              type="text"
-              value={betInput}
-              disabled={controlsLocked}
-              onChange={(event) => updateBetInput(event.target.value)}
-              onBlur={(event) => setBet(Number(event.target.value))}
-            />
-          </label>
-          <button type="button" disabled={controlsLocked} onClick={() => setBet(betAmount + betLimits.minBet)}>+</button>
-        </div>
-        <div className={betExceedsBalance ? "lava-run-note warning" : "lava-run-note"}>
-          <span>{riskProfile.choicesPerRow} lanes, 1 safe</span>
-          {active ? (
-            <strong>{cashoutPending ? "Escaping" : activeCashOutAmount > 0 ? `Cashout ${formatCoins(availableCashOutAmount)}` : "Cashout after safe"}</strong>
-          ) : (
-            <div className="lava-run-bet-limits" aria-label={`${currencyCopy[currency].short} bet limits`}>
-              <strong>Min {currencyCopy[currency].short}: {formatBetDisplay(betLimits.minBet)}</strong>
-              <strong>Max {currencyCopy[currency].short}: {formatBetDisplay(betLimits.maxBet)}</strong>
-            </div>
-          )}
-        </div>
+        <BetControls
+          currentBet={betAmount}
+          minBet={betLimits.minBet}
+          maxBet={betLimits.maxBet}
+          balance={balance}
+          currency={currency}
+          increment={betLimits.minBet}
+          allowDecimals={currency === "BONUS"}
+          disabled={controlsLocked}
+          leadingInfo={
+            active
+              ? cashoutPending
+                ? "Escaping"
+                : activeCashOutAmount > 0
+                  ? `Cashout ${formatCurrencyDisplay(availableCashOutAmount, currency)}`
+                  : "Cashout after safe"
+              : `${riskProfile.choicesPerRow} lanes, 1 safe`
+          }
+          onBetChange={(amount) => setBet(amount)}
+        />
         {!active && !resolved && (
           <button className="lava-run-main-action" type="button" disabled={!canStart} onClick={start}>
             {betExceedsBalance ? `Bet exceeds ${currencyCopy[currency].short} balance` : "Start"}
@@ -669,15 +658,6 @@ export function LavaRunPage({ onExit }: { onExit?: () => void }) {
             <RotateCcw size={17} />
             Reset / Play Again
           </button>
-        )}
-        {recentRounds.length > 0 && (
-          <div className="lava-run-recent" aria-label="Recent Lava Run rounds">
-            {recentRounds.map((item, index) => (
-              <strong key={`${item.result}-${item.paid}-${index}`} className={item.result === "cashout" ? "win" : "loss"}>
-                {item.result === "cashout" ? formatLavaRunMultiplier(item.multiplier) : "BUST"}
-              </strong>
-            ))}
-          </div>
         )}
       </section>
 
@@ -703,12 +683,4 @@ export function LavaRunPage({ onExit }: { onExit?: () => void }) {
       )}
     </section>
   );
-}
-
-function formatBetInput(amount: number) {
-  return Number.isFinite(amount) ? Number(amount.toFixed(2)).toString() : "0";
-}
-
-function formatBetDisplay(amount: number) {
-  return amount.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }

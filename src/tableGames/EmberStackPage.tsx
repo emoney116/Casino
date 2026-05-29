@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
-import { BadgeDollarSign, ChevronLeft, Info, Minus, Play, Plus, RotateCcw, X } from "lucide-react";
+import { BadgeDollarSign, ChevronLeft, Info, Play, RotateCcw, X } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
 import { ScreenShake, SoundToggle } from "../feedback/components";
@@ -15,7 +15,7 @@ import {
   playEmberStackLock,
   playError,
 } from "../feedback/feedbackService";
-import { formatCoins } from "../lib/format";
+import { formatCurrencyDisplay } from "../lib/format";
 import { recordRetentionRound } from "../retention/retentionService";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
@@ -39,6 +39,7 @@ import {
   type EmberStackRound,
   type EmberStackStackQuality,
 } from "./emberStackEngine";
+import { BetControls, clampBetAmount } from "./BetControls";
 
 export const emberStackAssetManifest = {
   movingPlatform: new URL("../assets/ember-stack/platform-moving.png", import.meta.url).href,
@@ -292,7 +293,6 @@ export function EmberStackPage({ onExit }: { onExit?: () => void }) {
   const notify = useToast();
   const [currency, setCurrency] = useState<Currency>("GOLD");
   const [betAmount, setBetAmount] = useState(getEmberStackBetLimits("GOLD").minBet);
-  const [betInput, setBetInput] = useState(formatBetInput(getEmberStackBetLimits("GOLD").minBet, "GOLD"));
   const [risk, setRisk] = useState<EmberStackRisk>("medium");
   const [round, setRound] = useState<EmberStackRound | null>(null);
   const [actionState, setActionState] = useState<EmberStackActionState>("idle");
@@ -394,20 +394,17 @@ export function EmberStackPage({ onExit }: { onExit?: () => void }) {
 
   function clampBet(value: number, nextCurrency = currency) {
     const limits = getEmberStackBetLimits(nextCurrency);
-    const normalized = nextCurrency === "BONUS" ? Math.round(value * 100) / 100 : Math.round(value);
-    return Math.max(limits.minBet, Math.min(limits.maxBet, normalized));
+    return clampBetAmount(value, {
+      minBet: limits.minBet,
+      maxBet: limits.maxBet,
+      balance: getBalance(currentUser.id, nextCurrency),
+      allowDecimals: nextCurrency === "BONUS",
+    });
   }
 
   function setBet(value: number, nextCurrency = currency) {
     const next = clampBet(value, nextCurrency);
     setBetAmount(next);
-    setBetInput(formatBetInput(next, nextCurrency));
-  }
-
-  function updateBetInput(value: string) {
-    setBetInput(value);
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) setBetAmount(Math.max(0, Math.min(betLimits.maxBet, parsed)));
   }
 
   function selectCurrency(nextCurrency: Currency) {
@@ -665,7 +662,7 @@ export function EmberStackPage({ onExit }: { onExit?: () => void }) {
               {round?.status === "CASHED_OUT" && (
                 <div className="ember-stack-board-result win" role="status" aria-live="polite">
                   <strong>CASHED OUT</strong>
-                  <span>{formatCoins(round.totalPaid)} at {formatEmberStackMultiplier(round.currentMultiplier)}</span>
+                  <span>{formatCurrencyDisplay(round.totalPaid, round.currency)} at {formatEmberStackMultiplier(round.currentMultiplier)}</span>
                 </div>
               )}
             </div>
@@ -681,26 +678,17 @@ export function EmberStackPage({ onExit }: { onExit?: () => void }) {
             </button>
           ))}
         </div>
-        <div className="ember-stack-bet-row">
-          <button type="button" disabled={setupLocked} onClick={() => setBet(betAmount - betLimits.minBet)} aria-label="Decrease bet"><Minus size={16} /></button>
-          <label>
-            <span>Bet</span>
-            <input
-              aria-label="Bet amount"
-              inputMode={currency === "BONUS" ? "decimal" : "numeric"}
-              type="text"
-              value={betInput}
-              disabled={setupLocked}
-              onChange={(event) => updateBetInput(event.target.value)}
-              onBlur={(event) => setBet(Number(event.target.value))}
-            />
-          </label>
-          <button type="button" disabled={setupLocked} onClick={() => setBet(betAmount + betLimits.minBet)} aria-label="Increase bet"><Plus size={16} /></button>
-        </div>
-        <div className={betExceedsBalance ? "ember-stack-bottom-balance warning" : "ember-stack-bottom-balance"}>
-          <span>{currencyCopy[currency].short} Balance</span>
-          <strong>{formatCoins(balance)}</strong>
-        </div>
+        <BetControls
+          currentBet={betAmount}
+          minBet={betLimits.minBet}
+          maxBet={betLimits.maxBet}
+          balance={balance}
+          currency={currency}
+          increment={betLimits.minBet}
+          allowDecimals={currency === "BONUS"}
+          disabled={setupLocked}
+          onBetChange={(amount) => setBet(amount)}
+        />
         {!active && !resolved && (
           <button className="ember-stack-main-action start" type="button" disabled={!canStart} onClick={start}>
             {betExceedsBalance ? `Bet exceeds ${currencyCopy[currency].short}` : "Start"}
@@ -758,9 +746,4 @@ export function EmberStackPage({ onExit }: { onExit?: () => void }) {
       )}
     </section>
   );
-}
-
-function formatBetInput(amount: number, currency: Currency) {
-  if (!Number.isFinite(amount)) return "0";
-  return currency === "BONUS" ? Number(amount.toFixed(2)).toString() : Math.round(amount).toString();
 }

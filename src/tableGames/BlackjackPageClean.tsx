@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { Info, X } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
-import { formatCoins } from "../lib/format";
+import { formatCurrencyDisplay } from "../lib/format";
 import { recordRetentionRound } from "../retention/retentionService";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
@@ -41,6 +41,7 @@ import {
   splitAnimationMs,
 } from "./blackjackAnimations";
 import { BlackjackControlsClean } from "./BlackjackControlsClean";
+import { clampBetAmount } from "./BetControls";
 import { DealerHandView, PlayerHandView, SplitHandSummary } from "./BlackjackHandView";
 import { blackjackConfig } from "./configs";
 import type { BlackjackHand, BlackjackRound } from "./types";
@@ -161,11 +162,11 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
   const currencyLabel = currencyCopy[currency].short;
   const canDeal = !active && !cardsAnimating && !interactionLockedRef.current && betAmount >= betLimits.minBet && betAmount <= betLimits.maxBet && balance >= betAmount;
   const dealNotice = betAmount < betLimits.minBet
-    ? `Minimum ${currencyLabel} bet is ${formatCoins(betLimits.minBet)}.`
+    ? `Minimum ${currencyLabel} bet is ${formatCurrencyDisplay(betLimits.minBet, currency)}.`
     : betAmount > betLimits.maxBet
-      ? `Maximum ${currencyLabel} initial bet is ${formatCoins(betLimits.maxBet)}.`
+      ? `Maximum ${currencyLabel} initial bet is ${formatCurrencyDisplay(betLimits.maxBet, currency)}.`
       : balance < betAmount
-        ? `Need ${formatCoins(betAmount - balance)} more ${currencyLabel} to deal.`
+        ? `Need ${formatCurrencyDisplay(betAmount - balance, currency)} more ${currencyLabel} to deal.`
         : undefined;
   const dealNoticeTone = dealNotice ? "warning" as const : "default" as const;
   const activeCardA = activeHand?.cards[0];
@@ -196,7 +197,7 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
   );
   const extraWagerNeeded = activeHand ? Math.max(0, activeHand.betAmount - balance) : 0;
   const actionBalanceNotice = active && extraWagerNeeded > 0 && (doubleEligibleBeforeBalance || splitEligibleBeforeBalance)
-    ? `Need ${formatCoins(extraWagerNeeded)} more ${currencyLabel} to ${doubleEligibleBeforeBalance && splitEligibleBeforeBalance ? "double or split" : doubleEligibleBeforeBalance ? "double" : "split"}.`
+    ? `Need ${formatCurrencyDisplay(extraWagerNeeded, currency)} more ${currencyLabel} to ${doubleEligibleBeforeBalance && splitEligibleBeforeBalance ? "double or split" : doubleEligibleBeforeBalance ? "double" : "split"}.`
     : undefined;
   const visibleRound = round ? getVisibleBlackjackRound(round, animationKind, initialDealVisibleCount, dealerRevealVisibleCount) : null;
   const resultDisplay = round?.result && resultVisible ? getBlackjackResultDisplay(round) : null;
@@ -250,7 +251,12 @@ export function BlackjackPageClean({ onExit }: { onExit?: () => void }) {
   function selectCurrency(nextCurrency: Currency) {
     if (nextCurrency === currency || active || cardsAnimating) return;
     const limits = getBlackjackBetLimits(nextCurrency);
-    const nextBet = normalizeBet(Math.max(limits.minBet, Math.min(limits.maxBet, betAmount)), nextCurrency);
+    const nextBet = clampBetAmount(betAmount, {
+      minBet: limits.minBet,
+      maxBet: limits.maxBet,
+      balance: getBalance(currentUser.id, nextCurrency),
+      allowDecimals: nextCurrency === "BONUS",
+    });
     playClick();
     setCurrency(nextCurrency);
     setBetAmount(nextBet);
@@ -536,7 +542,7 @@ function getBlackjackResultDisplay(round: BlackjackRound): BlackjackResultDispla
       title: "Insurance Win",
       tone: "win",
       amount: round.insuranceResult.amountPaid,
-      message: `Insurance paid ${formatCoins(round.insuranceResult.amountPaid)}. ${result.message}`,
+      message: `Insurance paid ${formatCurrencyDisplay(round.insuranceResult.amountPaid, round.currency)}. ${result.message}`,
     };
   }
 

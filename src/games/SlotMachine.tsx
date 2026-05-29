@@ -2,7 +2,8 @@ import { ArrowLeft, Coins, Gauge, Info, Menu, Minus, Plus, RotateCw, ShoppingBag
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
-import { formatCoins } from "../lib/format";
+import { getDisplayBalance } from "../lib/displayBalanceStress";
+import { formatCoins, formatCurrencyDisplay } from "../lib/format";
 import { getCurrencyShortName } from "../config/currencyConfig";
 import type { Currency } from "../types";
 import { creditCurrency, getBalance } from "../wallet/walletService";
@@ -859,6 +860,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
   const currentUser = user;
   const isGoldRush = game.id === "gold-rush-showdown";
   const balance = getBalance(currentUser.id, currency);
+  const displayBalance = getDisplayBalance(balance, currency);
   const currencyLabel = getCurrencyShortName(currency);
   const inHoldAndWin = Boolean(holdState);
   const spinCost = goldRushArmedBoost ? goldRushArmedBoost.cost : getSpinCost(game, betAmount, spinMode);
@@ -1755,7 +1757,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
   if (frontierEntryPhase === "loading") {
     return (
       <section
-        className={`slot-screen premium-slot-shell frontier frontier-entry-shell assets-loading ${lowPerformanceMode ? "low-performance" : ""}`}
+        className={`slot-screen premium-slot-shell frontier frontier-entry-shell currency-${currency === "BONUS" ? "sc" : "gc"} assets-loading ${lowPerformanceMode ? "low-performance" : ""}`}
         style={{ "--accent": game.visual.accent, "--secondary": game.visual.secondary, "--panel": game.visual.panel } as React.CSSProperties}
       >
         <FrontierLoadingScreen progress={assetLoadProgress} />
@@ -1766,7 +1768,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
   if (isGoldRush && !assetsLoaded) {
     return (
       <section
-        className={`slot-screen premium-slot-shell gold-rush assets-loading ${lowPerformanceMode ? "low-performance" : ""}`}
+        className={`slot-screen premium-slot-shell gold-rush currency-${currency === "BONUS" ? "sc" : "gc"} assets-loading ${lowPerformanceMode ? "low-performance" : ""}`}
         style={{ "--accent": game.visual.accent, "--secondary": game.visual.secondary, "--panel": game.visual.panel } as React.CSSProperties}
       >
         <GoldRushLoadingScreen progress={assetLoadProgress} logo={titleLogo} />
@@ -1777,7 +1779,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
   if (frontierEntryPhase === "intro" && !frontierIntroReopened) {
     return (
       <section
-        className={`slot-screen premium-slot-shell frontier frontier-entry-shell assets-ready ${lowPerformanceMode ? "low-performance" : ""}`}
+        className={`slot-screen premium-slot-shell frontier frontier-entry-shell currency-${currency === "BONUS" ? "sc" : "gc"} assets-ready ${lowPerformanceMode ? "low-performance" : ""}`}
         style={{ "--accent": game.visual.accent, "--secondary": game.visual.secondary, "--panel": game.visual.panel } as React.CSSProperties}
       >
         <FrontierFeatureIntroScreen
@@ -1789,7 +1791,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
 
   return (
     <section
-      className={`slot-screen premium-slot-shell ${game.visual.background ?? ""} ${inHoldAndWin ? "bonus-active" : ""} ${assetsLoaded ? "assets-ready" : "assets-loading"} ${lowPerformanceMode ? "low-performance" : ""} animation-${animationState}`}
+      className={`slot-screen premium-slot-shell ${game.visual.background ?? ""} currency-${currency === "BONUS" ? "sc" : "gc"} ${inHoldAndWin ? "bonus-active" : ""} ${assetsLoaded ? "assets-ready" : "assets-loading"} ${lowPerformanceMode ? "low-performance" : ""} animation-${animationState}`}
       style={{ "--accent": game.visual.accent, "--secondary": game.visual.secondary, "--panel": game.visual.panel } as React.CSSProperties}
     >
       <div className="slot-header">
@@ -1896,7 +1898,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
         {isGoldRush && goldRushFreeSpinSession && (
           <div className={`gold-rush-free-spins-hud ${goldRushFreeSpinSession.lastGrowth ? "grew" : ""}`} role="status">
             <strong>{goldRushFreeSpinSession.spinsRemaining} Free Spins</strong>
-            <span>Win {formatCoins(goldRushFreeSpinSession.totalWin)}</span>
+            <span>Win {formatCurrencyDisplay(goldRushFreeSpinSession.totalWin, currency)}</span>
             <span>Interior {goldRushFreeSpinSession.interiorColumns}x4</span>
             <span>Bonus {goldRushFreeSpinSession.bonusSymbolsCollected % goldRushFreeSpinSession.collectThreshold}/{goldRushFreeSpinSession.collectThreshold}</span>
           </div>
@@ -1913,7 +1915,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
           <div className={`slot-state-pill ${inHoldAndWin ? "bonus" : ""}`}>
             <span>{modeLabel}</span>
             {anticipating && <strong>{scatterCount >= 2 ? "Wheel close..." : "Coins close..."}</strong>}
-            {lastResult?.holdAndWin && <strong>Hold and Win total {formatCoins(lastResult.holdAndWin.total)}</strong>}
+            {lastResult?.holdAndWin && <strong>Hold and Win total {formatCurrencyDisplay(lastResult.holdAndWin.total, currency)}</strong>}
             {lastResult?.wheelBonus && <strong>Wheel landed {lastResult.wheelBonus.segment}</strong>}
           </div>
         )}
@@ -1925,7 +1927,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
             </div>
             <div className="hold-bonus-total">
               <span>Bonus Total</span>
-              <strong>{formatCoins(holdState.total)}</strong>
+              <strong>{formatCurrencyDisplay(holdState.total, currency)}</strong>
             </div>
             <p>{holdFeedback || "Press RESPIN. New coins reset respins to 3."}</p>
           </div>
@@ -1944,7 +1946,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
                       <>
                         <img src={coinImageFor(value, betAmount)} alt="" />
                         <strong>{coinLabelFor(value, betAmount)}</strong>
-                        <small>{formatCoins(value)}</small>
+                        <small>{formatCurrencyDisplay(value, currency)}</small>
                       </>
                     ) : (
                       <em>Spin</em>
@@ -1980,7 +1982,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
               {isGoldRush && currentGoldRushLineWin && goldRushLineBadgeStyle && (
                 <div className="payline-payout-badge" style={goldRushLineBadgeStyle} aria-hidden="true">
                   <span>{currentGoldRushLineWin.paylineName}</span>
-                  <strong>+{formatCoins(currentGoldRushLineWin.payout)}</strong>
+                  <strong>+{formatCurrencyDisplay(currentGoldRushLineWin.payout, currency)}</strong>
                 </div>
               )}
               {Array.from({ length: game.rowCount }, (_, row) =>
@@ -2111,12 +2113,12 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
             <div className="control-readout">
               <span>Balance</span>
               <div className="balance-amount">
-                <strong>{formatCoins(balance)}</strong>
+                <strong title={formatCoins(balance)}>{formatCurrencyDisplay(displayBalance, currency)}</strong>
                 <small>{currencyLabel}</small>
               </div>
               <div className="last-win-readout" aria-label="Last win">
                 <span>Last Win</span>
-                <strong>{formatCoins(lastResult?.payout ?? 0)}</strong>
+                <strong>{formatCurrencyDisplay(lastResult?.payout ?? 0, currency)}</strong>
               </div>
               <div className="currency-mini">
                 <button className={`gold ${currency === "GOLD" ? "active" : ""}`} disabled={inHoldAndWin} onClick={() => setCurrency("GOLD")}>GC</button>
@@ -2130,13 +2132,13 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
                   <Minus size={16} />
                 </button>
                 <button className="bet-amount-trigger" disabled={inHoldAndWin} onClick={() => setBetMenuOpen(true)}>
-                  {formatCoins(betAmount)}
+                  {formatCurrencyDisplay(betAmount, currency)}
                 </button>
                 <button className="round-control" disabled={inHoldAndWin} onClick={() => stepBet(1)}>
                   <Plus size={16} />
                 </button>
               </div>
-              {spinMode !== "NORMAL" && <small>{formatCoins(spinCost)} total</small>}
+              {spinMode !== "NORMAL" && <small>{formatCurrencyDisplay(spinCost, currency)} total</small>}
             </div>
             <button
               className={`slot-main-action ${inHoldAndWin ? "respin" : ""} ${goldRushArmedBoost ? "boost-armed" : ""}`}
@@ -2191,7 +2193,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
           <div className="quick-bets">
             {[game.minBet, game.minBet * 5, game.minBet * 10].filter((value) => value <= game.maxBet).map((value) => (
               <button className={betAmount === value ? "active" : ""} onClick={() => setBetAmount(value)} key={value}>
-                {formatCoins(value)}
+                {formatCurrencyDisplay(value, currency)}
               </button>
             ))}
           </div>
@@ -2201,7 +2203,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
             <button className="ghost-button" onClick={() => stepBet(1)}><Plus size={16} /></button>
             <button className="ghost-button" onClick={() => setBetAmount(betOptions[betOptions.length - 1] ?? game.maxBet)}>Max</button>
           </div>
-          <div className="balance-line">Available: {formatCoins(balance)} {currency}</div>
+          <div className="balance-line" title={`${formatCoins(balance)} ${currencyLabel}`}>Available: {formatCurrencyDisplay(displayBalance, currency)} {currencyLabel}</div>
           <div className="meter">
             <span>Bonus Tracker</span>
             <div><i style={{ width: `${bonusMeter}%` }} /></div>
@@ -2209,11 +2211,11 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
           {freeSpins > 0 && (
             <div className="free-spin-banner">
               <strong>{freeSpins} Free Spins</strong>
-              <span>Total won: {formatCoins(freeSpinTotal)}</span>
+              <span>Total won: {formatCurrencyDisplay(freeSpinTotal, currency)}</span>
             </div>
           )}
           <button className="spin-button" disabled={inHoldAndWin ? bonusBusy : !canSpin} onClick={inHoldAndWin ? respinHoldAndWin : () => spin()}>
-            {inHoldAndWin ? (bonusBusy ? "Respinning" : "Respin") : !assetsLoaded ? "Loading assets" : spinning ? uiState : freeSpins > 0 ? "Free Spin" : spinMode === "NORMAL" ? "Spin" : `${game.boostSpins?.[spinMode]?.label ?? "Boost"} ${formatCoins(spinCost)}`}
+            {inHoldAndWin ? (bonusBusy ? "Respinning" : "Respin") : !assetsLoaded ? "Loading assets" : spinning ? uiState : freeSpins > 0 ? "Free Spin" : spinMode === "NORMAL" ? "Spin" : `${game.boostSpins?.[spinMode]?.label ?? "Boost"} ${formatCurrencyDisplay(spinCost, currency)}`}
           </button>
           {balance < spinCost && freeSpins === 0 && <div className="error-box">Balance is too low for this spin.</div>}
           {balance < game.minBet && freeSpins === 0 && (
@@ -2233,7 +2235,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
           <div className="session-stats">
             <span>Session</span>
             <strong>{sessionStats.spins} spins</strong>
-            <small>Wagered {formatCoins(sessionStats.wagered)} · Net {formatCoins(sessionStats.won - sessionStats.wagered)}</small>
+            <small>Wagered {formatCurrencyDisplay(sessionStats.wagered, currency)} · Net {formatCurrencyDisplay(sessionStats.won - sessionStats.wagered, currency)}</small>
           </div>
         </aside>
       </div>
@@ -2256,7 +2258,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
                   }}
                   key={value}
                 >
-                  {formatCoins(value)}
+                  {formatCurrencyDisplay(value, currency)}
                 </button>
               ))}
             </div>
@@ -2287,7 +2289,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
                     {spin.capped ? " - capped" : ""}
                   </span>
                   <strong className={spin.payout > 0 ? "positive" : "negative"}>
-                    {spin.payout > 0 ? `+${formatCoins(spin.payout)}` : "Loss"}
+                    {spin.payout > 0 ? `+${formatCurrencyDisplay(spin.payout, currency)}` : "Loss"}
                   </strong>
                 </div>
               ))
@@ -2309,7 +2311,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
                 <span className="bonus-card-heading">
                   <span>Buy Hold & Win</span>
                 </span>
-                <strong>{formatCoins(holdBuyCost)} {currencyLabel}</strong>
+                <strong>{formatCurrencyDisplay(holdBuyCost, currency)} {currencyLabel}</strong>
                 <small>Starts Hold & Win with 6 coins and credits the final bonus win.</small>
               </button>
               <button className="notice-card bonus-cost-card" disabled={balance < wheelBuyCost} onClick={() => resolveBuyBonus("WHEEL_BONUS")}>
@@ -2317,7 +2319,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
                 <span className="bonus-card-heading">
                   <span>Buy Wheel Bonus</span>
                 </span>
-                <strong>{formatCoins(wheelBuyCost)} {currencyLabel}</strong>
+                <strong>{formatCurrencyDisplay(wheelBuyCost, currency)} {currencyLabel}</strong>
                 <small>Opens the wheel screen and credits the landed result.</small>
               </button>
               <button className="notice-card bonus-cost-card" disabled={balance < getSpinCost(game, betAmount, "GOLD_BOOST")} onClick={() => startBoostSpin("GOLD_BOOST")}>
@@ -2325,7 +2327,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
                 <span className="bonus-card-heading">
                   <span>Gold Boost</span>
                 </span>
-                <strong>{formatCoins(getSpinCost(game, betAmount, "GOLD_BOOST"))} {currencyLabel}</strong>
+                <strong>{formatCurrencyDisplay(getSpinCost(game, betAmount, "GOLD_BOOST"), currency)} {currencyLabel}</strong>
                 <small>+{Math.round(((game.boostSpins?.GOLD_BOOST?.costMultiplier ?? 1) - 1) * 100)}% cost, better coin chance.</small>
               </button>
               <button className="notice-card bonus-cost-card" disabled={balance < getSpinCost(game, betAmount, "SCATTER_BOOST")} onClick={() => startBoostSpin("SCATTER_BOOST")}>
@@ -2333,7 +2335,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
                 <span className="bonus-card-heading">
                   <span>Scatter Boost</span>
                 </span>
-                <strong>{formatCoins(getSpinCost(game, betAmount, "SCATTER_BOOST"))} {currencyLabel}</strong>
+                <strong>{formatCurrencyDisplay(getSpinCost(game, betAmount, "SCATTER_BOOST"), currency)} {currencyLabel}</strong>
                 <small>+{Math.round(((game.boostSpins?.SCATTER_BOOST?.costMultiplier ?? 1) - 1) * 100)}% cost, better scatter chance.</small>
               </button>
             </div>
@@ -2371,7 +2373,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
                       {active && <em>ACTIVE</em>}
                     </span>
                     <span className="bonus-card-heading"><span>{option.label}</span></span>
-                    <strong className={unavailable ? "unavailable" : ""}>{formatCoins(cost)} {currencyLabel}</strong>
+                    <strong className={unavailable ? "unavailable" : ""}>{formatCurrencyDisplay(cost, currency)} {currencyLabel}</strong>
                   </button>
                 );
               })}
@@ -2385,7 +2387,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
                 </div>
                 <div className="gold-rush-confirm-cost">
                   <span>Cost</span>
-                  <strong>{formatCoins(selectedGoldRushBonusCost)} {currencyLabel}</strong>
+                  <strong>{formatCurrencyDisplay(selectedGoldRushBonusCost, currency)} {currencyLabel}</strong>
                 </div>
                 {goldRushArmedBoost && goldRushArmedBoost.type !== selectedGoldRushBonusOption.type && (
                   <p className="gold-rush-boost-warning">{goldRushArmedBoost.label} ACTIVE. Turn it off before choosing another option.</p>
@@ -2478,7 +2480,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
                   ? `${wheelReveal.result.wheelBonus.freeSpinsAwarded} sticky wild free spins awarded`
                   : wheelReveal.result.wheelBonus?.featureTrigger
                     ? getFrontierWheelResultAction(wheelReveal.result)
-                    : `Won +${formatCoins(wheelReveal.result.payout)} ${currencyLabel}`}
+                    : `Won +${formatCurrencyDisplay(wheelReveal.result.payout, currency)} ${currencyLabel}`}
               </p>
             )}
             <button className="primary-button" disabled={wheelReveal.phase !== "revealed"} onClick={() => setWheelReveal(null)}>
@@ -2520,7 +2522,7 @@ export function SlotMachine({ game, onExit }: { game: SlotConfig; onExit?: () =>
         <div className="gold-rush-free-spin-layer summary" role="dialog" aria-modal="true" aria-label="Gold Rush Free Spins Complete">
           <div className="gold-rush-free-spin-panel">
             <span>Free Spins Complete</span>
-            <strong>{formatCoins(goldRushFreeSpinSession.totalWin)}</strong>
+            <strong>{formatCurrencyDisplay(goldRushFreeSpinSession.totalWin, currency)}</strong>
             <p>{goldRushFreeSpinSession.spinsPlayed} spins played</p>
             <em>Final Interior {goldRushFreeSpinSession.interiorColumns}x4</em>
             <button

@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties } from "react";
-import { ChevronLeft, CirclePlay, Info, Minus, Plus, Sparkles, X, Zap } from "lucide-react";
+import { ChevronLeft, CirclePlay, Info, Sparkles, X, Zap } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
 import { CoinBurst, GameResultBanner, ScreenShake, SoundToggle } from "../feedback/components";
@@ -12,11 +12,12 @@ import {
   playTreasureDigTrap,
   playTreasureDigTreasure,
 } from "../feedback/feedbackService";
-import { formatCoins } from "../lib/format";
+import { formatCurrencyDisplay } from "../lib/format";
 import { recordRetentionRound } from "../retention/retentionService";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
 import { COMPLIANCE_COPY } from "../lib/compliance";
+import { BetControls, clampBetAmount } from "./BetControls";
 import { treasureDigConfig } from "./configs";
 import {
   cashOutTreasureDigRound,
@@ -87,7 +88,6 @@ export function TreasureDigPage({ onExit }: { onExit?: () => void }) {
   const notify = useToast();
   const [currency, setCurrency] = useState<Currency>("GOLD");
   const [betAmount, setBetAmount] = useState(treasureBetLimits.GOLD.minBet);
-  const [betInput, setBetInput] = useState(formatBetInput(treasureBetLimits.GOLD.minBet, "GOLD"));
   const [trapCount, setTrapCount] = useState(3);
   const [round, setRound] = useState<TreasureDigRound | null>(null);
   const [lastOpened, setLastOpened] = useState<number | null>(null);
@@ -97,7 +97,6 @@ export function TreasureDigPage({ onExit }: { onExit?: () => void }) {
   if (!user) return null;
   const currentUser = user;
   const betLimits = treasureBetLimits[currency];
-  const currencyLabel = currencyCopy[currency].short;
   const activeTreasureConfig = getActiveTreasureConfig(currency);
   const balance = getBalance(currentUser.id, currency);
   const running = round?.status === "RUNNING";
@@ -153,24 +152,17 @@ export function TreasureDigPage({ onExit }: { onExit?: () => void }) {
 
   function clampBet(value: number, nextCurrency = currency) {
     const limits = treasureBetLimits[nextCurrency];
-    if (!Number.isFinite(value)) return limits.minBet;
-    const normalized = nextCurrency === "BONUS" ? Math.round(value * 100) / 100 : Math.round(value);
-    return Math.max(limits.minBet, Math.min(limits.maxBet, normalized));
+    return clampBetAmount(value, {
+      minBet: limits.minBet,
+      maxBet: limits.maxBet,
+      balance: getBalance(currentUser.id, nextCurrency),
+      allowDecimals: nextCurrency === "BONUS",
+    });
   }
 
   function setBet(value: number, nextCurrency = currency) {
     const next = clampBet(value, nextCurrency);
     setBetAmount(next);
-    setBetInput(formatBetInput(next, nextCurrency));
-  }
-
-  function updateBetInput(value: string) {
-    setBetInput(value);
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      const normalized = currency === "BONUS" ? Math.round(parsed * 100) / 100 : Math.round(parsed);
-      setBetAmount(Math.max(0, Math.min(betLimits.maxBet, normalized)));
-    }
   }
 
   function selectCurrency(nextCurrency: Currency) {
@@ -301,7 +293,7 @@ export function TreasureDigPage({ onExit }: { onExit?: () => void }) {
             <section className="treasure-dig-stats">
               <div className="primary"><span>Current</span><strong key={`m-${safePicks}-${liveBoostMultiplier}`}>{multiplier.toFixed(2)}x</strong></div>
               <div><span>Next Safe</span><strong>{nextMultiplier.toFixed(2)}x</strong></div>
-              <div><span>Payout</span><strong>{formatCoins(possiblePayout)}</strong></div>
+              <div><span>Payout</span><strong>{formatCurrencyDisplay(possiblePayout, currency)}</strong></div>
             </section>
 
             <div className="treasure-board-shell">
@@ -406,39 +398,21 @@ export function TreasureDigPage({ onExit }: { onExit?: () => void }) {
           </div>
         </section>
 
-        <div className={balance < betAmount ? "treasure-bet-bank warning" : "treasure-bet-bank"}>
-          <div className="treasure-bet-row">
-            <button type="button" aria-label="Decrease bet" disabled={running} onClick={() => setBet(betAmount - betLimits.step)}><Minus size={18} /></button>
-            <label>
-              <span>Bet</span>
-              <input
-                aria-label="Bet amount"
-                inputMode={currency === "BONUS" ? "decimal" : "numeric"}
-                type="text"
-                min={betLimits.minBet}
-                max={betLimits.maxBet}
-                value={betInput}
-                disabled={running}
-                onChange={(event) => updateBetInput(event.target.value)}
-                onBlur={(event) => setBet(Number(event.target.value))}
-              />
-            </label>
-            <button type="button" aria-label="Increase bet" disabled={running} onClick={() => setBet(betAmount + betLimits.step)}><Plus size={18} /></button>
-          </div>
-          <div className="treasure-bet-summary">
-            <span>{currencyLabel} Balance</span>
-            <strong>{formatCoins(balance)}</strong>
-          </div>
-        </div>
-
-        <div className={balance < betAmount ? "treasure-note warning" : "treasure-note"}>
-          <span>Min {currencyLabel}: {formatCoins(betLimits.minBet)}</span>
-          <strong>Max {currencyLabel}: {formatCoins(betLimits.maxBet)}</strong>
-        </div>
+        <BetControls
+          currentBet={betAmount}
+          minBet={betLimits.minBet}
+          maxBet={betLimits.maxBet}
+          balance={balance}
+          currency={currency}
+          increment={betLimits.step}
+          allowDecimals={currency === "BONUS"}
+          disabled={running}
+          onBetChange={(amount) => setBet(amount)}
+        />
 
         <button className={running ? "treasure-main-action cashout" : "treasure-main-action"} type="button" disabled={!running && !canStart} onClick={mainAction}>
           {running ? <Zap size={18} /> : <CirclePlay size={18} />}
-          <span>{running ? `Collect ${formatCoins(possiblePayout)}` : round ? "Dig Again" : "Dig"}</span>
+          <span>{running ? `Collect ${formatCurrencyDisplay(possiblePayout, currency)}` : round ? "Dig Again" : "Dig"}</span>
         </button>
       </section>
 
@@ -508,9 +482,4 @@ function LastTreasureResults({ values }: { values: TreasureResult[] }) {
       </div>
     </aside>
   );
-}
-
-function formatBetInput(amount: number, currency: Currency) {
-  if (!Number.isFinite(amount)) return "0";
-  return currency === "BONUS" ? Number(amount.toFixed(2)).toString() : Math.round(amount).toString();
 }

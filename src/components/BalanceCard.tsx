@@ -1,4 +1,4 @@
-import { formatCoins } from "../lib/format";
+import { formatCoins, formatCurrencyDisplay, formatCurrencyDisplayWithCode } from "../lib/format";
 import type { Currency } from "../types";
 import { getCurrencyBrandedDisplayName, getCurrencyMeta, getCurrencyShortName } from "../config/currencyConfig";
 
@@ -17,7 +17,7 @@ export function BalanceCard({
   return (
     <article className={`balance-card ${tone}`}>
       <span>{label}</span>
-      <strong>{formatCoins(amount)}</strong>
+      <strong title={formatCoins(amount)}>{formatCurrencyDisplay(amount, currency)}</strong>
       <small>{meta?.displayDisclaimer ?? "Gold Coins have no cash value."}</small>
     </article>
   );
@@ -35,21 +35,9 @@ export function BalancePill({
   return (
     <div className={`balance-pill ${tone}`}>
       <span>{label}</span>
-      <strong>{formatCoins(amount)}</strong>
+      <strong title={formatCoins(amount)}>{formatCurrencyDisplay(amount)}</strong>
     </div>
   );
-}
-
-function formatCompactCoins(amount: number) {
-  const abs = Math.abs(amount);
-  const sign = amount < 0 ? "-" : "";
-  if (abs >= 1_000_000) return `${sign}${trimCompact(abs / 1_000_000)}M`;
-  if (abs >= 1_000) return `${sign}${trimCompact(abs / 1_000)}K`;
-  return formatCoins(amount);
-}
-
-function trimCompact(value: number) {
-  return value >= 100 ? Math.round(value).toString() : value.toFixed(value >= 10 ? 1 : 2).replace(/\.?0+$/, "");
 }
 
 export function BalanceToggle({
@@ -71,9 +59,8 @@ export function BalanceToggle({
   }
 
   function optionText(currency: Currency) {
-    const label = getCurrencyShortName(currency);
-    if (currency !== selected) return label;
-    return `${label} ${expanded ? formatCoins(balances[currency]) : formatCompactCoins(balances[currency])}`;
+    if (currency !== selected) return getCurrencyShortName(currency);
+    return formatCurrencyDisplayWithCode(balances[currency], currency);
   }
 
   return (

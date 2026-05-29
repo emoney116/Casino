@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
 import { getCurrencyShortName } from "../config/currencyConfig";
-import { formatCoins } from "../lib/format";
+import { formatCoins, formatCurrencyDisplay } from "../lib/format";
 import { claimMission, getMissions } from "../missions/missionService";
 import { missionDefs } from "../missions/missionDefs";
 import {
@@ -19,7 +19,7 @@ const burstAsset = new URL("../assets/rewards/reward-burst.png", import.meta.url
 const dailyEmblemAsset = new URL("../assets/rewards/daily-emblem.png", import.meta.url).href;
 const rewardChestAsset = new URL("../assets/rewards/reward-chest.png", import.meta.url).href;
 const rewardGcAsset = new URL("../assets/rewards/reward-gc.png", import.meta.url).href;
-const rewardScAsset = new URL("../assets/rewards/reward-sc.png", import.meta.url).href;
+const rewardScAsset = new URL("../assets/cashier/sc_reference.png", import.meta.url).href;
 const claimRewardAsset = new URL("../assets/rewards/claim-reward.png", import.meta.url).href;
 const bonusRewardAsset = new URL("../assets/rewards/bonus-reward.png", import.meta.url).href;
 const streakFlameAsset = new URL("../assets/rewards/streak-flame.png", import.meta.url).href;
@@ -189,7 +189,7 @@ function DailyClaimHero({
           <span className="rewards-kicker">Daily Reward</span>
           <span className="rewards-hero-day">Day {rewardDay}</span>
         </span>
-        <h1>{formatCoins(amount)} <span>{grantLabel}</span></h1>
+        <h1 title={`${formatCoins(amount)} ${grantLabel}`}>{formatCurrencyDisplay(amount, primaryGrant?.currency)} <span>{grantLabel}</span></h1>
         {bonusGrants.length > 0 && <div className="rewards-hero-bonus">{renderRewardPills(bonusGrants)}</div>}
         {available ? (
           <button
@@ -244,9 +244,10 @@ function StreakCalendar({
           const statusLabel = state === "claimed" ? "Claimed" : canClaimDay ? "Ready" : state === "next" ? countdown : "Locked";
           const ariaStatus = state === "next" ? `Available in ${countdown}` : statusLabel;
           const iconSrc = getStreakIconSrc(reward.day, state);
+          const hasSweepsReward = hasStreakSweepsReward(reward);
           return (
             <button
-              className={`rewards-streak-day ${state} ${isJackpotStreakDay(reward.day) ? "jackpot" : ""}`}
+              className={`rewards-streak-day ${state} ${isJackpotStreakDay(reward.day) ? "jackpot" : ""} ${hasSweepsReward ? "has-sc-reward" : ""}`}
               type="button"
               key={reward.day}
               onClick={onClaim}
@@ -322,9 +323,11 @@ function MissionSection({
                 <span className="rewards-mission-copy">
                   <strong>{visual.title ?? mission.title}</strong>
                 </span>
-                <span className="rewards-mission-reward">
+                <span className={`rewards-mission-reward currency-${mission.rewardCurrency === "BONUS" ? "sc" : "gc"}`}>
                   <img src={rewardIconByCurrency[mission.rewardCurrency]} alt="" />
-                  {formatCoins(mission.rewardAmount)} {getCurrencyShortName(mission.rewardCurrency)}
+                  <span title={`${formatCoins(mission.rewardAmount)} ${getCurrencyShortName(mission.rewardCurrency)}`}>
+                    {formatCurrencyDisplay(mission.rewardAmount, mission.rewardCurrency)} {getCurrencyShortName(mission.rewardCurrency)}
+                  </span>
                 </span>
               </div>
               <div className="rewards-mission-progress">
@@ -416,11 +419,17 @@ function formatStreakLine(reward: ReturnType<typeof getStreakRewardForDay>) {
   return `Day ${reward.day} - ${formatStreakReward(reward)}`;
 }
 
+function hasStreakSweepsReward(reward: ReturnType<typeof getStreakRewardForDay>) {
+  return getStreakRewardGrants(reward).some((grant) => grant.currency === "BONUS");
+}
+
 function renderRewardPills(grants: ReturnType<typeof getStreakRewardGrants>) {
   return grants.map((grant) => (
-    <span className="rewards-reward-mini" key={`${grant.currency}-${grant.amount}`}>
+    <span className={`rewards-reward-mini currency-${grant.currency === "BONUS" ? "sc" : "gc"}`} key={`${grant.currency}-${grant.amount}`}>
       <img src={rewardIconByCurrency[grant.currency]} alt="" />
-      {formatCoins(grant.amount)} {getRewardGrantLabel(grant)}
+      <span title={`${formatCoins(grant.amount)} ${getRewardGrantLabel(grant)}`}>
+        {formatCurrencyDisplay(grant.amount, grant.currency)} {getRewardGrantLabel(grant)}
+      </span>
     </span>
   ));
 }

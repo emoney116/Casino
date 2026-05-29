@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { ChevronLeft, Info, KeyRound, Minus, Plus, X } from "lucide-react";
+import { ChevronLeft, Info, KeyRound, X } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
 import { CoinBurst, ScreenShake, SoundToggle } from "../feedback/components";
@@ -14,13 +14,12 @@ import {
   playSafecrackerTension,
   playSafecrackerUnlock,
 } from "../feedback/feedbackService";
-import { formatCoins } from "../lib/format";
+import { formatCurrencyDisplay } from "../lib/format";
 import { recordRetentionRound } from "../retention/retentionService";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
 import {
   applySafecrackerAttemptProgress,
-  clampSafecrackerBet,
   createSafecrackerProgressState,
   getSafecrackerBetLimits,
   resolveSafecrackerPickAttempt,
@@ -30,6 +29,7 @@ import {
   type SafecrackerProgressByRisk,
   type SafecrackerRisk,
 } from "./safecrackerEngine";
+import { BetControls, clampBetAmount } from "./BetControls";
 
 const closedSafeAsset = new URL("../assets/safecracker/safe-closed.png", import.meta.url).href;
 const partialSafeAsset = new URL("../assets/safecracker/safe-partial.png", import.meta.url).href;
@@ -89,7 +89,7 @@ export const safecrackerUiMarkers = {
   noComplianceFooter: true,
   roundHeaderButtons: true,
   ovalCurrencyToggle: true,
-  scBlueToggle: true,
+  scGreenToggle: true,
   riskTunedRtpBands: true,
   multiplierRevealNotPickCountBased: true,
   threeRiskVisualTones: true,
@@ -119,7 +119,6 @@ export function SafecrackerPage({ onExit }: { onExit?: () => void }) {
   const [currency, setCurrency] = useState<Currency>("GOLD");
   const [risk, setRisk] = useState<SafecrackerRisk>("medium");
   const [betAmount, setBetAmount] = useState(() => getSafecrackerBetLimits("GOLD", "medium").minBet);
-  const [betInput, setBetInput] = useState(() => formatBetInput(getSafecrackerBetLimits("GOLD", "medium").minBet, "GOLD"));
   const [progressByRisk, setProgressByRisk] = useState<SafecrackerProgressByRisk>(() => createSafecrackerProgressState());
   const [lastAttempt, setLastAttempt] = useState<SafecrackerAttempt | null>(null);
   const [actionState, setActionState] = useState<SafecrackerActionState>("idle");
@@ -165,42 +164,38 @@ export function SafecrackerPage({ onExit }: { onExit?: () => void }) {
   }
 
   function setBet(value: number, nextCurrency = currency, nextRisk = risk) {
-    const next = clampSafecrackerBet(value, nextCurrency, nextRisk);
+    const nextLimits = getSafecrackerBetLimits(nextCurrency, nextRisk);
+    const next = clampBetAmount(value, {
+      minBet: nextLimits.minBet,
+      maxBet: nextLimits.maxBet,
+      balance: getBalance(currentUser.id, nextCurrency),
+      allowDecimals: nextCurrency === "BONUS",
+    });
     setBetAmount(next);
-    setBetInput(formatBetInput(next, nextCurrency));
-  }
-
-  function updateBetInput(value: string) {
-    setBetInput(value);
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      const normalized = currency === "BONUS" ? Math.round(parsed * 100) / 100 : Math.round(parsed);
-      setBetAmount(Math.max(0, Math.min(limits.maxBet, normalized)));
-    }
   }
 
   function selectCurrency(nextCurrency: Currency) {
     if (active || nextCurrency === currency) return;
     setCurrency(nextCurrency);
-    setBet(clampSafecrackerBet(betAmount, nextCurrency, risk), nextCurrency, risk);
+    setBet(betAmount, nextCurrency, risk);
   }
 
   function selectRisk(nextRisk: SafecrackerRisk) {
     if (active || nextRisk === risk) return;
     setRisk(nextRisk);
-    setBet(clampSafecrackerBet(betAmount, currency, nextRisk), currency, nextRisk);
+    setBet(betAmount, currency, nextRisk);
   }
 
   function pickLock() {
     if (!canPick) return;
     try {
       clearTimers();
-      const attempt = resolveSafecrackerPickAttempt({
-        userId: currentUser.id,
-        currency,
-        betAmount: clampSafecrackerBet(betAmount, currency, risk),
-        risk,
-        progress,
+        const attempt = resolveSafecrackerPickAttempt({
+          userId: currentUser.id,
+          currency,
+          betAmount: betAmount,
+          risk,
+          progress,
       });
       refreshUser();
       setActionState("insert");
@@ -336,34 +331,17 @@ export function SafecrackerPage({ onExit }: { onExit?: () => void }) {
           ))}
         </div>
 
-        <div className={balanceTooLow || betInvalid ? "safecracker-bet-bank warning" : "safecracker-bet-bank"}>
-          <button type="button" aria-label="Decrease bet" disabled={active} onClick={() => setBet(betAmount - limits.minBet)}>
-            <Minus size={17} />
-          </button>
-          <label>
-            <span>Bet</span>
-            <input
-              aria-label="Bet amount"
-              inputMode={currency === "BONUS" ? "decimal" : "numeric"}
-              value={betInput}
-              disabled={active}
-              onChange={(event) => updateBetInput(event.target.value)}
-              onBlur={(event) => setBet(Number(event.currentTarget.value))}
-            />
-          </label>
-          <div className="safecracker-balance" aria-label={`${currencyCopy[currency].short} balance`}>
-            <span>Balance</span>
-            <strong>{currencyCopy[currency].short} {formatCoins(balance)}</strong>
-          </div>
-          <button type="button" aria-label="Increase bet" disabled={active} onClick={() => setBet(betAmount + limits.minBet)}>
-            <Plus size={17} />
-          </button>
-        </div>
-
-        <div className="safecracker-limit-row">
-          <span>Min {currencyCopy[currency].short}: {formatCoins(limits.minBet)}</span>
-          <strong>Max {currencyCopy[currency].short}: {formatCoins(limits.maxBet)}</strong>
-        </div>
+        <BetControls
+          currentBet={betAmount}
+          minBet={limits.minBet}
+          maxBet={limits.maxBet}
+          balance={balance}
+          currency={currency}
+          increment={limits.minBet}
+          allowDecimals={currency === "BONUS"}
+          disabled={active}
+          onBetChange={(amount) => setBet(amount)}
+        />
 
         <div className="safecracker-bottom-row">
           <button className="safecracker-main-action" type="button" disabled={!canPick} onClick={pickLock}>
@@ -423,11 +401,6 @@ function formatMultiplier(multiplier: number) {
 }
 
 function formatWinAmount(attempt: SafecrackerAttempt) {
-  const amount = formatCoins(attempt.totalPaid);
+  const amount = formatCurrencyDisplay(attempt.totalPaid, attempt.currency);
   return attempt.currency === "BONUS" ? `$${amount}` : `GC ${amount}`;
-}
-
-function formatBetInput(amount: number, currency: Currency) {
-  if (!Number.isFinite(amount)) return "0";
-  return currency === "BONUS" ? Number(amount.toFixed(2)).toString() : Math.round(amount).toString();
 }

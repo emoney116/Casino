@@ -5,8 +5,10 @@ import { useToast } from "../components/ToastContext";
 import { CoinBurst, ScreenShake, SoundToggle } from "../feedback/components";
 import { playBalloonPop, playBet, playBigWin, playConfettiBurst, playDartThrow, playError, playLose, playRareBalloonHit, playWin, playWinReveal } from "../feedback/feedbackService";
 import { recordRetentionRound } from "../retention/retentionService";
+import { formatCurrencyDisplay } from "../lib/format";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
+import { BetControls, clampBetAmount } from "./BetControls";
 import {
   balloonPopConfig,
   completeBalloonPopRound,
@@ -84,7 +86,6 @@ export function BalloonPopPage({ onExit }: { onExit?: () => void }) {
   const notify = useToast();
   const [currency, setCurrency] = useState<Currency>("GOLD");
   const [betAmount, setBetAmount] = useState(getBalloonPopBetLimits("GOLD").minBet);
-  const [betInput, setBetInput] = useState(formatBetInput(getBalloonPopBetLimits("GOLD").minBet, "GOLD"));
   const [gameState, setGameState] = useState<BalloonPopState>("idle");
   const [round, setRound] = useState<BalloonPopRound | null>(null);
   const [dartTarget, setDartTarget] = useState<number | null>(null);
@@ -122,21 +123,17 @@ export function BalloonPopPage({ onExit }: { onExit?: () => void }) {
 
   function clampBet(value: number, nextCurrency = currency) {
     const limits = getBalloonPopBetLimits(nextCurrency);
-    return Math.max(limits.minBet, Math.min(limits.maxBet, value));
+    return clampBetAmount(value, {
+      minBet: limits.minBet,
+      maxBet: limits.maxBet,
+      balance: getBalance(currentUser.id, nextCurrency),
+      allowDecimals: nextCurrency === "BONUS",
+    });
   }
 
   function setBet(value: number, nextCurrency = currency) {
     const next = clampBet(value, nextCurrency);
     setBetAmount(next);
-    setBetInput(formatBetInput(next, nextCurrency));
-  }
-
-  function updateBetInput(value: string) {
-    setBetInput(value);
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      setBetAmount(Math.max(0, Math.min(betLimits.maxBet, parsed)));
-    }
   }
 
   function selectCurrency(nextCurrency: Currency) {
@@ -346,30 +343,19 @@ export function BalloonPopPage({ onExit }: { onExit?: () => void }) {
       )}
 
       <section className="balloon-pop-controls">
-        <div className={totalPulse ? "balloon-pop-bank pulse" : "balloon-pop-bank"}>
-          <span>{currencyCopy[currency].short} Balance: {formatCurrencyValue(balance, currency)}</span>
-          <strong>Last won: {formatCurrencyValue(lastWon, currency)}</strong>
-        </div>
-        <div className="balloon-pop-bet-row">
-          <button type="button" disabled={active} onClick={() => setBet(betAmount - betLimits.minBet)}>-</button>
-          <label>
-            <span>Bet</span>
-            <input
-              aria-label="Bet amount"
-              inputMode={currency === "BONUS" ? "decimal" : "numeric"}
-              type="text"
-              value={betInput}
-              disabled={active}
-              onChange={(event) => updateBetInput(event.target.value)}
-              onBlur={(event) => setBet(Number(event.target.value))}
-            />
-          </label>
-          <button type="button" disabled={active} onClick={() => setBet(betAmount + betLimits.minBet)}>+</button>
-        </div>
-        <div className={balance < betAmount ? "balloon-pop-note warning" : "balloon-pop-note"}>
-          <span>Min {currencyCopy[currency].short}: {formatBetDisplay(betLimits.minBet, currency)}</span>
-          <strong>Max {currencyCopy[currency].short}: {formatBetDisplay(betLimits.maxBet, currency)}</strong>
-        </div>
+        <BetControls
+          className={totalPulse ? "pulse" : ""}
+          currentBet={betAmount}
+          minBet={betLimits.minBet}
+          maxBet={betLimits.maxBet}
+          balance={balance}
+          currency={currency}
+          increment={betLimits.minBet}
+          allowDecimals={currency === "BONUS"}
+          disabled={active}
+          leadingInfo={`Last won: ${formatCurrencyValue(lastWon, currency)}`}
+          onBetChange={(amount) => setBet(amount)}
+        />
         <button className="balloon-pop-play" disabled={!canPlay} onClick={play}>
           {getPlayButtonLabel({ active, betExceedsBalance, roundComplete: round?.state === "complete", currency })}
         </button>
@@ -403,23 +389,7 @@ export function BalloonPopPage({ onExit }: { onExit?: () => void }) {
 }
 
 function formatCurrencyValue(amount: number, currency: Currency) {
-  void currency;
-  return amount.toLocaleString(undefined, { maximumFractionDigits: 2 });
-}
-
-function formatBetInput(amount: number, currency: Currency) {
-  void currency;
-  return formatDecimalDisplay(amount);
-}
-
-function formatBetDisplay(amount: number, currency: Currency, compact = false) {
-  void compact;
-  void currency;
-  return amount.toLocaleString(undefined, { maximumFractionDigits: 2 });
-}
-
-function formatDecimalDisplay(amount: number) {
-  return Number.isFinite(amount) ? Number(amount.toFixed(2)).toString() : "0";
+  return formatCurrencyDisplay(amount, currency);
 }
 
 function formatPrize(balloon: BalloonTile) {

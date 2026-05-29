@@ -17,7 +17,7 @@ const tableGameArtwork = {
   treasureDig: new URL("../assets/branding/game-logos/treasure_dig_logo.png", import.meta.url).href,
   brickBreakBonus: new URL("../assets/branding/game-logos/brickbreak_logo.png", import.meta.url).href,
   balloonPop: new URL("../assets/branding/game-logos/balloon_pop_logo.png", import.meta.url).href,
-  lavaRun: new URL("../assets/branding/game-logos/lava_run_logo.png", import.meta.url).href,
+  lavaRun: new URL("../assets/branding/game-logos/lava_run_logo_no_bar.png", import.meta.url).href,
   emberStack: new URL("../assets/branding/game-logos/ember_stack_logo.png", import.meta.url).href,
   safecracker: new URL("../assets/branding/game-logos/safecracker_logo.png", import.meta.url).href,
 } as const;

@@ -149,7 +149,10 @@ export function AdminPage() {
                 >
                   <span>{user.username}</span>
                   <small>{user.email}</small>
-                  <small>{getCurrencyShortName("GOLD")} {formatCoins(balances.GOLD)} | {getCurrencyShortName("BONUS")} {formatCoins(balances.BONUS)}</small>
+                  <small className="admin-currency-line">
+                    <span className="currency-badge currency-gc">{getCurrencyShortName("GOLD")} {formatCoins(balances.GOLD)}</span>
+                    <span className="currency-badge currency-sc">{getCurrencyShortName("BONUS")} {formatCoins(balances.BONUS)}</span>
+                  </small>
                   <small>KYC {getKycStatus(user.id)}</small>
                   <small>Level {getProgression(user.id).level} | XP {formatCoins(getProgression(user.id).xp)}</small>
                 </button>

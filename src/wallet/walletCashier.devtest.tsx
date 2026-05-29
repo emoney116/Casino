@@ -96,7 +96,7 @@ const seed: Partial<CasinoData> = {
   users: [user],
   passwordRecords: {},
   sessions: [{ userId: user.id, createdAt: new Date().toISOString() }],
-  walletBalances: { [user.id]: { GOLD: 125150, BONUS: 24 } },
+  walletBalances: { [user.id]: { GOLD: 5_678_450, BONUS: 5_678_450.55 } },
   transactions,
   progression: {},
   streaks: {},
@@ -188,6 +188,18 @@ if (walletMarkup.includes("Gold Coins have no cash value.")) {
   throw new Error("Wallet page should not render the old Gold Coins compliance footer.");
 }
 
+if (!walletMarkup.includes("5,678,450") || !walletMarkup.includes("5,678,450.55")) {
+  throw new Error("Wallet balance rows should render full million balances.");
+}
+
+if (!walletMarkup.includes("currency-fit-medium")) {
+  throw new Error("Wallet balance rows should apply responsive fit classes for large full balances.");
+}
+
+if (walletMarkup.includes("<span>Gold Coins</span>") || walletMarkup.includes("<span>Sweeps Coins</span>")) {
+  throw new Error("Wallet balance rows should not render visible coin-name labels.");
+}
+
 const purchaseMarkup = renderWallet("purchase");
 for (const expected of ["Coin Store", "modal-title-with-icon", "cashier-store-modal", "purchase-pack-tile-grid", "purchase-pack-tile", "Buy $5", "Buy $10", "Buy $20", "Buy $50", "Buy $100", "Buy $200", "+5 SC", "+200 SC", "cashier-modal-card"]) {
   if (!purchaseMarkup.includes(expected)) {
@@ -263,6 +275,10 @@ const appShellMarkup = renderToStaticMarkup(
 
 if (!appShellMarkup.includes('aria-label="Purchase coin packs"')) {
   throw new Error("Header plus button should expose the shared purchase entry.");
+}
+
+if (!appShellMarkup.includes("5.68M GC") || !appShellMarkup.includes("5.68M SC")) {
+  throw new Error("Header currency pill should render huge GC and SC balances compactly.");
 }
 
 console.log("walletCashier.devtest passed");

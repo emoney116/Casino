@@ -1,5 +1,6 @@
-import { formatCoins, formatDateTime } from "../lib/format";
+import { formatCoins, formatCurrencyDisplay, formatDateTime } from "../lib/format";
 import type { Transaction } from "../types";
+import { getCurrencyShortName } from "../config/currencyConfig";
 
 function titleCase(value: string) {
   return value
@@ -25,6 +26,7 @@ export function TransactionTable({
     return (
       <div className="cashier-transaction-list">
         {transactions.map((tx) => {
+          const currencyClass = getCurrencyClass(tx);
           const content = (
             <>
               <span className="cashier-transaction-main">
@@ -32,24 +34,25 @@ export function TransactionTable({
                   <strong>{titleCase(tx.type)}</strong>
                   <small>{formatDateTime(tx.createdAt)}</small>
                 </span>
-                <strong className={tx.amount >= 0 ? "positive" : "negative"}>
+                <strong className={`${tx.amount >= 0 ? "positive" : "negative"} ${currencyClass}`}>
                   {tx.amount >= 0 ? "+" : ""}
-                  {formatCoins(tx.amount)} {tx.currency}
+                  {formatCurrencyDisplay(tx.amount, tx.currency)} {getCurrencyShortName(tx.currency)}
                 </strong>
               </span>
               <span className="cashier-transaction-meta">
                 <span>{titleCase(tx.status)}</span>
-                <span>Balance {formatCoins(tx.balanceAfter)}</span>
+                <span className={`currency-badge ${currencyClass}`}>{getCurrencyShortName(tx.currency)}</span>
+                <span title={`Balance ${formatCoins(tx.balanceAfter)}`}>Balance {formatCurrencyDisplay(tx.balanceAfter, tx.currency)}</span>
               </span>
             </>
           );
 
           if (!onSelect) {
-            return <div className="cashier-transaction-row" key={tx.id}>{content}</div>;
+            return <div className={`cashier-transaction-row ${currencyClass}`} key={tx.id}>{content}</div>;
           }
 
           return (
-            <button className="cashier-transaction-row" key={tx.id} type="button" onClick={() => onSelect(tx)}>
+            <button className={`cashier-transaction-row ${currencyClass}`} key={tx.id} type="button" onClick={() => onSelect(tx)}>
               {content}
             </button>
           );
@@ -72,53 +75,63 @@ export function TransactionTable({
             </tr>
           </thead>
           <tbody>
-            {transactions.map((tx) => (
-              <tr key={tx.id} onClick={() => onSelect?.(tx)} className={onSelect ? "clickable-row" : ""}>
-                <td>{formatDateTime(tx.createdAt)}</td>
-                <td>{titleCase(tx.type)}</td>
-                <td>{titleCase(tx.currency)}</td>
-                <td className={tx.amount >= 0 ? "positive" : "negative"}>
-                  {tx.amount >= 0 ? "+" : ""}
-                  {formatCoins(tx.amount)}
-                </td>
-                <td>{formatCoins(tx.balanceAfter)}</td>
-              </tr>
-            ))}
+            {transactions.map((tx) => {
+              const currencyClass = getCurrencyClass(tx);
+              return (
+                <tr key={tx.id} onClick={() => onSelect?.(tx)} className={`${onSelect ? "clickable-row" : ""} ${currencyClass}`.trim()}>
+                  <td>{formatDateTime(tx.createdAt)}</td>
+                  <td>{titleCase(tx.type)}</td>
+                  <td><span className={`currency-badge ${currencyClass}`}>{getCurrencyShortName(tx.currency)}</span></td>
+                  <td className={`${tx.amount >= 0 ? "positive" : "negative"} ${currencyClass}`}>
+                    {tx.amount >= 0 ? "+" : ""}
+                    {formatCurrencyDisplay(tx.amount, tx.currency)}
+                  </td>
+                  <td title={formatCoins(tx.balanceAfter)}>{formatCurrencyDisplay(tx.balanceAfter, tx.currency)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
       <div className="transaction-card-list">
-        {transactions.map((tx) => (
-          <button
-            className="transaction-card"
-            key={tx.id}
-            type="button"
-            onClick={() => onSelect?.(tx)}
-            disabled={!onSelect}
-          >
-            <span className="transaction-card-top">
-              <strong>{titleCase(tx.type)}</strong>
-              <span className={`status-chip ${tx.status.toLowerCase()}`}>{titleCase(tx.status)}</span>
-            </span>
-            <span className="transaction-card-row">
-              <span>{titleCase(tx.currency)}</span>
-              <strong className={tx.amount >= 0 ? "positive" : "negative"}>
-                {tx.amount >= 0 ? "+" : ""}
-                {formatCoins(tx.amount)}
-              </strong>
-            </span>
-            <span className="transaction-card-row">
-              <span>Balance after</span>
-              <strong>{formatCoins(tx.balanceAfter)}</strong>
-            </span>
-            <span className="transaction-card-row muted">
-              <span>Date</span>
-              <span>{formatDateTime(tx.createdAt)}</span>
-            </span>
-          </button>
-        ))}
+        {transactions.map((tx) => {
+          const currencyClass = getCurrencyClass(tx);
+          return (
+            <button
+              className={`transaction-card ${currencyClass}`}
+              key={tx.id}
+              type="button"
+              onClick={() => onSelect?.(tx)}
+              disabled={!onSelect}
+            >
+              <span className="transaction-card-top">
+                <strong>{titleCase(tx.type)}</strong>
+                <span className={`status-chip ${tx.status.toLowerCase()}`}>{titleCase(tx.status)}</span>
+              </span>
+              <span className="transaction-card-row">
+                <span className={`currency-badge ${currencyClass}`}>{getCurrencyShortName(tx.currency)}</span>
+                <strong className={`${tx.amount >= 0 ? "positive" : "negative"} ${currencyClass}`}>
+                  {tx.amount >= 0 ? "+" : ""}
+                  {formatCurrencyDisplay(tx.amount, tx.currency)}
+                </strong>
+              </span>
+              <span className="transaction-card-row">
+                <span>Balance after</span>
+                <strong title={formatCoins(tx.balanceAfter)}>{formatCurrencyDisplay(tx.balanceAfter, tx.currency)}</strong>
+              </span>
+              <span className="transaction-card-row muted">
+                <span>Date</span>
+                <span>{formatDateTime(tx.createdAt)}</span>
+              </span>
+            </button>
+          );
+        })}
       </div>
     </>
   );
+}
+
+function getCurrencyClass(tx: Transaction) {
+  return tx.currency === "BONUS" ? "currency-sc" : "currency-gc";
 }

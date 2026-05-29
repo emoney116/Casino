@@ -1,5 +1,6 @@
 import type { Currency } from "../types";
-import { formatCoins } from "../lib/format";
+import { getDisplayBalance } from "../lib/displayBalanceStress";
+import { formatCoins, formatCurrencyDisplay } from "../lib/format";
 import { getBalance } from "../wallet/walletService";
 import type { TableGameConfig } from "./types";
 import { getCurrencyDisplayName } from "../config/currencyConfig";
@@ -24,6 +25,7 @@ export function TableBetControls({
   onBetChange: (amount: number) => void;
 }) {
   const balance = getBalance(userId, currency);
+  const displayBalance = getDisplayBalance(balance, currency);
   const quickBets = [config.minBet, 25, 50, 100, config.maxBet].filter((value, index, values) => (
     value >= config.minBet && value <= config.maxBet && values.indexOf(value) === index
   ));
@@ -44,28 +46,28 @@ export function TableBetControls({
         </label>
         <div className="table-balance-chip">
           <span>Balance</span>
-          <strong>{formatCoins(balance)}</strong>
+          <strong title={formatCoins(balance)}>{formatCurrencyDisplay(displayBalance, currency)}</strong>
         </div>
       </div>
       <div className="table-bet-row">
         <button disabled={disabled} onClick={() => onBetChange(clamp(betAmount - config.minBet))}>-</button>
         <div>
           <span>Bet</span>
-          <strong>{formatCoins(betAmount)}</strong>
+          <strong title={formatCoins(betAmount)}>{formatCurrencyDisplay(betAmount, currency)}</strong>
         </div>
         <button disabled={disabled} onClick={() => onBetChange(clamp(betAmount + config.minBet))}>+</button>
       </div>
       <div className="table-quick-bets">
         {quickBets.map((bet) => (
           <button key={bet} className={betAmount === bet ? "active" : ""} disabled={disabled} onClick={() => onBetChange(bet)}>
-            {formatCoins(bet)}
+            {formatCurrencyDisplay(bet, currency)}
           </button>
         ))}
       </div>
       <div className={balance < betAmount ? "table-warning" : "table-note"}>
         {balance < betAmount
           ? "Insufficient virtual coin balance."
-          : `Min ${formatCoins(config.minBet)} / Max ${formatCoins(config.maxBet)}${maxPayoutPreview ? ` / Max paid ${formatCoins(maxPayoutPreview)}` : ""}`}
+          : `Min ${formatCurrencyDisplay(config.minBet, currency)} / Max ${formatCurrencyDisplay(config.maxBet, currency)}${maxPayoutPreview ? ` / Max paid ${formatCurrencyDisplay(maxPayoutPreview, currency)}` : ""}`}
       </div>
     </article>
   );

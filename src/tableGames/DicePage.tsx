@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
-import { ArrowUpDown, ChevronLeft, CirclePlay, Info, Minus, Plus, X } from "lucide-react";
+import { ArrowUpDown, ChevronLeft, CirclePlay, Info, X } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
-import { formatCoins } from "../lib/format";
+import { formatCurrencyDisplay } from "../lib/format";
 import { recordRetentionRound } from "../retention/retentionService";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
@@ -10,6 +10,7 @@ import { CoinBurst, GameResultBanner, ScreenShake, SoundToggle } from "../feedba
 import { playBet, playError, playLose, playWin } from "../feedback/feedbackService";
 import { diceConfig } from "./configs";
 import { COMPLIANCE_COPY } from "../lib/compliance";
+import { BetControls, clampBetAmount } from "./BetControls";
 import { getDiceReturnMultiplier, resolveDiceBet } from "./diceEngine";
 import type { DiceDirection, DiceResult } from "./types";
 
@@ -58,7 +59,6 @@ export function DicePage({ onExit }: { onExit?: () => void }) {
   const notify = useToast();
   const [currency, setCurrency] = useState<Currency>("GOLD");
   const [betAmount, setBetAmount] = useState(overUnderBetLimits.GOLD.minBet);
-  const [betInput, setBetInput] = useState(formatBetInput(overUnderBetLimits.GOLD.minBet, "GOLD"));
   const [direction, setDirection] = useState<DiceDirection>("over");
   const [target, setTarget] = useState(50);
   const [result, setResult] = useState<DiceResult | null>(null);
@@ -86,7 +86,6 @@ export function DicePage({ onExit }: { onExit?: () => void }) {
   const lastWinAmount = recentRolls.find((value) => value.won)?.totalPaid ?? 0;
   const canRoll = !rolling && Number.isFinite(betAmount) && betAmount >= betLimits.minBet && betAmount <= betLimits.maxBet && balance >= betAmount;
   const comparison = result ? (result.roll > target ? "over" : result.roll < target ? "under" : "on target") : null;
-  const currencyLabel = currencyCopy[currency].short;
   const rollValue = displayRoll ?? target;
   const statusCopy = rolling ? "Rolling" : result ? result.won ? "Win" : "Miss" : "Ready";
   const resultMessage = result
@@ -110,24 +109,17 @@ export function DicePage({ onExit }: { onExit?: () => void }) {
 
   function clampBet(value: number, nextCurrency = currency) {
     const limits = overUnderBetLimits[nextCurrency];
-    if (!Number.isFinite(value)) return limits.minBet;
-    const normalized = nextCurrency === "BONUS" ? Math.round(value * 100) / 100 : Math.round(value);
-    return Math.max(limits.minBet, Math.min(limits.maxBet, normalized));
+    return clampBetAmount(value, {
+      minBet: limits.minBet,
+      maxBet: limits.maxBet,
+      balance: getBalance(currentUser.id, nextCurrency),
+      allowDecimals: nextCurrency === "BONUS",
+    });
   }
 
   function setBet(value: number, nextCurrency = currency) {
     const next = clampBet(value, nextCurrency);
     setBetAmount(next);
-    setBetInput(formatBetInput(next, nextCurrency));
-  }
-
-  function updateBetInput(value: string) {
-    setBetInput(value);
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) {
-      const normalized = currency === "BONUS" ? Math.round(parsed * 100) / 100 : Math.round(parsed);
-      setBetAmount(Math.max(0, Math.min(betLimits.maxBet, normalized)));
-    }
   }
 
   function selectCurrency(nextCurrency: Currency) {
@@ -229,7 +221,7 @@ export function DicePage({ onExit }: { onExit?: () => void }) {
             {result?.won && <CoinBurst count={12} />}
             <div className={result ? `over-under-result-chip ${result.won ? "win" : "loss"}` : "over-under-result-chip"}>
               <strong>{result ? result.won ? "Paid" : "No payout" : resultMessage}</strong>
-              <span>{result ? result.won ? formatCoins(result.totalPaid) : direction === "exact" ? `needed exact ${target}` : `${comparison} ${target}` : "Last 5 below"}</span>
+              <span>{result ? result.won ? formatCurrencyDisplay(result.totalPaid, currency) : direction === "exact" ? `needed exact ${target}` : `${comparison} ${target}` : "Last 5 below"}</span>
             </div>
             <LastOverUnderResults values={recentRolls} />
             {result && (
@@ -275,39 +267,24 @@ export function DicePage({ onExit }: { onExit?: () => void }) {
 
           <div className="over-under-stats">
             <div><span>Payout</span><strong>{multiplier.toFixed(2)}x</strong></div>
-            <div><span>Last Win</span><strong>{formatCoins(lastWinAmount)}</strong></div>
+            <div><span>Last Win</span><strong>{formatCurrencyDisplay(lastWinAmount, currency)}</strong></div>
           </div>
 
         </main>
       </ScreenShake>
 
       <section className="over-under-controls">
-        <div className={balance < betAmount ? "over-under-bank warning" : "over-under-bank"}>
-          <span>{currencyLabel} Balance: {formatCoins(balance)}</span>
-          <strong>Bet: {formatCoins(betAmount)}</strong>
-        </div>
-        <div className="over-under-bet-row">
-          <button type="button" aria-label="Decrease bet" disabled={rolling} onClick={() => setBet(betAmount - betLimits.step)}><Minus size={18} /></button>
-          <label>
-            <span>Bet</span>
-            <input
-              aria-label="Bet amount"
-              inputMode={currency === "BONUS" ? "decimal" : "numeric"}
-              type="text"
-              min={betLimits.minBet}
-              max={betLimits.maxBet}
-              value={betInput}
-              disabled={rolling}
-              onChange={(event) => updateBetInput(event.target.value)}
-              onBlur={(event) => setBet(Number(event.target.value))}
-            />
-          </label>
-          <button type="button" aria-label="Increase bet" disabled={rolling} onClick={() => setBet(betAmount + betLimits.step)}><Plus size={18} /></button>
-        </div>
-        <div className={balance < betAmount ? "over-under-note warning" : "over-under-note"}>
-          <span>Min {currencyLabel}: {formatCoins(betLimits.minBet)}</span>
-          <strong>Max {currencyLabel}: {formatCoins(betLimits.maxBet)}</strong>
-        </div>
+        <BetControls
+          currentBet={betAmount}
+          minBet={betLimits.minBet}
+          maxBet={betLimits.maxBet}
+          balance={balance}
+          currency={currency}
+          increment={betLimits.step}
+          allowDecimals={currency === "BONUS"}
+          disabled={rolling}
+          onBetChange={(amount) => setBet(amount)}
+        />
         <button className="over-under-roll" type="button" disabled={!canRoll} onClick={roll}>
           <CirclePlay size={18} />
           <span>{rolling ? "Rolling" : "Roll"}</span>
@@ -349,11 +326,6 @@ function LastOverUnderResults({ values }: { values: DiceResult[] }) {
       </div>
     </aside>
   );
-}
-
-function formatBetInput(amount: number, currency: Currency) {
-  if (!Number.isFinite(amount)) return "0";
-  return currency === "BONUS" ? Number(amount.toFixed(2)).toString() : Math.round(amount).toString();
 }
 
 function formatDicePickLabel(direction: DiceDirection, target: number) {

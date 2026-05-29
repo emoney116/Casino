@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { formatCoins } from "../lib/format";
+import { formatCoins, formatCurrencyDisplay } from "../lib/format";
 import { coinPacks, formatPackPrice, formatScBonusValue } from "./coinPacks";
 import { getCurrencyDisplayName } from "../config/currencyConfig";
 import { PurchaseCoinsModal } from "../wallet/PurchaseCoinsModal";
@@ -36,7 +36,7 @@ export function StorePage({ onBack }: { onBack: () => void }) {
       <div className="wallet-pack-grid coin-store-grid">
         {coinPacks.map((pack) => (
           <article className={`wallet-pack-card compact purchase-pack-tile${pack.highlight ? " featured" : ""}`} key={pack.id}>
-            <strong className="purchase-pack-gc">{formatCoins(pack.gcAmount)} GC</strong>
+            <strong className="purchase-pack-gc" title={`${formatCoins(pack.gcAmount)} GC`}>{formatCurrencyDisplay(pack.gcAmount, "GOLD")} GC</strong>
             <em className="purchase-pack-sc">+{formatScBonusValue(pack)}</em>
             <button
               className="primary-button purchase-buy-button"

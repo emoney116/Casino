@@ -1324,3 +1324,7 @@
     padding: 6px 8px;
   }
 }
+
+.treasure-main-action {
+  min-height: 40px !important;
+}

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Modal } from "../components/Modal";
-import { formatCoins } from "../lib/format";
+import { formatCurrencyDisplay } from "../lib/format";
 
 export function BonusModal({
   title,
@@ -45,7 +45,7 @@ export function BonusModal({
                     disabled={resolved && !isPicked}
                     onClick={() => choose(index, award)}
                   >
-                    {isPicked ? formatCoins(award) : "?"}
+                    {isPicked ? formatCurrencyDisplay(award) : "?"}
                   </button>
                 );
               })}

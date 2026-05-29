@@ -1,4 +1,4 @@
-import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
 import {
   ArrowUpRight,
   Ban,
@@ -6,6 +6,7 @@ import {
   Clock,
   FileText,
   Flame,
+  Gem,
   Gauge,
   HeartHandshake,
   LifeBuoy,
@@ -20,7 +21,8 @@ import {
 import { useAuth } from "../auth/AuthContext";
 import { Modal } from "../components/Modal";
 import { SupabaseDebugPanel } from "../components/SupabaseDebugPanel";
-import { formatCoins } from "../lib/format";
+import { getDisplayBalances } from "../lib/displayBalanceStress";
+import { formatCoins, formatCurrencyFullDisplay, getCurrencyAmountFitClass } from "../lib/format";
 import { getProgression } from "../progression/progressionService";
 import { getKycStatus } from "../redemption/redemptionService";
 import { getStreak } from "../streaks/streakService";
@@ -40,6 +42,15 @@ import {
   type ResponsiblePlaySettings,
   type SessionReminderMinutes,
 } from "./profileService";
+import {
+  VIP_LEDGER_UPDATED_EVENT,
+  getVipProgress,
+  getVipProgressForWagered,
+  vipTiers,
+  type VipProgress,
+  type VipTierConfig,
+} from "./vipService";
+import { vipBadgeSrcByTier } from "./vipBadgeAssets";
 
 const AVATAR_CROP_OUTPUT_SIZE = 256;
 const AVATAR_CROP_FRAME_SIZE = 220;
@@ -54,6 +65,22 @@ interface AvatarCropDraft {
 
 function formatStatus(value: string) {
   return value.toLowerCase().replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function vipAccentClass(tier: VipTierConfig) {
+  return `vip-${tier.accent}`;
+}
+
+function formatSc(value: number) {
+  return `${formatCoins(value)} SC`;
+}
+
+function formatMemberSince(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(value));
 }
 
 function getKycProgress(status: ReturnType<typeof getKycStatus>) {
@@ -111,6 +138,85 @@ async function createCroppedAvatarDataUrl(crop: AvatarCropDraft) {
   return canvas.toDataURL("image/png");
 }
 
+function VipBadgeArt({ tier, size, className = "" }: { tier: VipTierConfig; size: "hero" | "card" | "ladder" | "pill"; className?: string }) {
+  return (
+    <img
+      className={`account-vip-art account-vip-art-${size} ${vipAccentClass(tier)}${className ? ` ${className}` : ""}`}
+      src={vipBadgeSrcByTier[tier.id]}
+      alt=""
+      aria-hidden="true"
+      draggable={false}
+    />
+  );
+}
+
+function VipBadge({ tier, size = "pill" }: { tier: VipTierConfig; size?: "card" | "ladder" | "pill" }) {
+  return (
+    <span className={`account-vip-badge account-vip-badge-${size} ${vipAccentClass(tier)}`}>
+      <VipBadgeArt tier={tier} size={size} />
+      <span>{tier.name}</span>
+    </span>
+  );
+}
+
+function VipProgressSummary({ vip }: { vip: VipProgress }) {
+  return (
+    <>
+      <div className="account-progress-track account-vip-progress" aria-hidden="true">
+        <i style={{ width: `${vip.progressPercent}%` }} />
+      </div>
+      <div className="account-compact-detail">
+        <span>Lifetime SC wagered</span>
+        <strong>{formatSc(vip.lifetimeSCWagered)}</strong>
+        <span>Next tier</span>
+        <strong>{vip.nextTier ? `${vip.nextTier.name} at ${formatSc(vip.nextTier.threshold)}` : "Top tier"}</strong>
+        <span>Remaining</span>
+        <strong>{vip.nextTier ? `${formatSc(vip.remainingToNext)} to go` : "Max tier reached"}</strong>
+      </div>
+    </>
+  );
+}
+
+export function VipDetailsContent({ vip }: { vip: VipProgress }) {
+  return (
+    <div className="modal-stack account-vip-details">
+      <section className={`account-vip-current ${vipAccentClass(vip.currentTier)}`}>
+        <VipBadge tier={vip.currentTier} size="card" />
+        <strong>{formatSc(vip.lifetimeSCWagered)}</strong>
+        <span>Lifetime Sweeps Coins wagered</span>
+      </section>
+
+      <section className="account-vip-modal-section">
+        <h3>Progress</h3>
+        <VipProgressSummary vip={vip} />
+      </section>
+
+      <section className="account-vip-modal-section">
+        <h3>Tier Ladder</h3>
+        <div className="account-vip-ladder">
+          {vipTiers.map((tier) => {
+            const unlocked = vip.lifetimeSCWagered >= tier.threshold;
+            return (
+              <article className={`account-vip-ladder-row ${vipAccentClass(tier)} ${unlocked ? "unlocked" : "locked"}`} key={tier.id}>
+                <VipBadge tier={tier} size="ladder" />
+                <span>{formatSc(tier.threshold)}</span>
+                <small>{unlocked ? "Unlocked" : "Locked"}</small>
+                <ul>
+                  {tier.benefits.map((benefit) => <li key={benefit}>{benefit}</li>)}
+                </ul>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <p className="account-vip-disclaimer">
+        VIP status is based on Sweeps Coins gameplay activity. Perks are promotional and may change.
+      </p>
+    </div>
+  );
+}
+
 export function AccountPage() {
   const { user, logout, refreshUser } = useAuth();
   const initialPreferences = user ? getProfilePreferences(user.id) : undefined;
@@ -137,6 +243,8 @@ export function AccountPage() {
     () => initialPreferences?.responsiblePlay ?? defaultResponsiblePlaySettings,
   );
   const [selfExclusionConfirmOpen, setSelfExclusionConfirmOpen] = useState(false);
+  const [vipModalOpen, setVipModalOpen] = useState(false);
+  const [vipRefreshKey, setVipRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -152,10 +260,25 @@ export function AccountPage() {
     setSaveMessage("");
   }, [user]);
 
+  useEffect(() => {
+    if (!user || typeof window === "undefined" || typeof window.addEventListener !== "function") return;
+    function refreshVip(event: Event) {
+      const detail = (event as CustomEvent<{ userId: string }>).detail;
+      if (detail?.userId === user?.id) setVipRefreshKey((value) => value + 1);
+    }
+    window.addEventListener(VIP_LEDGER_UPDATED_EVENT, refreshVip);
+    return () => window.removeEventListener(VIP_LEDGER_UPDATED_EVENT, refreshVip);
+  }, [user]);
+
+  const vipProgress = useMemo(() => user ? getVipProgress(user.id) : getVipProgressForWagered(0), [user, vipRefreshKey]);
+
   if (!user) return null;
   const currentUser = user;
 
   const balances = getBalance(currentUser.id);
+  const displayBalances = getDisplayBalances(balances);
+  const goldBalanceDisplay = formatCurrencyFullDisplay(displayBalances.GOLD, "GOLD");
+  const sweepsBalanceDisplay = formatCurrencyFullDisplay(displayBalances.BONUS, "BONUS");
   const progress = getProgression(currentUser.id);
   const streak = getStreak(currentUser.id);
   const kycStatus = getKycStatus(currentUser.id);
@@ -323,7 +446,20 @@ export function AccountPage() {
           />
         </label>
         <div className="account-hero-copy">
-          <h1>{normalizedDisplayName || savedProfile.displayName}</h1>
+          <div className="account-hero-title-row">
+            <h1>{normalizedDisplayName || savedProfile.displayName}</h1>
+            {vipProgress.currentTier.id !== "none" && (
+              <img
+                className={`account-hero-vip-mark account-vip-art account-vip-art-hero ${vipAccentClass(vipProgress.currentTier)}`}
+                src={vipBadgeSrcByTier[vipProgress.currentTier.id]}
+                alt={`${vipProgress.currentTier.name} VIP`}
+                aria-label={`VIP: ${vipProgress.currentTier.name}`}
+                title={`${vipProgress.currentTier.name} VIP`}
+                draggable={false}
+              />
+            )}
+          </div>
+          <p className="account-member-since">Member since {formatMemberSince(currentUser.createdAt)}</p>
         </div>
         <div className="account-hero-metrics" aria-label="Player status">
           <div className="account-metric">
@@ -345,20 +481,44 @@ export function AccountPage() {
       </section>
 
       <section className="account-balance-grid" aria-label="Balance snapshot">
-        <article className="account-balance-card gold">
+        <article className="account-balance-card gold" aria-label={`Gold Coins balance ${goldBalanceDisplay} GC`}>
           <CashierIcon kind="goldStack" />
-          <div>
-            <span>Gold Coins</span>
-            <strong>{formatCoins(balances.GOLD)} <small>GC</small></strong>
-          </div>
+          <strong className={`currency-full-amount ${getCurrencyAmountFitClass(goldBalanceDisplay)}`} title={`${goldBalanceDisplay} GC`}>
+            <span className="currency-amount-text">{goldBalanceDisplay}</span> <small>GC</small>
+          </strong>
         </article>
-        <article className="account-balance-card sweeps">
+        <article className="account-balance-card sweeps" aria-label={`Sweeps Coins balance ${sweepsBalanceDisplay} SC`}>
           <CashierIcon kind="sweepsToken" />
-          <div>
-            <span>Sweeps Coins</span>
-            <strong>{formatCoins(balances.BONUS)} <small>SC</small></strong>
-          </div>
+          <strong className={`currency-full-amount ${getCurrencyAmountFitClass(sweepsBalanceDisplay)}`} title={`${sweepsBalanceDisplay} SC`}>
+            <span className="currency-amount-text">{sweepsBalanceDisplay}</span> <small>SC</small>
+          </strong>
         </article>
+      </section>
+
+      <section className={`account-panel account-vip-card ${vipAccentClass(vipProgress.currentTier)}`} aria-labelledby="account-vip-title">
+        <div className="account-section-heading">
+          <h2 id="account-vip-title">VIP Status</h2>
+          <button className="account-mini-button" type="button" onClick={() => setVipModalOpen(true)}>
+            View VIP
+          </button>
+        </div>
+        <div className="account-vip-card-top">
+          <VipBadge tier={vipProgress.currentTier} size="card" />
+          <div>
+            <strong>{vipProgress.nextTier ? `${formatSc(vipProgress.remainingToNext)} to go` : "Top tier reached"}</strong>
+            <span>{vipProgress.nextTier ? `Next: ${vipProgress.nextTier.name} at ${formatSc(vipProgress.nextTier.threshold)}` : "All configured tiers unlocked"}</span>
+          </div>
+        </div>
+        <VipProgressSummary vip={vipProgress} />
+        <div className="account-vip-benefits-preview">
+          {vipProgress.currentTier.benefits.slice(0, 3).map((benefit) => (
+            <span key={benefit}>
+              <Gem size={14} />
+              {benefit}
+            </span>
+          ))}
+        </div>
+        <p className="account-vip-disclaimer">VIP perks are promotional and subject to change.</p>
       </section>
 
       <section className="account-panel" id="account-settings" aria-labelledby="account-settings-title">
@@ -599,6 +759,12 @@ export function AccountPage() {
               </button>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {vipModalOpen && (
+        <Modal title="PLAYHEATER VIP" onClose={() => setVipModalOpen(false)} className="account-modal account-vip-modal">
+          <VipDetailsContent vip={vipProgress} />
         </Modal>
       )}
 

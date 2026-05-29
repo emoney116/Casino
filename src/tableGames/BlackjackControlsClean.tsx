@@ -1,6 +1,8 @@
-import { CirclePlay, Minus, Plus } from "lucide-react";
-import { formatCoins } from "../lib/format";
+import { CirclePlay } from "lucide-react";
+import { getDisplayBalance } from "../lib/displayBalanceStress";
+import { formatCoins, formatCurrencyDisplay } from "../lib/format";
 import type { Currency } from "../types";
+import { BetControls } from "./BetControls";
 
 const currencyCopy: Record<Currency, { short: string }> = {
   GOLD: { short: "GC" },
@@ -56,27 +58,17 @@ export function BlackjackControlsClean({
   onDouble: () => void;
   onSplit: () => void;
 }) {
-  function setBet(value: number) {
-    const fallback = betLimits.minBet;
-    const raw = Number.isFinite(value) ? value : fallback;
-    const rounded = currency === "BONUS" ? Math.round(raw * 100) / 100 : Math.round(raw);
-    onBetChange(Math.max(betLimits.minBet, Math.min(betLimits.maxBet, rounded)));
-  }
-
-  function multiplyBet(multiplier: number) {
-    setBet(betAmount * multiplier);
-  }
-
   const step = currency === "BONUS" ? 0.01 : 5;
   const shouldShowDouble = showDouble ?? canDouble;
   const shouldShowSplit = showSplit ?? canSplit;
+  const displayBalance = getDisplayBalance(balance, currency);
 
   if (active) {
     return (
       <section className="blackjack-clean-controls">
         <div className="blackjack-clean-bank">
-          <span>{currencyCopy[currency].short} Balance: {formatCoins(balance)}</span>
-          <strong>Bet: {formatCoins(betAmount)}</strong>
+          <span title={`${currencyCopy[currency].short} Balance: ${formatCoins(balance)}`}>{currencyCopy[currency].short} Balance: {formatCurrencyDisplay(displayBalance, currency)}</span>
+          <strong title={`Bet: ${formatCoins(betAmount)}`}>Bet: {formatCurrencyDisplay(betAmount, currency)}</strong>
         </div>
         <div className="blackjack-clean-actions">
           <button disabled={disabled} onClick={onHit}><span>Hit</span></button>
@@ -109,43 +101,23 @@ export function BlackjackControlsClean({
 
   return (
     <section className="blackjack-clean-controls">
-      <div className="blackjack-clean-bank">
-        <span>{currencyCopy[currency].short} Balance: {formatCoins(balance)}</span>
-        <strong>Bet: {formatCoins(betAmount)}</strong>
-      </div>
-      <div className="blackjack-clean-bet-row">
-        <button type="button" aria-label="Decrease bet" disabled={disabled} onClick={() => setBet(betAmount - step)}><Minus size={18} /></button>
-        <label>
-          <span>Bet</span>
-          <input
-            inputMode={currency === "BONUS" ? "decimal" : "numeric"}
-            type="number"
-            min={betLimits.minBet}
-            max={betLimits.maxBet}
-            step={currency === "BONUS" ? "0.01" : "1"}
-            value={betAmount}
-            disabled={disabled}
-            onChange={(event) => setBet(Number(event.target.value))}
-          />
-        </label>
-        <button type="button" aria-label="Increase bet" disabled={disabled} onClick={() => setBet(betAmount + step)}><Plus size={18} /></button>
-      </div>
-      <div className={dealNoticeTone === "warning" ? "blackjack-clean-note warning" : "blackjack-clean-note"}>
-        {dealNotice ? (
-          <span>{dealNotice}</span>
-        ) : (
-          <>
-            <span>Min {currencyCopy[currency].short}: {formatCoins(betLimits.minBet)}</span>
-            <strong>Max {currencyCopy[currency].short}: {formatCoins(betLimits.maxBet)}</strong>
-          </>
-        )}
-      </div>
-      <div className="blackjack-clean-deal-row">
-        <button type="button" aria-label="Halve bet" disabled={disabled} onClick={() => multiplyBet(0.5)}>1/2</button>
+      <BetControls
+        currentBet={betAmount}
+        minBet={betLimits.minBet}
+        maxBet={betLimits.maxBet}
+        balance={balance}
+        currency={currency}
+        increment={step}
+        allowDecimals={currency === "BONUS"}
+        disabled={disabled}
+        notice={dealNotice}
+        noticeTone={dealNoticeTone}
+        onBetChange={onBetChange}
+      />
+      <div className="blackjack-clean-deal-row single">
         <button className="blackjack-clean-deal" disabled={!canDeal || disabled} onClick={onDeal}>
           <CirclePlay size={17} /> <span>Deal</span>
         </button>
-        <button type="button" aria-label="Double bet" disabled={disabled} onClick={() => multiplyBet(2)}>2x</button>
       </div>
     </section>
   );

@@ -2,7 +2,7 @@ import { Gift, Sparkles, WalletCards } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
-import { formatCoins } from "../lib/format";
+import { formatCurrencyDisplay } from "../lib/format";
 import {
   canClaimLowBalanceOffer,
   canClaimPromotion,
@@ -86,7 +86,7 @@ export function RetentionPanel({ onClaimed }: { onClaimed?: () => void }) {
               <span>{formatTimeLeft(promo.endsAt, now)} left</span>
             </div>
             <button className="ghost-button" disabled={!canClaimPromotion(currentUser.id, promo.id)} onClick={() => claimPromo(promo.id)}>
-              {formatCoins(promo.reward)}
+              {formatCurrencyDisplay(promo.reward, "GOLD")}
             </button>
           </div>
         ))}

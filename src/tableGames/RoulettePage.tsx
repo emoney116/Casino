@@ -2,7 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { ChevronLeft, Info, Repeat2, RotateCcw, Trash2 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useToast } from "../components/ToastContext";
-import { formatCoins } from "../lib/format";
+import { getDisplayBalance } from "../lib/displayBalanceStress";
+import { formatCoins, formatCurrencyDisplay } from "../lib/format";
 import { recordRetentionRound } from "../retention/retentionService";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
@@ -110,10 +111,10 @@ export function getRouletteResultOverlayCopy(result: RouletteResult) {
   const won = result.totalPaid > 0;
   return {
     heading: `${result.outcome} ${formatRouletteColorLabel(result.color)}`,
-    status: won ? `Won ${formatCoins(result.totalPaid)}` : "No win",
-    totalBet: `Total Bet ${formatCoins(result.totalWagered ?? 0)}`,
-    net: `Net ${(result.net ?? 0) >= 0 ? "+" : ""}${formatCoins(result.net ?? 0)}`,
-    totalWon: `Total Won ${formatCoins(result.totalPaid)}`,
+    status: won ? `Won ${formatCurrencyDisplay(result.totalPaid)}` : "No win",
+    totalBet: `Total Bet ${formatCurrencyDisplay(result.totalWagered ?? 0)}`,
+    net: `Net ${(result.net ?? 0) >= 0 ? "+" : ""}${formatCurrencyDisplay(result.net ?? 0)}`,
+    totalWon: `Total Won ${formatCurrencyDisplay(result.totalPaid)}`,
   };
 }
 
@@ -312,7 +313,7 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
   const chips = currency === "GOLD" ? goldChips : bonusChips;
   const tableLimits = rouletteTableLimits[currency];
   const balance = getBalance(currentUser.id, currency);
-  const displayedBalance = displayBalanceOverride ?? balance;
+  const displayedBalance = getDisplayBalance(displayBalanceOverride ?? balance, currency);
   const totalBet = bets.reduce((sum, bet) => sum + bet.amount, 0);
   const interactionLocked = isRouletteInteractionLocked(lifecycle);
   const spinButtonDisabled = interactionLocked;
@@ -600,7 +601,7 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
 
   return (
     <section
-      className={`roulette-clean-page roulette-premium-page roulette-landscape-only ${spinMode ? "spin-mode" : "betting-mode"} ${spinning ? "is-spinning" : ""} ${result ? "has-result" : ""}`.trim()}
+      className={`roulette-clean-page roulette-premium-page roulette-landscape-only currency-${currency === "BONUS" ? "sc" : "gc"} ${spinMode ? "spin-mode" : "betting-mode"} ${spinning ? "is-spinning" : ""} ${result ? "has-result" : ""}`.trim()}
       style={rouletteAssetStyle}
       data-play-state={playState}
       data-lifecycle={lifecycle}
@@ -638,7 +639,7 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
         </div>
         <div className="roulette-header-balance">
           <span>Balance</span>
-          <strong>{formatBalanceCompact(displayedBalance)}</strong>
+          <strong title={formatCoins(balance)}>{formatCurrencyDisplay(displayedBalance, currency)}</strong>
         </div>
         <div className="roulette-currency-tabs">
           <button className={currency === "GOLD" ? "active" : ""} disabled={interactionLocked} onClick={() => switchCurrency("GOLD")}>GC</button>
@@ -659,8 +660,8 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
               {spinning
                 ? spinPhase === "bounce" || spinPhase === "settle" ? "Final bounce" : spinPhase === "slowdown" ? "Ball slowing" : "Wheel building heat"
                 : result
-                  ? `Won ${formatCoins(result.totalPaid)} - Net ${(result.net ?? 0) >= 0 ? "+" : ""}${formatCoins(result.net ?? 0)}`
-                  : `${bets.length} bets - ${formatCoins(totalBet)} on felt`}
+                  ? `Won ${formatCurrencyDisplay(result.totalPaid, currency)} - Net ${(result.net ?? 0) >= 0 ? "+" : ""}${formatCurrencyDisplay(result.net ?? 0, currency)}`
+                  : `${bets.length} bets - ${formatCurrencyDisplay(totalBet, currency)} on felt`}
             </small>
           </div>
           <div className="roulette-wheel-shell">
@@ -689,8 +690,8 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
             <button onClick={doubleBets} disabled={interactionLocked || bets.length === 0} aria-label="Double all bets" title="Double all bets">2x</button>
           </div>
           <div className="roulette-stats">
-            <span>Total Bet <strong>{formatCoins(visibleBetTotal)}</strong></span>
-            <span>Last Win <strong>{formatCoins(lastWinAmount)}</strong></span>
+            <span>Total Bet <strong>{formatCurrencyDisplay(visibleBetTotal, currency)}</strong></span>
+            <span>Last Win <strong>{formatCurrencyDisplay(lastWinAmount, currency)}</strong></span>
             <span>Min {tableLimits.label} <strong>{formatLimitAmount(tableLimits.min)}</strong></span>
             <span>Max {tableLimits.label} <strong>{formatLimitAmount(tableLimits.max)}</strong></span>
           </div>
@@ -727,7 +728,7 @@ export function RoulettePage({ onExit }: { onExit?: () => void }) {
               tone={result.totalPaid > 0 ? ((result.net ?? 0) >= 0 ? "win" : "loss") : "loss"}
               title={result.totalPaid > 0 ? "Roulette Win" : "No Hit"}
               amount={result.totalPaid > 0 ? result.totalPaid : undefined}
-              message={`Landed ${result.outcome} ${result.color}. Net ${(result.net ?? 0) >= 0 ? "+" : ""}${formatCoins(result.net ?? 0)}`}
+              message={`Landed ${result.outcome} ${result.color}. Net ${(result.net ?? 0) >= 0 ? "+" : ""}${formatCurrencyDisplay(result.net ?? 0, currency)}`}
               compact
             />
           )}
@@ -1165,23 +1166,11 @@ function ChipButton({
 }
 
 function formatChipValue(value: number) {
-  if (value >= 1000000) return `${formatCompactChipNumber(value / 1000000)}M`;
-  if (value >= 1000) return `${formatCompactChipNumber(value / 1000)}K`;
-  return formatCoins(value);
-}
-
-function formatCompactChipNumber(value: number) {
-  return Number.isInteger(value) ? `${value}` : value.toFixed(1).replace(/\.0$/, "");
+  return formatCurrencyDisplay(value);
 }
 
 function formatLimitAmount(value: number) {
-  return value >= 1000 ? formatCoins(value) : formatCoins(value);
-}
-
-function formatBalanceCompact(value: number) {
-  if (value >= 1000000) return `${formatCoins(value / 1000000)}M`;
-  if (value >= 10000) return `${formatCoins(value / 1000)}K`;
-  return formatCoins(value);
+  return formatCurrencyDisplay(value);
 }
 
 export function ChipStack({
@@ -1398,7 +1387,7 @@ export function CurrentBetsSummary({ bets }: { bets: PlacedRouletteBet[] }) {
         {rows.length === 0 ? <em>No active bets.</em> : rows.map((row) => (
           <div key={row.key}>
             <small>{row.label}</small>
-            <strong>{formatCoins(row.amount)}</strong>
+            <strong>{formatCurrencyDisplay(row.amount)}</strong>
           </div>
         ))}
       </div>

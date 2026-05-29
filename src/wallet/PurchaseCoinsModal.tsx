@@ -1,7 +1,7 @@
 import { Modal } from "../components/Modal";
 import { useToast } from "../components/ToastContext";
 import { getCurrencyDisplayName, getCurrencyShortName } from "../config/currencyConfig";
-import { formatCoins } from "../lib/format";
+import { formatCoins, formatCurrencyDisplay } from "../lib/format";
 import { coinPacks, formatPackPrice, formatScBonusValue, type CoinPack } from "../store/coinPacks";
 import { usePurchasePackage } from "../store/purchaseFlow";
 import { useAuth } from "../auth/AuthContext";
@@ -50,7 +50,7 @@ export function PurchaseCoinsModal({
   function renderPackCard(pack: CoinPack, featured = false) {
     return (
       <article className={`wallet-pack-card compact purchase-pack-tile${featured ? " featured" : ""}`} key={pack.id}>
-        <strong className="purchase-pack-gc">{formatCoins(pack.gcAmount)} GC</strong>
+        <strong className="purchase-pack-gc" title={`${formatCoins(pack.gcAmount)} GC`}>{formatCurrencyDisplay(pack.gcAmount, "GOLD")} GC</strong>
         <em className="purchase-pack-sc">+{formatScBonusValue(pack)}</em>
         <button
           className="primary-button purchase-buy-button"
@@ -85,7 +85,7 @@ export function PurchaseCoinsModal({
             <div className="purchase-confirm-values">
               <div>
                 <span>{getCurrencyDisplayName("GOLD")}</span>
-                <strong>{formatCoins(confirmPack.gcAmount)}</strong>
+                <strong title={formatCoins(confirmPack.gcAmount)}>{formatCurrencyDisplay(confirmPack.gcAmount, "GOLD")}</strong>
               </div>
               <div>
                 <span>{getCurrencyShortName("BONUS")} bonus</span>

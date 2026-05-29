@@ -5,6 +5,17 @@
   --app-safe-right: env(safe-area-inset-right, 0px);
   --app-safe-bottom: env(safe-area-inset-bottom, 0px);
   --app-safe-left: env(safe-area-inset-left, 0px);
+  --sc-primary: #22c55e;
+  --sc-bright: #4ade80;
+  --sc-dark: #052e1a;
+  --sc-border: rgba(74, 222, 128, 0.45);
+  --sc-glow: rgba(34, 197, 94, 0.35);
+  --sc-mint: #bbf7d0;
+  --sc-ink: #03180c;
+  --sc-chip-gradient: radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.82), transparent 16%), linear-gradient(180deg, #bbf7d0 0%, #4ade80 35%, #22c55e 68%, #052e1a 100%);
+  --sc-panel-gradient: radial-gradient(circle at 16% 12%, rgba(187, 247, 208, 0.2), transparent 34%), linear-gradient(135deg, rgba(5, 46, 26, 0.96), rgba(8, 13, 22, 0.95) 64%);
+  --sc-button-gradient: linear-gradient(180deg, #dcfce7 0%, #86efac 35%, #22c55e 72%, #15803d 100%);
+  --sc-gold-border: rgba(255, 200, 87, 0.36);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -2494,14 +2505,14 @@ h3 { font-size: 1.02rem; margin-bottom: 8px; }
   background: radial-gradient(circle, rgba(57, 230, 194, 0.68), transparent 64%);
 }
 
-.wallet-balance-tile span,
+.wallet-balance-tile > span,
 .wallet-balance-tile small,
 .wallet-balance-tile strong {
   position: relative;
   z-index: 1;
 }
 
-.wallet-balance-tile span {
+.wallet-balance-tile > span {
   width: fit-content;
   padding: 6px 9px;
   border-radius: 999px;
@@ -2514,9 +2525,14 @@ h3 { font-size: 1.02rem; margin-bottom: 8px; }
 }
 
 .wallet-balance-tile strong {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.16em;
   font-size: clamp(2rem, 6vw, 3.9rem);
   line-height: 0.94;
-  letter-spacing: -0.07em;
+  letter-spacing: 0;
+  overflow: hidden;
 }
 
 .wallet-balance-tile small {
@@ -3070,7 +3086,76 @@ h3 { font-size: 1.02rem; margin-bottom: 8px; }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.78rem;
+  font-size: clamp(0.68rem, 2.5vw, 0.78rem);
+}
+
+.currency-amount-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.currency-full-amount {
+  --currency-full-font-size: clamp(1.18rem, 5.5vw, 1.58rem);
+  --currency-code-font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.currency-full-amount .currency-amount-text {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.currency-full-amount.currency-fit-medium {
+  --currency-full-font-size: clamp(1.02rem, 4.75vw, 1.42rem);
+}
+
+.currency-full-amount.currency-fit-long {
+  --currency-full-font-size: clamp(0.9rem, 4.05vw, 1.18rem);
+  --currency-code-font-size: 0.66rem;
+  gap: 4px;
+}
+
+.currency-full-amount.currency-fit-xlong {
+  --currency-full-font-size: clamp(0.78rem, 3.5vw, 1rem);
+  --currency-code-font-size: 0.58rem;
+  gap: 3px;
+}
+
+.balance-card strong,
+.balance-pill strong,
+.table-balance-chip strong,
+.table-bet-row strong,
+.wallet-balance-tile strong,
+.wallet-cashier-page .wallet-balance-tile strong,
+.cashier-transaction-main strong,
+.transaction-card-row strong,
+.rewards-clean .rewards-balance-pill strong,
+.premium-slot-shell .balance-amount strong,
+.premium-slot-shell .last-win-readout strong,
+.premium-slot-shell .balance-line,
+.premium-slot-shell .session-stats small,
+.roulette-header-balance strong,
+.roulette-stats strong,
+.over-under-bank span,
+.over-under-bank strong,
+.crash-balance-summary strong,
+.treasure-bet-summary strong,
+.safecracker-balance strong,
+.lava-run-balance strong,
+.ember-stack-bottom-balance strong,
+.balloon-pop-bank span,
+.balloon-pop-bank strong,
+.brick-break-bank span,
+.brick-break-bank strong,
+.purchase-pack-gc,
+.bonus-cost-card strong {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .page-stack { display: grid; gap: 20px; }
@@ -27020,6 +27105,17 @@ body,
   --heater-cyan: #67e8f9;
   --heater-blue: #38bdf8;
   --heater-green: #22c55e;
+  --sc-primary: #22c55e;
+  --sc-bright: #4ade80;
+  --sc-dark: #052e1a;
+  --sc-border: rgba(74, 222, 128, 0.45);
+  --sc-glow: rgba(34, 197, 94, 0.35);
+  --sc-mint: #bbf7d0;
+  --sc-ink: #03180c;
+  --sc-chip-gradient: radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.82), transparent 16%), linear-gradient(180deg, #bbf7d0 0%, #4ade80 35%, #22c55e 68%, #052e1a 100%);
+  --sc-panel-gradient: radial-gradient(circle at 16% 12%, rgba(187, 247, 208, 0.2), transparent 34%), linear-gradient(135deg, rgba(5, 46, 26, 0.96), rgba(8, 13, 22, 0.95) 64%);
+  --sc-button-gradient: linear-gradient(180deg, #dcfce7 0%, #86efac 35%, #22c55e 72%, #15803d 100%);
+  --sc-gold-border: rgba(255, 200, 87, 0.36);
   --heater-red: #ef4444;
   --heater-text: #f8fafc;
   --heater-muted: #9ca9ba;
@@ -33494,46 +33590,6 @@ body,
   box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.48), 0 0 42px rgba(250, 204, 21, 0.34), 0 20px 56px rgba(0, 0, 0, 0.38);
 }
 
-.lava-run-stats {
-  position: absolute;
-  inset: 10px 10px auto;
-  z-index: 3;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.lava-run-stats div {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-  min-height: 45px;
-  padding: 7px 8px;
-  border: 1px solid rgba(255, 247, 237, 0.12);
-  border-radius: 8px;
-  color: rgba(255, 247, 237, 0.66);
-  background: rgba(4, 5, 8, 0.76);
-  backdrop-filter: blur(10px);
-}
-
-.lava-run-stats span {
-  font-size: 0.62rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-.lava-run-stats strong {
-  min-width: 0;
-  color: #fef08a;
-  font-size: clamp(0.84rem, 2.2vw, 1.12rem);
-  line-height: 1;
-  overflow-wrap: anywhere;
-}
-
-.lava-run-stats .pulse {
-  animation: lava-run-meter-pulse 520ms ease both;
-}
-
 .lava-run-canyon {
   position: absolute;
   inset: 0;
@@ -33760,7 +33816,6 @@ body,
 .lava-run-risk,
 .lava-run-bet-row,
 .lava-run-note,
-.lava-run-recent,
 .lava-run-main-action {
   min-width: 0;
 }
@@ -33890,28 +33945,6 @@ body,
   cursor: not-allowed;
   opacity: 0.55;
 }
-
-.lava-run-recent {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  overflow-x: auto;
-  padding-bottom: 1px;
-}
-
-.lava-run-recent strong {
-  min-width: 54px;
-  padding: 5px 7px;
-  border: 1px solid rgba(255, 247, 237, 0.1);
-  border-radius: 7px;
-  background: rgba(0, 0, 0, 0.24);
-  font-size: 0.72rem;
-  text-align: center;
-}
-
-.lava-run-recent .win { color: #bbf7d0; }
-.lava-run-recent .loss { color: #fecaca; }
 
 .lava-run-rules-backdrop {
   position: fixed;
@@ -34058,20 +34091,6 @@ body,
     padding: 66px 8px 12px;
   }
 
-  .lava-run-stats {
-    inset: 8px 8px auto;
-    gap: 4px;
-  }
-
-  .lava-run-stats div {
-    min-height: 41px;
-    padding: 6px 5px;
-  }
-
-  .lava-run-stats span {
-    font-size: 0.52rem;
-  }
-
   .lava-run-row {
     grid-template-columns: 20px repeat(4, minmax(0, 1fr));
     gap: 4px;
@@ -34098,8 +34117,7 @@ body,
   }
 
   .lava-run-note,
-  .lava-run-main-action,
-  .lava-run-recent {
+  .lava-run-main-action {
     grid-column: 1 / -1;
     grid-row: auto;
   }
@@ -34123,10 +34141,6 @@ body,
 }
 
 /* Lava Run premium reveal flow */
-.lava-run-stats {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-}
-
 .lava-run-canyon {
   padding: 72px 12px 16px;
 }
@@ -34377,10 +34391,6 @@ body,
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .lava-run-stats {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .lava-run-canyon {
@@ -34836,19 +34846,6 @@ body,
   overflow: hidden;
 }
 
-.lava-run-stats div {
-  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
-}
-
-.lava-run-stats .pulse {
-  border-color: rgba(250, 204, 21, 0.72);
-  box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.18), 0 0 24px rgba(250, 204, 21, 0.22);
-}
-
-.lava-run-stats .pulse strong {
-  animation: lava-run-count-pop var(--lava-run-meter-pop, 520ms) ease both;
-}
-
 .lava-run-canyon {
   isolation: isolate;
 }
@@ -34880,10 +34877,6 @@ body,
 
 .lava-run-board.escaping .lava-run-canyon-depth {
   filter: saturate(1.2) brightness(1.1);
-}
-
-.lava-run-board.bust .lava-run-stats div:first-child {
-  animation: lava-run-meter-shatter 760ms ease both;
 }
 
 .lava-run-side-track {
@@ -35920,6 +35913,468 @@ body,
   .lava-run-board::before,
   .lava-run-board::after {
     top: 54px;
+  }
+}
+
+/* Lava Run browser-note pass: bottom meters, top step labels, raster cave level */
+.lava-run-page {
+  --lava-run-canyon-bg: none;
+  --lava-run-scroll-span: 960px;
+}
+
+.lava-run-header {
+  grid-template-columns: 38px minmax(0, 1fr) auto 38px;
+}
+
+.lava-run-controls {
+  grid-template-rows: auto auto;
+}
+
+.lava-run-back,
+.lava-run-header > .ghost-button.icon-only {
+  border-radius: 999px;
+}
+
+.lava-run-currency-tabs {
+  border-radius: 999px;
+}
+
+.lava-run-currency-tabs button {
+  border-radius: 999px;
+}
+
+.lava-run-title {
+  grid-template-columns: auto auto auto;
+  justify-content: start;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.lava-run-title > div {
+  min-width: 0;
+}
+
+.lava-run-info-button {
+  border-radius: 999px;
+  margin-left: -2px;
+}
+
+.lava-run-risk {
+  grid-column: 1 / 2;
+}
+
+.lava-run-bet-row {
+  grid-column: 2 / 3;
+  grid-template-columns: 40px minmax(0, 1fr) 40px minmax(86px, 0.45fr);
+}
+
+.lava-run-main-action {
+  grid-column: 3 / 4;
+  grid-row: 1 / 3;
+  min-height: 100%;
+}
+
+.lava-run-bet-balance {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.12), transparent 52%),
+    rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.lava-run-bet-balance span {
+  min-width: 0;
+  color: rgba(224, 242, 254, 0.66);
+  font-size: 0.5rem;
+  font-weight: 950;
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.lava-run-bet-balance strong {
+  min-width: 0;
+  color: #a7f3d0;
+  font-size: clamp(0.76rem, 1.8vw, 0.96rem);
+  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lava-run-board {
+  background:
+    linear-gradient(180deg, rgba(6, 5, 8, 0.36), rgba(4, 4, 7, 0.74)),
+    linear-gradient(180deg, #09090d, #050506 82%);
+}
+
+.lava-run-board::before,
+.lava-run-board::after {
+  display: none;
+}
+
+.lava-run-canyon {
+  padding: clamp(10px, 1.8dvh, 18px) clamp(8px, 2.4vw, 24px) clamp(14px, 2.4dvh, 24px);
+}
+
+.lava-run-canyon::before,
+.lava-run-canyon::after {
+  top: 0;
+  z-index: 7;
+}
+
+.lava-run-canyon-depth {
+  inset: 0;
+  opacity: 1;
+  background-image:
+    linear-gradient(90deg, rgba(3, 3, 6, 0.78), rgba(3, 3, 6, 0.08) 14%, rgba(3, 3, 6, 0.08) 86%, rgba(3, 3, 6, 0.82)),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.08) 48%, rgba(69, 10, 10, 0.2) 100%),
+    var(--lava-run-canyon-bg),
+    var(--lava-run-canyon-bg);
+  background-repeat: no-repeat, no-repeat, repeat-x, repeat-x;
+  background-size: 100% 100%, 100% 100%, var(--lava-run-scroll-span) 100%, var(--lava-run-scroll-span) 100%;
+  background-position:
+    0 0,
+    0 0,
+    var(--canyon-offset, 0px) center,
+    calc(var(--canyon-offset, 0px) + var(--lava-run-scroll-span)) center;
+  filter: saturate(1.12) brightness(0.94);
+  animation: lava-run-raster-level-scroll 18000ms linear infinite;
+}
+
+.lava-run-canyon-depth::before {
+  left: -18%;
+  right: -18%;
+  bottom: 0;
+  height: 40%;
+  border-radius: 0;
+  background:
+    linear-gradient(90deg, transparent, rgba(253, 186, 116, 0.24), rgba(249, 115, 22, 0.28), transparent),
+    repeating-linear-gradient(92deg, rgba(254, 240, 138, 0.1) 0 2px, transparent 2px 54px);
+  filter: blur(14px);
+  opacity: 0.48;
+  animation: lava-run-raster-lava-flow 3600ms linear infinite;
+}
+
+.lava-run-canyon-depth::after {
+  left: -8%;
+  right: -8%;
+  top: 0;
+  bottom: auto;
+  height: 30%;
+  border-radius: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.56), transparent);
+  filter: none;
+  opacity: 0.72;
+  animation: none;
+}
+
+.lava-run-embers {
+  inset: 0;
+}
+
+.lava-run-side-track {
+  gap: clamp(6px, 2vw, 18px);
+  height: 100%;
+}
+
+.lava-run-stage {
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: clamp(7px, 1.4dvh, 14px);
+}
+
+.lava-run-stage-header {
+  width: min(100%, 118px);
+  min-height: 38px;
+  justify-self: center;
+  position: relative;
+  z-index: 8;
+  padding: 5px 6px;
+  background: rgba(4, 5, 8, 0.72);
+  backdrop-filter: blur(7px);
+  transform: none;
+}
+
+.lava-run-stage-header span {
+  font-size: 0.52rem;
+}
+
+.lava-run-stage-header strong {
+  font-size: clamp(0.86rem, 2.1vw, 1.22rem);
+}
+
+.lava-run-stage.current-stage .lava-run-stage-header strong {
+  font-size: clamp(0.96rem, 2.4vw, 1.36rem);
+}
+
+.lava-run-platform-stack {
+  z-index: 5;
+  gap: clamp(6px, 1.25dvh, 12px);
+  padding-block: clamp(4px, 1.2dvh, 14px);
+}
+
+.lava-run-board.idle .lava-run-stage.future-stage {
+  opacity: 0.6;
+  transform: translateX(0) scale(0.97);
+  filter: saturate(0.88) brightness(0.9);
+}
+
+.lava-run-stage.current-stage,
+.lava-run-stage.preview-current-stage {
+  opacity: 1;
+  filter: drop-shadow(0 0 25px rgba(250, 204, 21, 0.38));
+}
+
+.lava-run-stage.next-stage,
+.lava-run-stage.preview-next-stage {
+  opacity: 0.88;
+  filter: drop-shadow(0 0 18px rgba(250, 204, 21, 0.22));
+}
+
+.lava-run-board.idle .lava-run-stage.preview-current-stage {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+  filter: drop-shadow(0 0 25px rgba(250, 204, 21, 0.38));
+}
+
+.lava-run-board.idle .lava-run-stage.preview-next-stage {
+  opacity: 0.86;
+  transform: translateX(0) scale(0.99);
+  filter: drop-shadow(0 0 18px rgba(250, 204, 21, 0.22));
+}
+
+.lava-run-board.idle .lava-run-stage-header {
+  border-color: rgba(250, 204, 21, 0.28);
+  background: rgba(4, 5, 8, 0.78);
+}
+
+.lava-run-stage.current-stage .lava-run-stage-header,
+.lava-run-stage.preview-current-stage .lava-run-stage-header {
+  border-color: rgba(254, 240, 138, 0.78);
+  background:
+    linear-gradient(180deg, rgba(73, 34, 7, 0.92), rgba(4, 5, 8, 0.78));
+  box-shadow:
+    0 0 0 1px rgba(250, 204, 21, 0.18),
+    0 0 28px rgba(250, 204, 21, 0.26),
+    0 12px 26px rgba(0, 0, 0, 0.34);
+}
+
+.lava-run-stage.current-stage .lava-run-stage-header strong,
+.lava-run-stage.preview-current-stage .lava-run-stage-header strong {
+  color: #fff7ad;
+  font-size: clamp(1rem, 2.55vw, 1.42rem);
+  text-shadow: 0 0 18px rgba(250, 204, 21, 0.7), 0 0 28px rgba(249, 115, 22, 0.24);
+}
+
+.lava-run-stage.next-stage .lava-run-stage-header,
+.lava-run-stage.preview-next-stage .lava-run-stage-header {
+  border-color: rgba(250, 204, 21, 0.48);
+  box-shadow: 0 0 18px rgba(250, 204, 21, 0.14), 0 10px 22px rgba(0, 0, 0, 0.28);
+}
+
+.lava-run-stage.next-stage .lava-run-stage-header strong,
+.lava-run-stage.preview-next-stage .lava-run-stage-header strong {
+  color: #fde68a;
+  text-shadow: 0 0 13px rgba(250, 204, 21, 0.42);
+}
+
+.lava-run-page.multiplier-pulse .lava-run-stage.current-stage .lava-run-stage-header strong {
+  animation: lava-run-count-pop 520ms ease both;
+}
+
+.lava-run-board.idle .lava-run-tile.dimmed {
+  opacity: 0.44;
+  filter: saturate(0.75) brightness(0.86);
+}
+
+.risk-low .lava-run-platform-stack {
+  gap: clamp(14px, 3dvh, 26px);
+  padding-block: clamp(16px, 3.4dvh, 34px);
+}
+
+.risk-medium .lava-run-platform-stack {
+  gap: clamp(8px, 1.8dvh, 15px);
+}
+
+.risk-high .lava-run-platform-stack {
+  gap: clamp(4px, 1dvh, 8px);
+  padding-block: clamp(2px, 0.8dvh, 8px);
+}
+
+.risk-low .lava-run-tile,
+.lava-run-page.risk-low .lava-run-stage.zone-mid .lava-run-tile,
+.lava-run-page.risk-low .lava-run-stage.zone-late .lava-run-tile {
+  width: min(100%, clamp(76px, 10.8vw, 130px));
+}
+
+.risk-medium .lava-run-tile,
+.lava-run-page.risk-medium .lava-run-stage.zone-mid .lava-run-tile,
+.lava-run-page.risk-medium .lava-run-stage.zone-late .lava-run-tile {
+  width: min(100%, clamp(64px, 9vw, 112px));
+}
+
+.risk-high .lava-run-tile,
+.lava-run-page.risk-high .lava-run-stage.zone-mid .lava-run-tile,
+.lava-run-page.risk-high .lava-run-stage.zone-late .lava-run-tile {
+  width: min(100%, clamp(54px, 7.4vw, 92px));
+}
+
+.lava-run-tile {
+  min-height: 42px;
+  aspect-ratio: 1.08;
+}
+
+@keyframes lava-run-raster-level-scroll {
+  from {
+    background-position:
+      0 0,
+      0 0,
+      var(--canyon-offset, 0px) center,
+      calc(var(--canyon-offset, 0px) + var(--lava-run-scroll-span)) center;
+  }
+  to {
+    background-position:
+      0 0,
+      0 0,
+      calc(var(--canyon-offset, 0px) - var(--lava-run-scroll-span)) center,
+      var(--canyon-offset, 0px) center;
+  }
+}
+
+@keyframes lava-run-raster-lava-flow {
+  from { transform: translateX(-5%); }
+  to { transform: translateX(5%); }
+}
+
+@media (max-width: 720px) {
+  .lava-run-header {
+    grid-template-columns: 32px minmax(0, 1fr) auto 32px;
+  }
+
+  .lava-run-back,
+  .lava-run-header > .ghost-button.icon-only {
+    border-radius: 999px;
+  }
+
+  .lava-run-title {
+    grid-template-columns: 34px auto 24px;
+    width: auto;
+  }
+
+  .lava-run-info-button {
+    margin-left: -1px;
+  }
+
+  .lava-run-board {
+    min-height: clamp(384px, 53dvh, 520px);
+  }
+
+  .lava-run-canyon {
+    padding: 10px 6px 12px;
+  }
+
+  .lava-run-main-action {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    min-height: 50px;
+  }
+
+  .lava-run-risk,
+  .lava-run-bet-row {
+    grid-column: 1 / -1;
+  }
+
+  .lava-run-bet-row {
+    grid-template-columns: 40px minmax(0, 1fr) 40px minmax(78px, 0.42fr);
+  }
+
+  .lava-run-bet-balance {
+    padding: 6px 7px;
+  }
+
+  .lava-run-bet-balance span {
+    font-size: 0.46rem;
+  }
+
+  .lava-run-bet-balance strong {
+    font-size: clamp(0.7rem, 3.1vw, 0.86rem);
+  }
+
+  .lava-run-side-track {
+    gap: 5px;
+  }
+
+  .lava-run-stage {
+    gap: 6px;
+  }
+
+  .lava-run-stage-header {
+    min-height: 32px;
+    padding: 4px 3px;
+  }
+
+  .lava-run-stage-header span {
+    font-size: 0.46rem;
+  }
+
+  .lava-run-stage-header strong,
+  .lava-run-stage.current-stage .lava-run-stage-header strong {
+    font-size: clamp(0.74rem, 3.5vw, 0.96rem);
+  }
+
+  .risk-low .lava-run-tile,
+  .lava-run-page.risk-low .lava-run-stage.zone-mid .lava-run-tile,
+  .lava-run-page.risk-low .lava-run-stage.zone-late .lava-run-tile {
+    width: min(100%, clamp(62px, 18vw, 82px));
+  }
+
+  .risk-medium .lava-run-tile,
+  .lava-run-page.risk-medium .lava-run-stage.zone-mid .lava-run-tile,
+  .lava-run-page.risk-medium .lava-run-stage.zone-late .lava-run-tile {
+    width: min(100%, clamp(54px, 16.5vw, 74px));
+  }
+
+  .risk-high .lava-run-tile,
+  .lava-run-page.risk-high .lava-run-stage.zone-mid .lava-run-tile,
+  .lava-run-page.risk-high .lava-run-stage.zone-late .lava-run-tile {
+    width: min(100%, clamp(46px, 14.8vw, 64px));
+  }
+}
+
+@media (max-width: 390px) {
+  .lava-run-board {
+    min-height: clamp(372px, 51dvh, 486px);
+  }
+
+  .lava-run-side-track {
+    gap: 4px;
+  }
+
+  .lava-run-bet-row {
+    grid-template-columns: 40px minmax(0, 1fr) 40px minmax(74px, 0.44fr);
+    gap: 5px;
+  }
+
+  .lava-run-stage-header {
+    min-height: 30px;
+  }
+
+  .risk-high .lava-run-platform-stack {
+    gap: 3px;
+  }
+
+  .risk-high .lava-run-tile,
+  .lava-run-page.risk-high .lava-run-stage.zone-mid .lava-run-tile,
+  .lava-run-page.risk-high .lava-run-stage.zone-late .lava-run-tile {
+    width: min(100%, clamp(44px, 14.2vw, 58px));
   }
 }
 
@@ -40469,17 +40924,17 @@ body,
 }
 
 .wallet-cashier-page .wallet-balance-panel {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 7px;
 }
 
 .wallet-cashier-page .wallet-balance-tile {
-  min-height: 92px;
-  grid-template-columns: 56px minmax(0, 1fr);
+  min-height: 62px;
+  grid-template-columns: 58px minmax(0, 1fr);
   align-content: center;
   align-items: center;
-  gap: 3px 10px;
-  padding: 9px 10px;
+  gap: 10px;
+  padding: 7px 12px 7px 8px;
   border-radius: var(--heater-radius);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent),
@@ -40501,16 +40956,16 @@ body,
 
 .wallet-cashier-page .wallet-balance-tile > .cashier-icon {
   grid-column: 1;
-  width: 62px;
-  height: 52px;
-  margin-left: -4px;
+  width: 56px;
+  height: 46px;
+  margin-left: -3px;
 }
 
 .wallet-cashier-page .wallet-balance-tile.sweeps > .cashier-icon {
   filter: drop-shadow(0 0 14px rgba(103, 232, 249, 0.22));
 }
 
-.wallet-cashier-page .wallet-balance-tile span {
+.wallet-cashier-page .wallet-balance-tile > span {
   grid-column: 2;
   padding: 0;
   border-radius: 0;
@@ -40521,20 +40976,24 @@ body,
 }
 
 .wallet-cashier-page .wallet-balance-tile strong {
-  grid-column: 1 / -1;
+  grid-column: 2;
+  justify-self: end;
+  width: 100%;
   display: flex;
+  justify-content: flex-end;
   align-items: baseline;
-  gap: 6px;
+  gap: 5px;
   min-width: 0;
   color: #fff7ed;
-  font-size: clamp(1.3rem, 5.7vw, 2.2rem);
+  font-size: var(--currency-full-font-size, clamp(1.18rem, 5.5vw, 1.62rem));
   letter-spacing: 0;
+  overflow: hidden;
   animation: cashier-count-rise 420ms var(--heater-ease, ease) both;
 }
 
 .wallet-cashier-page .wallet-balance-tile strong small {
   color: var(--cashier-gold);
-  font-size: 0.74rem;
+  font-size: var(--currency-code-font-size, 0.74rem);
   font-weight: 950;
 }
 
@@ -41375,12 +41834,12 @@ button.cashier-transaction-row:hover {
   }
 
   .wallet-cashier-page .wallet-balance-tile {
-    min-height: 90px;
-    padding: 11px;
+    min-height: 62px;
+    padding: 7px 11px 7px 8px;
   }
 
   .wallet-cashier-page .wallet-balance-tile strong {
-    font-size: clamp(1.22rem, 5.5vw, 1.7rem);
+    font-size: var(--currency-full-font-size, clamp(1.08rem, 5.8vw, 1.42rem));
   }
 
   .modal-card.cashier-modal-card {
@@ -41428,12 +41887,9 @@ button.cashier-transaction-row:hover {
 }
 
 @media (max-width: 340px) {
-  .wallet-cashier-page .wallet-balance-panel {
-    grid-template-columns: 1fr;
-  }
-
   .wallet-cashier-page .wallet-balance-tile {
-    min-height: 92px;
+    grid-template-columns: 50px minmax(0, 1fr);
+    min-height: 60px;
   }
 
   .purchase-pack-main {
@@ -41568,6 +42024,13 @@ button.cashier-transaction-row:hover {
   gap: 6px;
 }
 
+.account-hero-title-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .account-kicker {
   margin: 0;
   color: var(--account-gold);
@@ -41585,6 +42048,161 @@ button.cashier-transaction-row:hover {
   line-height: 1;
   letter-spacing: 0;
   overflow-wrap: anywhere;
+}
+
+.account-hero-vip-mark {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 13px var(--vip-shadow, rgba(255, 200, 87, 0.2))) drop-shadow(0 5px 8px rgba(0, 0, 0, 0.4));
+}
+
+.account-member-since {
+  margin: 0;
+  color: rgba(255, 247, 237, 0.68);
+  font-size: 0.78rem;
+  font-weight: 850;
+  line-height: 1.15;
+}
+
+.vip-none {
+  --vip-accent: #94a3b8;
+  --vip-glow: rgba(148, 163, 184, 0.17);
+  --vip-shadow: rgba(148, 163, 184, 0.08);
+  --vip-fill: linear-gradient(180deg, #e2e8f0, #94a3b8);
+  --vip-label-text: #0f172a;
+}
+
+.vip-bronze {
+  --vip-accent: #cd7f32;
+  --vip-glow: rgba(205, 127, 50, 0.23);
+  --vip-shadow: rgba(205, 127, 50, 0.16);
+  --vip-fill: linear-gradient(180deg, #ffd3a3, #cd7f32 62%, #8a4b16);
+}
+
+.vip-silver {
+  --vip-accent: #cbd5e1;
+  --vip-glow: rgba(203, 213, 225, 0.22);
+  --vip-shadow: rgba(203, 213, 225, 0.14);
+  --vip-fill: linear-gradient(180deg, #f8fafc, #cbd5e1 62%, #64748b);
+}
+
+.vip-gold {
+  --vip-accent: #ffc857;
+  --vip-glow: rgba(255, 200, 87, 0.26);
+  --vip-shadow: rgba(255, 200, 87, 0.18);
+  --vip-fill: linear-gradient(180deg, #fff2bd, #ffc857 62%, #f59e0b);
+}
+
+.vip-platinum {
+  --vip-accent: #e0f2fe;
+  --vip-glow: rgba(224, 242, 254, 0.22);
+  --vip-shadow: rgba(224, 242, 254, 0.12);
+  --vip-fill: linear-gradient(180deg, #ffffff, #e0f2fe 62%, #94a3b8);
+}
+
+.vip-diamond {
+  --vip-accent: #93c5fd;
+  --vip-glow: rgba(147, 197, 253, 0.26);
+  --vip-shadow: rgba(147, 197, 253, 0.16);
+  --vip-fill: linear-gradient(180deg, #eff6ff, #93c5fd 62%, #2563eb);
+}
+
+.vip-black-diamond {
+  --vip-accent: #f8fafc;
+  --vip-glow: rgba(248, 250, 252, 0.2);
+  --vip-shadow: rgba(0, 0, 0, 0.24);
+  --vip-fill: linear-gradient(180deg, #f8fafc, #475569 48%, #020617);
+  --vip-label-text: #ffffff;
+}
+
+.vip-onyx {
+  --vip-accent: #c084fc;
+  --vip-glow: rgba(192, 132, 252, 0.26);
+  --vip-shadow: rgba(88, 28, 135, 0.2);
+  --vip-fill: linear-gradient(180deg, #ddd6fe, #7e22ce 58%, #09090b);
+  --vip-label-text: #ffffff;
+}
+
+.vip-inferno {
+  --vip-accent: #fb923c;
+  --vip-glow: rgba(251, 146, 60, 0.3);
+  --vip-shadow: rgba(239, 68, 68, 0.18);
+  --vip-fill: linear-gradient(180deg, #fed7aa, #fb923c 46%, #dc2626);
+}
+
+.vip-heater-elite {
+  --vip-accent: #facc15;
+  --vip-glow: rgba(250, 204, 21, 0.3);
+  --vip-shadow: rgba(255, 95, 5, 0.2);
+  --vip-fill: linear-gradient(180deg, #fef08a, #facc15 42%, #ff5f05);
+}
+
+.vip-legend {
+  --vip-accent: #fff7ed;
+  --vip-glow: rgba(255, 247, 237, 0.3);
+  --vip-shadow: rgba(255, 200, 87, 0.22);
+  --vip-fill: linear-gradient(180deg, #ffffff, #fff7ed 36%, #ffc857);
+}
+
+.account-vip-badge {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 30px;
+  padding: 3px 10px 3px 4px;
+  border: 1px solid color-mix(in srgb, var(--vip-accent, #ffc857) 52%, transparent);
+  border-radius: 999px;
+  color: #fff7ed;
+  background:
+    radial-gradient(circle at 15% 0%, var(--vip-glow, rgba(255, 200, 87, 0.2)), transparent 62%),
+    rgba(255, 255, 255, 0.055);
+  font-size: 0.75rem;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.account-vip-badge span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-vip-art {
+  flex: 0 0 auto;
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px var(--vip-shadow, rgba(255, 200, 87, 0.14))) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.34));
+}
+
+.account-vip-art-pill {
+  width: 22px;
+  height: 22px;
+}
+
+.account-vip-art-card {
+  width: 48px;
+  height: 48px;
+}
+
+.account-vip-art-ladder {
+  width: 36px;
+  height: 36px;
+}
+
+.account-vip-badge-card {
+  min-height: 52px;
+  padding-left: 3px;
+}
+
+.account-vip-badge-ladder {
+  min-height: 40px;
+  padding-left: 3px;
 }
 
 .account-email-line,
@@ -41701,18 +42319,18 @@ button.cashier-transaction-row:hover {
 
 .account-balance-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 7px;
 }
 
 .account-balance-card {
   min-width: 0;
-  min-height: 86px;
+  min-height: 62px;
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr);
+  grid-template-columns: 50px minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
-  padding: 10px;
+  gap: 10px;
+  padding: 7px 12px 7px 8px;
 }
 
 .account-balance-card.gold {
@@ -41728,9 +42346,9 @@ button.cashier-transaction-row:hover {
 }
 
 .account-balance-card .cashier-icon {
-  width: 48px;
+  width: 50px;
   height: 44px;
-  margin-left: -3px;
+  margin-left: -2px;
 }
 
 .account-balance-card.sweeps .cashier-icon {
@@ -41743,7 +42361,8 @@ button.cashier-transaction-row:hover {
   gap: 4px;
 }
 
-.account-balance-card span {
+.account-balance-card > span,
+.account-balance-card div > span {
   color: var(--account-muted);
   font-size: 0.72rem;
   font-weight: 900;
@@ -41753,11 +42372,14 @@ button.cashier-transaction-row:hover {
 
 .account-balance-card strong {
   min-width: 0;
+  justify-self: end;
+  width: 100%;
   display: flex;
+  justify-content: flex-end;
   align-items: baseline;
   gap: 5px;
   color: #fff7ed;
-  font-size: 1.32rem;
+  font-size: var(--currency-full-font-size, clamp(1.18rem, 5.5vw, 1.58rem));
   line-height: 1;
   letter-spacing: 0;
   overflow: hidden;
@@ -41768,7 +42390,7 @@ button.cashier-transaction-row:hover {
 .account-balance-card small {
   flex: 0 0 auto;
   color: var(--account-gold);
-  font-size: 0.72rem;
+  font-size: var(--currency-code-font-size, 0.72rem);
   font-weight: 950;
 }
 
@@ -41797,6 +42419,100 @@ button.cashier-transaction-row:hover {
   font-size: 1rem;
   line-height: 1.15;
   letter-spacing: 0;
+}
+
+.account-mini-button {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 200, 87, 0.22);
+  border-radius: 999px;
+  color: #fde68a;
+  background: rgba(255, 200, 87, 0.08);
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.account-vip-card {
+  border-color: color-mix(in srgb, var(--vip-accent, #ffc857) 34%, rgba(255, 255, 255, 0.08));
+  background:
+    radial-gradient(circle at 8% 0%, var(--vip-glow, rgba(255, 200, 87, 0.18)), transparent 44%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.052), rgba(255, 255, 255, 0.018)),
+    linear-gradient(145deg, rgba(17, 20, 29, 0.96), rgba(5, 8, 14, 0.98));
+}
+
+.account-vip-card-top {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.account-vip-card-top > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.account-vip-card-top strong {
+  min-width: 0;
+  color: #fff7ed;
+  font-size: 0.94rem;
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-vip-card-top span {
+  min-width: 0;
+  color: var(--account-muted);
+  font-size: 0.76rem;
+  font-weight: 820;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-vip-progress i {
+  background: linear-gradient(90deg, var(--vip-accent, var(--account-ember)), var(--account-gold));
+}
+
+.account-vip-benefits-preview {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.account-vip-benefits-preview span {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: 999px;
+  color: rgba(255, 247, 237, 0.78);
+  background: rgba(255, 255, 255, 0.045);
+  font-size: 0.72rem;
+  font-weight: 820;
+}
+
+.account-vip-benefits-preview svg {
+  flex: 0 0 auto;
+  color: var(--vip-accent, var(--account-gold));
+}
+
+.account-vip-disclaimer {
+  margin: 0;
+  color: rgba(255, 247, 237, 0.58);
+  font-size: 0.72rem;
+  font-weight: 780;
+  line-height: 1.35;
 }
 
 .account-action-list,
@@ -42141,7 +42857,8 @@ button.cashier-transaction-row:hover {
   }
 
   .account-hero-metrics {
-    grid-column: auto;
+    grid-column: 3;
+    grid-row: 1 / 4;
     grid-template-columns: 1fr;
   }
 
@@ -42202,18 +42919,13 @@ button.cashier-transaction-row:hover {
     font-size: 0.6rem;
   }
 
-  .account-balance-card {
-    grid-template-columns: 38px minmax(0, 1fr);
-    gap: 7px;
-  }
-
   .account-balance-card .cashier-icon {
-    width: 40px;
+    width: 44px;
     height: 38px;
   }
 
   .account-balance-card strong {
-    font-size: 1.06rem;
+    font-size: var(--currency-full-font-size, clamp(1.08rem, 6vw, 1.38rem));
   }
 
   .account-action,
@@ -42224,10 +42936,6 @@ button.cashier-transaction-row:hover {
 }
 
 @media (max-width: 340px) {
-  .account-balance-grid {
-    grid-template-columns: 1fr;
-  }
-
   .account-hero-metrics {
     grid-template-columns: 1fr;
   }
@@ -42541,6 +43249,110 @@ button.cashier-transaction-row:hover {
   gap: 8px;
 }
 
+.account-vip-modal {
+  max-width: min(94vw, 640px);
+}
+
+.account-vip-details {
+  max-height: min(72vh, 680px);
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.account-vip-current,
+.account-vip-modal-section,
+.account-vip-ladder-row {
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.account-vip-current {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 12px;
+  border-color: color-mix(in srgb, var(--vip-accent, #ffc857) 34%, rgba(255, 255, 255, 0.08));
+  background:
+    radial-gradient(circle at 8% 0%, var(--vip-glow, rgba(255, 200, 87, 0.18)), transparent 52%),
+    rgba(255, 255, 255, 0.045);
+}
+
+.account-vip-current strong {
+  color: #fff7ed;
+  font-size: 1.12rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.account-vip-current > span:not(.account-vip-badge) {
+  grid-column: 1 / -1;
+  color: var(--account-muted);
+  font-size: 0.78rem;
+  font-weight: 820;
+}
+
+.account-vip-modal-section {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+}
+
+.account-vip-modal-section h3 {
+  margin: 0;
+  color: #fff7ed;
+  font-size: 0.92rem;
+  line-height: 1.15;
+}
+
+.account-vip-ladder {
+  display: grid;
+  gap: 8px;
+}
+
+.account-vip-ladder-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 10px;
+  padding: 10px;
+  border-color: color-mix(in srgb, var(--vip-accent, #ffc857) 28%, rgba(255, 255, 255, 0.08));
+}
+
+.account-vip-ladder-row.locked {
+  opacity: 0.62;
+}
+
+.account-vip-ladder-row > span {
+  color: #fff7ed;
+  font-size: 0.8rem;
+  font-weight: 900;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.account-vip-ladder-row > small {
+  color: var(--account-muted);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-align: right;
+}
+
+.account-vip-ladder-row ul {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 18px;
+  color: rgba(255, 247, 237, 0.7);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.account-vip-ladder-row li::marker {
+  color: var(--vip-accent, var(--account-gold));
+}
+
 .account-crop-stack {
   align-items: center;
 }
@@ -42758,5 +43570,718 @@ button.cashier-transaction-row:hover {
   .legal-section-card {
     padding: 10px;
   }
+}
+
+/* Premium SC identity: redeemable Sweeps Coins read as cash-value green. */
+.wallet-dashboard {
+  --wallet-sweeps: var(--sc-primary);
+  --wallet-sweeps-soft: var(--sc-glow);
+}
+
+.wallet-cashier-page {
+  --cashier-sc: var(--sc-primary);
+  --cashier-cyan: var(--sc-primary);
+}
+
+.account-page {
+  --account-sc: var(--sc-primary);
+  --account-cyan: var(--sc-primary);
+}
+
+.balance-toggle.bonus-selected .balance-toggle-options,
+.balance-toggle-options {
+  background: linear-gradient(180deg, rgba(3, 24, 12, 0.92), rgba(2, 6, 23, 0.88));
+  border: 1px solid rgba(255, 200, 87, 0.08);
+}
+
+.balance-toggle-options button.bonus:not(.active),
+.balance-toggle-options button.gold:not(.active) {
+  color: rgba(255, 247, 237, 0.72);
+}
+
+.balance-toggle-options button.active.gold {
+  color: #140e05;
+  background: linear-gradient(180deg, #fff2b8, var(--heater-gold) 54%, var(--heater-ember));
+  box-shadow: 0 0 18px rgba(255, 200, 87, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.balance-toggle-options button.active.bonus,
+.wallet-plus-button.sweeps {
+  color: var(--sc-ink);
+  background: var(--sc-button-gradient);
+  box-shadow: 0 0 22px var(--sc-glow), inset 0 1px 0 rgba(255, 255, 255, 0.52);
+}
+
+.wallet-plus-button.sweeps {
+  border: 1px solid var(--sc-border);
+}
+
+.wallet-balance-tile.sweeps,
+.wallet-cashier-page .wallet-balance-tile.sweeps,
+.account-balance-card.sweeps,
+.balance-card.bonus {
+  border-color: var(--sc-border);
+  background: var(--sc-panel-gradient);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.3), 0 0 24px rgba(34, 197, 94, 0.14), inset 0 1px 0 rgba(220, 252, 231, 0.08);
+}
+
+.wallet-balance-tile.sweeps::after {
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.72), transparent 64%);
+}
+
+.wallet-balance-tile.sweeps > .cashier-icon,
+.wallet-cashier-page .wallet-balance-tile.sweeps > .cashier-icon,
+.account-balance-card.sweeps .cashier-icon,
+.rewards-clean .rewards-reward-mini.currency-sc img,
+.rewards-clean .rewards-mission-reward.currency-sc img {
+  filter: drop-shadow(0 0 15px var(--sc-glow)) drop-shadow(0 0 6px rgba(255, 200, 87, 0.18));
+}
+
+.wallet-balance-tile.sweeps strong small,
+.wallet-cashier-page .wallet-balance-tile.sweeps strong small,
+.account-balance-card.sweeps small,
+.balance-pill.bonus strong,
+.balance-card.bonus strong {
+  color: var(--sc-bright);
+  text-shadow: 0 0 14px var(--sc-glow);
+}
+
+.purchase-pack-sc,
+.purchase-pack-copy em,
+.rewards-clean .rewards-reward-mini.currency-sc,
+.rewards-clean .rewards-mission-reward.currency-sc,
+.currency-badge.currency-sc {
+  border: 1px solid var(--sc-border);
+  color: #dcfce7;
+  background:
+    radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.2), transparent 26%),
+    linear-gradient(180deg, rgba(34, 197, 94, 0.36), rgba(5, 46, 26, 0.88));
+  box-shadow: 0 0 14px rgba(34, 197, 94, 0.2), inset 0 1px 0 rgba(220, 252, 231, 0.12);
+}
+
+.currency-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 0.64rem;
+  font-weight: 950;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.currency-badge.currency-gc {
+  color: #140e05;
+  border: 1px solid rgba(255, 200, 87, 0.42);
+  background: linear-gradient(180deg, #fff2b8, var(--heater-gold) 58%, #f59e0b);
+}
+
+.cashier-transaction-row.currency-sc,
+.transaction-card.currency-sc,
+tr.currency-sc {
+  border-color: rgba(74, 222, 128, 0.22);
+  background:
+    radial-gradient(circle at 96% 0%, rgba(34, 197, 94, 0.12), transparent 38%),
+    rgba(255, 255, 255, 0.052);
+}
+
+.cashier-transaction-main strong.currency-sc.positive,
+.transaction-card-row strong.currency-sc.positive,
+td.currency-sc.positive {
+  color: var(--sc-bright);
+}
+
+.cashier-history-modal .cashier-transaction-row.currency-sc:hover,
+button.cashier-transaction-row.currency-sc:hover {
+  border-color: var(--sc-border);
+  box-shadow: 0 0 16px rgba(34, 197, 94, 0.12);
+}
+
+.purchase-confirm-values div:nth-child(2),
+.wallet-redeem-hero,
+.cashier-redemption-modal .cashier-redemption-panel:first-child,
+.cashier-status-card .compact-detail-list strong:first-of-type {
+  border-color: var(--sc-border);
+  background:
+    radial-gradient(circle at 92% 0%, rgba(74, 222, 128, 0.2), transparent 42%),
+    linear-gradient(180deg, rgba(7, 34, 20, 0.88), rgba(5, 9, 14, 0.94));
+  box-shadow: 0 0 18px rgba(34, 197, 94, 0.14), inset 0 1px 0 rgba(220, 252, 231, 0.08);
+}
+
+.purchase-confirm-values div:nth-child(2) strong,
+.wallet-redeem-hero strong,
+.cashier-redemption-modal .cashier-redemption-panel:first-child strong,
+.cashier-status-card .compact-detail-list strong:first-of-type {
+  color: var(--sc-bright);
+  text-shadow: 0 0 12px var(--sc-glow);
+}
+
+.admin-currency-line {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.admin-currency-line .currency-badge {
+  min-height: 18px;
+  font-size: 0.56rem;
+}
+
+.rewards-clean .rewards-section-pill:has(.rewards-pill-icon) {
+  border-color: var(--sc-border);
+  color: var(--sc-bright);
+  background: rgba(5, 46, 26, 0.38);
+}
+
+.rewards-clean .rewards-hero-bonus .rewards-reward-mini.currency-sc {
+  color: #f0fdf4;
+}
+
+.rewards-clean .rewards-balance-pill.cyan,
+.rewards-wallet-tile.cyan {
+  --wallet-glow: var(--sc-glow);
+  border-color: rgba(74, 222, 128, 0.22);
+}
+
+.rewards-clean .rewards-balance-pill.cyan small,
+.rewards-clean .rewards-streak-day.current em,
+.rewards-clean .rewards-streak-day.current,
+.rewards-clean .rewards-mission-detail strong {
+  color: var(--sc-bright);
+}
+
+.rewards-clean .rewards-streak-day.current {
+  border-color: var(--sc-border);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(34, 197, 94, 0.16), transparent 46%),
+    rgba(2, 6, 23, 0.4);
+}
+
+.rewards-clean .rewards-streak-day.has-sc-reward {
+  border-color: rgba(74, 222, 128, 0.32);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(34, 197, 94, 0.16), transparent 44%),
+    rgba(2, 6, 23, 0.42);
+}
+
+.rewards-clean .rewards-streak-day.has-sc-reward strong {
+  color: var(--sc-bright);
+  text-shadow: 0 0 12px var(--sc-glow);
+}
+
+.rewards-clean .rewards-streak-day.has-sc-reward .rewards-streak-icon {
+  filter: drop-shadow(0 0 12px rgba(34, 197, 94, 0.28));
+}
+
+.over-under-currency-tabs button:first-child.active,
+.crash-currency-tabs button:first-child.active,
+.treasure-dig-currency-tabs button:first-child.active,
+.roulette-currency-tabs button:first-child.active,
+.blackjack-clean-currency-tabs button:first-child.active,
+.balloon-pop-currency-tabs button:first-child.active,
+.brick-break-currency-tabs button:first-child.active,
+.lava-run-currency-tabs button:first-child.active,
+.ember-stack-currency-tabs button:first-child.active,
+.safecracker-currency-tabs button:first-child.active,
+.premium-slot-shell.currency-gc .segmented.small button:first-child.active,
+.frontier .currency-mini button.gold.active,
+.gold-rush .currency-mini button.gold.active {
+  color: #140e05;
+  background: linear-gradient(180deg, #fff2b8, var(--heater-gold) 54%, #f59e0b);
+  box-shadow: 0 0 18px rgba(255, 200, 87, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.56);
+}
+
+.over-under-currency-tabs button:nth-child(2).active,
+.crash-currency-tabs button:nth-child(2).active,
+.treasure-dig-currency-tabs button:nth-child(2).active,
+.roulette-currency-tabs button:nth-child(2).active,
+.blackjack-clean-currency-tabs button:nth-child(2).active,
+.balloon-pop-currency-tabs button:nth-child(2).active,
+.brick-break-currency-tabs button:nth-child(2).active,
+.lava-run-currency-tabs button:nth-child(2).active,
+.ember-stack-currency-tabs button:nth-child(2).active,
+.safecracker-currency-tabs button:nth-child(2).active,
+.premium-slot-shell.currency-sc .segmented.small button:nth-child(2).active,
+.frontier .currency-mini button.sweeps.active,
+.gold-rush .currency-mini button.sweeps.active {
+  color: var(--sc-ink);
+  background: var(--sc-button-gradient);
+  box-shadow: 0 0 18px var(--sc-glow), inset 0 1px 0 rgba(255, 255, 255, 0.58);
+}
+
+.currency-sc .over-under-bank,
+.currency-sc .crash-bet-bank,
+.currency-sc .treasure-bet-bank,
+.currency-sc .blackjack-clean-bank,
+.currency-sc .safecracker-bet-bank,
+.currency-sc .lava-run-balance,
+.currency-sc .lava-run-note,
+.currency-sc .ember-stack-bottom-balance,
+.currency-sc .balloon-pop-bank,
+.currency-sc .brick-break-bank {
+  border-color: var(--sc-border);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(34, 197, 94, 0.16), transparent 44%),
+    linear-gradient(180deg, rgba(6, 32, 19, 0.88), rgba(4, 9, 13, 0.9));
+  box-shadow: 0 0 18px rgba(34, 197, 94, 0.13), inset 0 1px 0 rgba(220, 252, 231, 0.08);
+}
+
+.currency-sc .over-under-bank span,
+.currency-sc .over-under-bank strong,
+.currency-sc .crash-balance-summary span,
+.currency-sc .crash-balance-summary strong,
+.currency-sc .treasure-bet-summary span,
+.currency-sc .treasure-bet-summary strong,
+.currency-sc .blackjack-clean-bank span,
+.currency-sc .blackjack-clean-bank strong,
+.currency-sc .safecracker-balance span,
+.currency-sc .safecracker-balance strong,
+.currency-sc .safecracker-limit-row span,
+.currency-sc .safecracker-limit-row strong,
+.currency-sc .lava-run-balance span,
+.currency-sc .lava-run-balance strong,
+.currency-sc .lava-run-bet-limits strong,
+.currency-sc .ember-stack-bottom-balance span,
+.currency-sc .ember-stack-bottom-balance strong,
+.currency-sc .balloon-pop-bank span,
+.currency-sc .balloon-pop-bank strong,
+.currency-sc .brick-break-bank span,
+.currency-sc .brick-break-bank strong {
+  color: var(--sc-bright);
+  text-shadow: 0 0 12px var(--sc-glow);
+}
+
+.balloon-pop-page.currency-sc,
+.brick-break-page.currency-sc {
+  --currency-accent: var(--sc-primary);
+  --currency-accent-hi: var(--sc-mint);
+  --currency-accent-deep: var(--sc-dark);
+  --currency-ink: var(--sc-ink);
+  --currency-soft: var(--sc-glow);
+}
+
+.blackjack-clean-page.currency-sc {
+  --bj-accent: var(--sc-primary);
+  --bj-accent-hi: var(--sc-mint);
+  --bj-cyan: var(--sc-primary);
+}
+
+.blackjack-clean-page.currency-sc .blackjack-clean-currency-tabs button:nth-child(2).active {
+  color: var(--sc-ink);
+  background: var(--sc-button-gradient);
+  box-shadow: 0 0 18px var(--sc-glow), inset 0 1px 0 rgba(255, 255, 255, 0.58);
+}
+
+.lava-run-page.currency-sc {
+  --lava-accent: var(--sc-primary);
+  --lava-safe: var(--sc-bright);
+  --lava-glow: var(--sc-glow);
+}
+
+.currency-sc .safecracker-currency-tabs button.active,
+.currency-sc .safecracker-bet-bank button,
+.currency-sc .safecracker-main-action {
+  color: var(--sc-ink);
+  background: var(--sc-button-gradient);
+  box-shadow: 0 0 18px var(--sc-glow), inset 0 1px 0 rgba(255, 255, 255, 0.52);
+}
+
+.currency-sc .safecracker-safe-glow,
+.currency-sc .safecracker-lock-core i.lit {
+  background: var(--sc-primary);
+  box-shadow: 0 0 18px var(--sc-glow);
+}
+
+.currency-sc .crash-main-action,
+.currency-sc .treasure-main-action,
+.currency-sc .over-under-roll,
+.currency-sc .blackjack-clean-deal,
+.currency-sc .balloon-pop-play,
+.currency-sc .brick-break-play,
+.currency-sc .lava-run-main-action,
+.currency-sc .ember-stack-main-action {
+  color: var(--sc-ink);
+  background: var(--sc-button-gradient);
+  box-shadow: 0 0 20px var(--sc-glow), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.roulette-clean-page.currency-sc .roulette-header-balance,
+.roulette-clean-page.currency-sc .roulette-action-stats,
+.roulette-clean-page.currency-sc .roulette-selected-chip-wrap {
+  border-color: var(--sc-border);
+  box-shadow: 0 0 18px rgba(34, 197, 94, 0.12);
+}
+
+.roulette-clean-page.currency-sc .roulette-header-balance strong,
+.roulette-clean-page.currency-sc .roulette-action-stats strong {
+  color: var(--sc-bright);
+}
+
+.roulette-clean-page.currency-sc .roulette-chip.active,
+.roulette-clean-page.currency-sc .board-chip {
+  filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.24));
+}
+
+.premium-slot-shell.currency-sc .balance-amount small,
+.premium-slot-shell.currency-sc .balance-amount strong,
+.premium-slot-shell.currency-sc .balance-line,
+.premium-slot-shell.currency-sc .slot-state-pill strong {
+  color: var(--sc-bright);
+  text-shadow: 0 0 12px var(--sc-glow);
+}
+
+.premium-slot-shell.currency-sc .currency-mini,
+.premium-slot-shell.currency-sc .control-readout {
+  border-color: var(--sc-border);
+  box-shadow: 0 0 18px rgba(34, 197, 94, 0.12);
+}
+
+/* Lava Run browser-note cleanup: balance tint belongs on the bet control, not the note row. */
+.lava-run-page.currency-gc .lava-run-bet-balance {
+  border-color: rgba(250, 204, 21, 0.36);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(250, 204, 21, 0.18), transparent 54%),
+    linear-gradient(180deg, rgba(58, 35, 5, 0.74), rgba(8, 6, 5, 0.78));
+  box-shadow: 0 0 18px rgba(250, 204, 21, 0.12), inset 0 1px 0 rgba(255, 247, 237, 0.08);
+}
+
+.lava-run-page.currency-gc .lava-run-bet-balance span,
+.lava-run-page.currency-gc .lava-run-bet-balance strong {
+  color: #fef08a;
+  text-shadow: 0 0 11px rgba(250, 204, 21, 0.22);
+}
+
+.lava-run-page.currency-sc .lava-run-bet-balance {
+  border-color: var(--sc-border);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(74, 222, 128, 0.2), transparent 54%),
+    linear-gradient(180deg, rgba(5, 46, 26, 0.74), rgba(4, 9, 13, 0.78));
+  box-shadow: 0 0 18px rgba(34, 197, 94, 0.14), inset 0 1px 0 rgba(220, 252, 231, 0.08);
+}
+
+.lava-run-page.currency-sc .lava-run-bet-balance span,
+.lava-run-page.currency-sc .lava-run-bet-balance strong {
+  color: var(--sc-bright);
+  text-shadow: 0 0 12px var(--sc-glow);
+}
+
+.lava-run-page .lava-run-note,
+.lava-run-page.currency-sc .lava-run-note {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.lava-run-page.currency-gc .lava-run-bet-limits strong {
+  color: #fef08a;
+  text-shadow: 0 0 10px rgba(250, 204, 21, 0.22);
+}
+
+.lava-run-page.currency-sc .lava-run-bet-limits strong {
+  color: var(--sc-bright);
+  text-shadow: 0 0 12px var(--sc-glow);
+}
+
+.bet-controls {
+  --bet-accent: #f59e0b;
+  --bet-accent-hi: #fef08a;
+  --bet-accent-soft: rgba(250, 204, 21, 0.2);
+  --bet-ink: #140e05;
+  width: 100%;
+  max-width: 100%;
+  display: grid;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 50% 0%, var(--bet-accent-soft), transparent 48%),
+    linear-gradient(180deg, rgba(8, 8, 13, 0.96), rgba(3, 3, 7, 0.96));
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  min-width: 0;
+}
+
+.bet-controls.currency-sc {
+  --bet-accent: var(--sc-primary);
+  --bet-accent-hi: var(--sc-bright);
+  --bet-accent-soft: var(--sc-glow);
+  --bet-ink: var(--sc-ink);
+  border-color: var(--sc-border);
+}
+
+.bet-controls.warning {
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.bet-controls-balance {
+  min-width: 0;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  background:
+    radial-gradient(circle at 100% 0%, var(--bet-accent-soft), transparent 58%),
+    rgba(255, 255, 255, 0.035);
+}
+
+.bet-controls-balance span,
+.bet-controls-note,
+.bet-controls-center span {
+  font-size: 0.62rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.bet-controls-balance span,
+.bet-controls-balance strong,
+.bet-controls-note strong {
+  color: var(--bet-accent-hi);
+  text-shadow: 0 0 12px var(--bet-accent-soft);
+}
+
+.bet-controls-balance strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.82rem;
+  font-weight: 950;
+  line-height: 1;
+  text-align: right;
+}
+
+.bet-controls-grid {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  gap: 6px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.bet-controls-side {
+  display: grid;
+  grid-template-rows: repeat(2, minmax(32px, 1fr));
+  gap: 4px;
+  min-width: 0;
+}
+
+.bet-controls-side button {
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  color: #fff7ed;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  font-size: 0.7rem;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.bet-controls-side button:hover:not(:disabled),
+.bet-controls-side button:focus-visible {
+  border-color: color-mix(in srgb, var(--bet-accent) 58%, white);
+  color: var(--bet-accent-hi);
+  box-shadow: 0 0 16px var(--bet-accent-soft), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.bet-controls-side button:disabled,
+.bet-controls-center input:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.bet-controls-center {
+  min-width: 0;
+  min-height: 68px;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  padding: 7px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  background: linear-gradient(180deg, rgba(6, 6, 11, 0.98), rgba(0, 0, 3, 0.98));
+}
+
+.bet-controls-center span {
+  color: #d7dbec;
+}
+
+.bet-controls-center input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: #fff7ed;
+  background: transparent;
+  font-size: var(--bet-input-font-size, 1.28rem);
+  font-weight: 950;
+  line-height: 1.05;
+  letter-spacing: 0;
+  text-align: center;
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.14);
+}
+
+.bet-controls-center input.currency-fit-medium {
+  --bet-input-font-size: 1.08rem;
+}
+
+.bet-controls-center input.currency-fit-long {
+  --bet-input-font-size: 0.94rem;
+}
+
+.bet-controls-center input.currency-fit-xlong {
+  --bet-input-font-size: 0.78rem;
+}
+
+.bet-controls-center:focus-within {
+  border-color: color-mix(in srgb, var(--bet-accent) 62%, white);
+  box-shadow: 0 0 18px var(--bet-accent-soft);
+}
+
+.bet-controls-note {
+  min-width: 0;
+  min-height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.bet-controls-note.warning,
+.bet-controls.warning .bet-controls-message {
+  color: #fecaca;
+}
+
+.bet-controls-message {
+  min-width: 0;
+  flex: 1 1 96px;
+  overflow-wrap: anywhere;
+}
+
+.bet-controls-limits {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  flex: 1 1 150px;
+  flex-wrap: wrap;
+}
+
+.bet-controls-limits strong {
+  min-height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 5px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.055);
+  font-size: 0.58rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.blackjack-clean-deal-row.single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.blackjack-clean-deal-row.single .blackjack-clean-deal {
+  width: 100%;
+}
+
+@media (max-width: 390px) {
+  .bet-controls {
+    gap: 5px;
+    padding: 5px;
+  }
+
+  .bet-controls-grid {
+    grid-template-columns: 37px minmax(0, 1fr) 37px;
+    gap: 5px;
+  }
+
+  .bet-controls-side {
+    grid-template-rows: repeat(2, minmax(31px, 1fr));
+  }
+
+  .bet-controls-side button {
+    min-height: 31px;
+    font-size: 0.66rem;
+  }
+
+  .bet-controls-center {
+    min-height: 66px;
+    padding-inline: 7px;
+  }
+
+  .bet-controls-balance {
+    padding-inline: 7px;
+  }
+}
+
+@media (max-width: 340px) {
+  .bet-controls-grid {
+    grid-template-columns: 35px minmax(0, 1fr) 35px;
+    gap: 4px;
+  }
+
+  .bet-controls-side {
+    gap: 3px;
+  }
+
+  .bet-controls-side button {
+    min-height: 30px;
+    border-radius: 6px;
+  }
+
+  .bet-controls-center {
+    min-height: 63px;
+    padding: 6px;
+  }
+
+  .bet-controls-center input {
+    --bet-input-font-size: 1.16rem;
+  }
+
+  .bet-controls-center input.currency-fit-medium {
+    --bet-input-font-size: 0.98rem;
+  }
+
+  .bet-controls-center input.currency-fit-long {
+    --bet-input-font-size: 0.86rem;
+  }
+
+  .bet-controls-center input.currency-fit-xlong {
+    --bet-input-font-size: 0.72rem;
+  }
+
+  .bet-controls-limits {
+    justify-content: flex-start;
+  }
+}
+
+.over-under-roll,
+.crash-main-action,
+.blackjack-clean-deal,
+.safecracker-main-action,
+.lava-run-main-action,
+.ember-stack-main-action,
+.balloon-pop-play,
+.brick-break-play {
+  min-height: 40px !important;
 }
 

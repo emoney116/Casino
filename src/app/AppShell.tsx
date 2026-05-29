@@ -10,6 +10,7 @@ import { WalletPage } from "../wallet/WalletPage";
 import type { WalletPanel } from "../wallet/WalletPage";
 import { PurchaseCoinsModal } from "../wallet/PurchaseCoinsModal";
 import { getBalance } from "../wallet/walletService";
+import { getDisplayBalances } from "../lib/displayBalanceStress";
 import type { Currency } from "../types";
 import type { AppView } from "./navigation";
 import { visibleNavItems } from "./navigation";
@@ -144,6 +145,7 @@ export function AppShell() {
   if (!user) return null;
   const currentUser = user;
   const balances = getBalance(currentUser.id);
+  const displayBalances = getDisplayBalances(balances);
   const nav = visibleNavItems(currentUser.roles);
 
   function gameplayBlockedBySelfExclusion() {
@@ -250,7 +252,7 @@ export function AppShell() {
           </div>
           <div className="header-wallet-tools">
             <BalanceToggle
-              balances={balances}
+              balances={displayBalances}
               selected={selectedBalance}
               expanded={balanceExpanded}
               onSelect={(currency) => {
@@ -265,7 +267,7 @@ export function AppShell() {
         <div className="balance-strip desktop-balance-strip">
           <div className="header-wallet-tools">
             <BalanceToggle
-              balances={balances}
+              balances={displayBalances}
               selected={selectedBalance}
               expanded={balanceExpanded}
               onSelect={(currency) => {

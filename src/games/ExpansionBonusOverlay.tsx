@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { playBigWin, playBonus, playExpansionHit, playMultiplierTick } from "../feedback/feedbackService";
-import { formatCoins } from "../lib/format";
+import { formatCurrencyDisplay } from "../lib/format";
 import type { ExpansionBonusConfig, ExpansionBonusResult } from "./types";
 
 export interface ExpansionBonusTheme {
@@ -142,7 +142,7 @@ export function ExpansionBonusOverlay({
               </div>
             </div>
             <strong className="mine-clash-multiplier">{complete ? `${winnerMultiplier}x` : activeRound?.phaseId === "winner" || activeRound?.phaseId === "wild-transform" ? `${winnerMultiplier}x` : "..."}</strong>
-            <p>{complete ? `${result.transformedPositions?.length ?? 0} multiplier wilds paid ${formatCoins(result.payout)}` : activeRound?.label ?? "The chamber is opening"}</p>
+            <p>{complete ? `${result.transformedPositions?.length ?? 0} multiplier wilds paid ${formatCurrencyDisplay(result.payout)}` : activeRound?.label ?? "The chamber is opening"}</p>
           </div>
         ) : (
           <div className="expansion-bonus-copy">
@@ -156,7 +156,7 @@ export function ExpansionBonusOverlay({
             )}
             {complete && (
               <p>
-                {result.multiplier}x on {formatCoins(betAmount)} = <b>{formatCoins(result.payout)}</b>
+                {result.multiplier}x on {formatCurrencyDisplay(betAmount)} = <b>{formatCurrencyDisplay(result.payout)}</b>
               </p>
             )}
           </div>

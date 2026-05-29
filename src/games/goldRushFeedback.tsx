@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { isSoundEnabled } from "../feedback/feedbackService";
-import { formatCoins } from "../lib/format";
+import { formatCoins, formatCurrencyDisplay } from "../lib/format";
 import type { SlotSpinResult } from "./types";
 
 export type GoldRushWinTier = "none" | "small" | "nice" | "big" | "mega" | "epic";
@@ -410,7 +410,7 @@ export function GoldRushWinOverlay({
       aria-label={`${tierConfig.label}: ${formatCoins(amount)} ${currencyLabel}`}
     >
       <span className="gold-rush-win-eyebrow">{tierConfig.label}</span>
-      <strong>+{formatCoins(displayAmount)} <small>{currencyLabel}</small></strong>
+      <strong>+{formatCurrencyDisplay(displayAmount)} <small>{currencyLabel}</small></strong>
       <em>{complete ? "Tap to continue" : "Tap to skip"}</em>
       <GoldRushParticles count={tierConfig.particles} tone={tone} />
     </button>

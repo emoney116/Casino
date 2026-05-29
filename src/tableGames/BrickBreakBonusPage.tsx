@@ -5,8 +5,10 @@ import { useToast } from "../components/ToastContext";
 import { CoinBurst, ScreenShake, SoundToggle } from "../feedback/components";
 import { playBet, playBigWin, playBrickBreakImpact, playBrickCombo, playBrickExplosive, playBrickJackpot, playBrickPaddleHit, playError, playLose, playWin } from "../feedback/feedbackService";
 import { recordRetentionRound } from "../retention/retentionService";
+import { formatCurrencyDisplay } from "../lib/format";
 import type { Currency } from "../types";
 import { getBalance } from "../wallet/walletService";
+import { BetControls, clampBetAmount } from "./BetControls";
 import { brickBreakBonusConfig, generateBrickBreakResult, getBrickBreakBetLimits, type BrickBreakHit, type BrickBreakResult, type BrickBreakState, type BrickBreakStep } from "./brickBreakBonusEngine";
 
 const titleLogoAsset = new URL("../assets/branding/game-logos/brickbreak_logo.png", import.meta.url).href;
@@ -74,7 +76,6 @@ export function BrickBreakBonusPage({ onExit }: { onExit?: () => void }) {
   const notify = useToast();
   const [currency, setCurrency] = useState<Currency>("GOLD");
   const [betAmount, setBetAmount] = useState(getBrickBreakBetLimits("GOLD").minBet);
-  const [betInput, setBetInput] = useState(formatBetInput(getBrickBreakBetLimits("GOLD").minBet));
   const [gameState, setGameState] = useState<BrickBreakState>("idle");
   const [result, setResult] = useState<BrickBreakResult | null>(null);
   const [revealedHits, setRevealedHits] = useState<BrickBreakHit[]>([]);
@@ -152,20 +153,17 @@ export function BrickBreakBonusPage({ onExit }: { onExit?: () => void }) {
 
   function clampBet(value: number, nextCurrency = currency) {
     const limits = getBrickBreakBetLimits(nextCurrency);
-    const normalized = nextCurrency === "BONUS" ? Number(value.toFixed(2)) : Math.round(value);
-    return Math.max(limits.minBet, Math.min(limits.maxBet, normalized));
+    return clampBetAmount(value, {
+      minBet: limits.minBet,
+      maxBet: limits.maxBet,
+      balance: getBalance(currentUser.id, nextCurrency),
+      allowDecimals: nextCurrency === "BONUS",
+    });
   }
 
   function setBet(value: number, nextCurrency = currency) {
     const next = clampBet(value, nextCurrency);
     setBetAmount(next);
-    setBetInput(formatBetInput(next));
-  }
-
-  function updateBetInput(value: string) {
-    setBetInput(value);
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) setBetAmount(Math.max(0, Math.min(betLimits.maxBet, currency === "BONUS" ? parsed : Math.round(parsed))));
   }
 
   function selectCurrency(nextCurrency: Currency) {
@@ -422,41 +420,30 @@ export function BrickBreakBonusPage({ onExit }: { onExit?: () => void }) {
       {roundOverlay && (
         <div key={roundOverlay.key} className={`brick-break-win-popover ${roundOverlay.tier}`} role="status" aria-live="polite">
           <span>{roundOverlay.amount > 0 ? getWinTitle(roundOverlay.tier) : "No win"}</span>
-          <strong>{roundOverlay.amount > 0 ? formatCurrencyValue(roundOverlay.amount) : "Try Again"}</strong>
+          <strong>{roundOverlay.amount > 0 ? formatCurrencyValue(roundOverlay.amount, currency) : "Try Again"}</strong>
         </div>
       )}
 
       <section className="brick-break-controls">
-        <div className={totalPulse ? "brick-break-bank pulse" : "brick-break-bank"}>
-          <span>{currencyCopy[currency].short} Balance: {formatCurrencyValue(balance)}</span>
-          <strong>Last won: {formatCurrencyValue(lastWon)}</strong>
-        </div>
-        <div className="brick-break-bet-row">
-          <button type="button" disabled={running} onClick={() => setBet(betAmount - betLimits.minBet)}>-</button>
-          <label>
-            <span>Bet</span>
-            <input
-              aria-label="Bet amount"
-              inputMode={currency === "BONUS" ? "decimal" : "numeric"}
-              type="text"
-              value={betInput}
-              disabled={running}
-              onChange={(event) => updateBetInput(event.target.value)}
-              onBlur={(event) => setBet(Number(event.target.value))}
-            />
-          </label>
-          <button type="button" disabled={running} onClick={() => setBet(betAmount + betLimits.minBet)}>+</button>
-        </div>
-        <div className={balance < betAmount ? "brick-break-note warning" : "brick-break-note"}>
-          <span>Min {currencyCopy[currency].short}: {formatCurrencyValue(betLimits.minBet)}</span>
-          <strong>Max {currencyCopy[currency].short}: {formatCurrencyValue(betLimits.maxBet)}</strong>
-        </div>
+        <BetControls
+          className={totalPulse ? "pulse" : ""}
+          currentBet={betAmount}
+          minBet={betLimits.minBet}
+          maxBet={betLimits.maxBet}
+          balance={balance}
+          currency={currency}
+          increment={betLimits.minBet}
+          allowDecimals={currency === "BONUS"}
+          disabled={running}
+          leadingInfo={`Last won: ${formatCurrencyValue(lastWon, currency)}`}
+          onBetChange={(amount) => setBet(amount)}
+        />
         <button className="brick-break-play" disabled={!canPlay} onClick={play}>
           {getPlayButtonLabel({ running, betExceedsBalance, roundComplete: gameState === "gameOver", currency })}
         </button>
         {recentRounds.length > 0 && (
           <div className="brick-break-recent" aria-label="Recent Brick Break rounds">
-            {recentRounds.map((round, index) => <strong key={`${round.paid}-${round.net}-${index}`} className={round.net >= 0 ? "win" : "loss"}>{round.net >= 0 ? "+" : ""}{formatCurrencyValue(round.net)}</strong>)}
+            {recentRounds.map((round, index) => <strong key={`${round.paid}-${round.net}-${index}`} className={round.net >= 0 ? "win" : "loss"}>{round.net >= 0 ? "+" : ""}{formatCurrencyValue(round.net, currency)}</strong>)}
           </div>
         )}
       </section>
@@ -483,12 +470,8 @@ export function BrickBreakBonusPage({ onExit }: { onExit?: () => void }) {
   );
 }
 
-function formatCurrencyValue(amount: number) {
-  return amount.toLocaleString(undefined, { maximumFractionDigits: 2 });
-}
-
-function formatBetInput(amount: number) {
-  return Number.isFinite(amount) ? Number(amount.toFixed(2)).toString() : "0";
+function formatCurrencyValue(amount: number, currency: Currency) {
+  return formatCurrencyDisplay(amount, currency);
 }
 
 function formatMultiplier(multiplier: number) {
