@@ -25,6 +25,10 @@ export function SupabaseDebugPanel() {
         <span>Wallet source</span><strong>{debug.wallet?.source ?? "none"}</strong>
         <span>Fetched wallet row</span><strong>{debug.wallet?.fetchedRow ?? "none"}</strong>
         <span>Rendered wallet balance</span><strong>{debug.wallet?.renderedBalance ?? "none"}</strong>
+        <span>VIP source</span><strong>{debug.vip?.source ?? "none"}</strong>
+        <span>VIP lifetime SC wagered</span><strong>{String(debug.vip?.fetchedLifetimeSCWagered ?? "none")}</strong>
+        <span>Calculated VIP tier</span><strong>{debug.vip?.calculatedTier ?? "none"}</strong>
+        <span>Rendered VIP tier</span><strong>{debug.vip?.renderedTier ?? "none"}</strong>
         <span>Last auth error</span><strong>{debug.lastAuthError ?? "none"}</strong>
         <span>Last database mirror error</span><strong>{debug.lastMirrorError ?? "none"}</strong>
       </div>

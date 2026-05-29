@@ -18,12 +18,21 @@ interface WalletDebugState {
   renderSurface?: string;
 }
 
+interface VipDebugState {
+  source?: WalletSource;
+  userId?: string;
+  fetchedLifetimeSCWagered?: number;
+  calculatedTier?: string;
+  renderedTier?: string;
+}
+
 interface DebugState {
   authProvider: AuthProviderName;
   authContext?: AuthDebugContext;
   lastAuthError?: string;
   lastMirrorError?: string;
   wallet?: WalletDebugState;
+  vip?: VipDebugState;
 }
 
 const debugState: DebugState = {
@@ -82,6 +91,42 @@ export function setDebugRenderedWalletBalance(input: {
     surface: input.surface,
     storedWalletBalance: input.storedBalances,
     finalRenderedWalletBalance: input.renderedBalances,
+  });
+}
+
+export function setDebugVipProgress(input: {
+  userId: string;
+  source: WalletSource;
+  lifetimeSCWagered: number;
+  calculatedTier: string;
+}) {
+  debugState.vip = {
+    ...debugState.vip,
+    userId: input.userId,
+    source: input.source,
+    fetchedLifetimeSCWagered: input.lifetimeSCWagered,
+    calculatedTier: input.calculatedTier,
+  };
+  logDevWalletDebug("vip progress", {
+    currentUserId: input.userId,
+    vipSource: input.source,
+    fetchedLifetimeSCWagered: input.lifetimeSCWagered,
+    calculatedVipTier: input.calculatedTier,
+  });
+}
+
+export function setDebugRenderedVipTier(input: {
+  userId: string;
+  renderedTier: string;
+}) {
+  debugState.vip = {
+    ...debugState.vip,
+    userId: input.userId,
+    renderedTier: input.renderedTier,
+  };
+  logDevWalletDebug("rendered vip tier", {
+    currentUserId: input.userId,
+    renderedVipTier: input.renderedTier,
   });
 }
 

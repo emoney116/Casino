@@ -12,6 +12,7 @@
     "mobile:open:android": "cap open android",
     "test:wallet": "tsx src/wallet/wallet.devtest.ts",
     "test:cashier": "tsx src/wallet/walletCashier.devtest.tsx",
+    "test:vip": "tsx src/account/vip.devtest.tsx",
     "test:slots": "tsx src/games/slot.devtest.ts",
     "test:tables": "tsx src/tableGames/tableGames.devtest.ts",
     "test:balloon": "tsx src/tableGames/balloonPop.devtest.ts",
@@ -21,7 +22,7 @@
     "test:account": "tsx src/account/account.devtest.tsx",
     "test:packs": "tsx src/store/coinPacks.devtest.tsx",
     "test:sweepstakes": "tsx src/redemption/sweepstakesPrep.devtest.tsx",
-    "test:dev": "npm run test:wallet && npm run test:cashier && npm run test:slots && npm run test:tables && npm run test:balloon && npm run test:safecracker && npm run test:rewards && npm run test:routes && npm run test:account && npm run test:packs && npm run test:sweepstakes"
+    "test:dev": "npm run test:wallet && npm run test:cashier && npm run test:vip && npm run test:slots && npm run test:tables && npm run test:balloon && npm run test:safecracker && npm run test:rewards && npm run test:routes && npm run test:account && npm run test:packs && npm run test:sweepstakes"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.1",

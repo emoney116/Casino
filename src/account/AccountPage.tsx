@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useState, type PointerEvent as ReactPointerEvent } from "react";
 import {
   ArrowUpRight,
   Ban,
@@ -22,7 +22,7 @@ import { useAuth } from "../auth/AuthContext";
 import { Modal } from "../components/Modal";
 import { SupabaseDebugPanel } from "../components/SupabaseDebugPanel";
 import { getDisplayBalances } from "../lib/displayBalanceStress";
-import { setDebugRenderedWalletBalance } from "../lib/debugState";
+import { setDebugRenderedVipTier, setDebugRenderedWalletBalance } from "../lib/debugState";
 import { formatCoins, formatCurrencyFullDisplay, getCurrencyAmountFitClass } from "../lib/format";
 import { getProgression } from "../progression/progressionService";
 import { getKycStatus } from "../redemption/redemptionService";
@@ -45,8 +45,9 @@ import {
 } from "./profileService";
 import {
   VIP_LEDGER_UPDATED_EVENT,
-  getVipProgress,
+  getInitialVipProgress,
   getVipProgressForWagered,
+  refreshVipProgress,
   vipTiers,
   type VipProgress,
   type VipTierConfig,
@@ -218,6 +219,36 @@ export function VipDetailsContent({ vip }: { vip: VipProgress }) {
   );
 }
 
+export function AccountVipCard({ vipProgress, onOpenVip }: { vipProgress: VipProgress; onOpenVip: () => void }) {
+  return (
+    <section className={`account-panel account-vip-card ${vipAccentClass(vipProgress.currentTier)}`} aria-labelledby="account-vip-title">
+      <div className="account-section-heading">
+        <h2 id="account-vip-title">VIP Status</h2>
+        <button className="account-mini-button" type="button" onClick={onOpenVip}>
+          View VIP
+        </button>
+      </div>
+      <div className="account-vip-card-top">
+        <VipBadge tier={vipProgress.currentTier} size="card" />
+        <div>
+          <strong>{vipProgress.nextTier ? `${formatSc(vipProgress.remainingToNext)} to go` : "Top tier reached"}</strong>
+          <span>{vipProgress.nextTier ? `Next: ${vipProgress.nextTier.name} at ${formatSc(vipProgress.nextTier.threshold)}` : "All configured tiers unlocked"}</span>
+        </div>
+      </div>
+      <VipProgressSummary vip={vipProgress} />
+      <div className="account-vip-benefits-preview">
+        {vipProgress.currentTier.benefits.slice(0, 3).map((benefit) => (
+          <span key={benefit}>
+            <Gem size={14} />
+            {benefit}
+          </span>
+        ))}
+      </div>
+      <p className="account-vip-disclaimer">VIP perks are promotional and subject to change.</p>
+    </section>
+  );
+}
+
 export function AccountPage() {
   const { user, logout, refreshUser } = useAuth();
   const initialPreferences = user ? getProfilePreferences(user.id) : undefined;
@@ -245,8 +276,8 @@ export function AccountPage() {
   );
   const [selfExclusionConfirmOpen, setSelfExclusionConfirmOpen] = useState(false);
   const [vipModalOpen, setVipModalOpen] = useState(false);
-  const [vipRefreshKey, setVipRefreshKey] = useState(0);
-  const [walletRefreshKey, setWalletRefreshKey] = useState(0);
+  const [, setWalletRefreshKey] = useState(0);
+  const [vipProgress, setVipProgress] = useState<VipProgress>(() => user ? getInitialVipProgress(user.id) : getVipProgressForWagered(0));
 
   useEffect(() => {
     if (!user) return;
@@ -264,12 +295,32 @@ export function AccountPage() {
 
   useEffect(() => {
     if (!user || typeof window === "undefined" || typeof window.addEventListener !== "function") return;
+    let active = true;
+    const userId = user.id;
+
+    function loadVipProgress() {
+      void refreshVipProgress(userId)
+        .then((progress) => {
+          if (active) setVipProgress(progress);
+        })
+        .catch((error) => {
+          console.warn("Unable to refresh VIP progress.", error);
+        });
+    }
+
     function refreshVip(event: Event) {
       const detail = (event as CustomEvent<{ userId: string }>).detail;
-      if (detail?.userId === user?.id) setVipRefreshKey((value) => value + 1);
+      if (detail?.userId === userId) {
+        loadVipProgress();
+      }
     }
     window.addEventListener(VIP_LEDGER_UPDATED_EVENT, refreshVip);
-    return () => window.removeEventListener(VIP_LEDGER_UPDATED_EVENT, refreshVip);
+    setVipProgress(getInitialVipProgress(userId));
+    loadVipProgress();
+    return () => {
+      active = false;
+      window.removeEventListener(VIP_LEDGER_UPDATED_EVENT, refreshVip);
+    };
   }, [user]);
 
   useEffect(() => {
@@ -285,7 +336,10 @@ export function AccountPage() {
     return () => window.removeEventListener(WALLET_BALANCE_UPDATED_EVENT, refreshWallet);
   }, [user]);
 
-  const vipProgress = useMemo(() => user ? getVipProgress(user.id) : getVipProgressForWagered(0), [user, vipRefreshKey, walletRefreshKey]);
+  useEffect(() => {
+    if (!user) return;
+    setDebugRenderedVipTier({ userId: user.id, renderedTier: vipProgress.currentTier.name });
+  }, [user, vipProgress.currentTier.name]);
 
   if (!user) return null;
   const currentUser = user;
@@ -445,6 +499,13 @@ export function AccountPage() {
     });
   }
 
+  function openVipModal() {
+    void refreshVipProgress(currentUser.id)
+      .then(setVipProgress)
+      .catch((error) => console.warn("Unable to refresh VIP progress.", error));
+    setVipModalOpen(true);
+  }
+
   return (
     <section className="account-page page-stack">
       <section className="account-hero" aria-label="Profile overview">
@@ -516,31 +577,7 @@ export function AccountPage() {
         </article>
       </section>
 
-      <section className={`account-panel account-vip-card ${vipAccentClass(vipProgress.currentTier)}`} aria-labelledby="account-vip-title">
-        <div className="account-section-heading">
-          <h2 id="account-vip-title">VIP Status</h2>
-          <button className="account-mini-button" type="button" onClick={() => setVipModalOpen(true)}>
-            View VIP
-          </button>
-        </div>
-        <div className="account-vip-card-top">
-          <VipBadge tier={vipProgress.currentTier} size="card" />
-          <div>
-            <strong>{vipProgress.nextTier ? `${formatSc(vipProgress.remainingToNext)} to go` : "Top tier reached"}</strong>
-            <span>{vipProgress.nextTier ? `Next: ${vipProgress.nextTier.name} at ${formatSc(vipProgress.nextTier.threshold)}` : "All configured tiers unlocked"}</span>
-          </div>
-        </div>
-        <VipProgressSummary vip={vipProgress} />
-        <div className="account-vip-benefits-preview">
-          {vipProgress.currentTier.benefits.slice(0, 3).map((benefit) => (
-            <span key={benefit}>
-              <Gem size={14} />
-              {benefit}
-            </span>
-          ))}
-        </div>
-        <p className="account-vip-disclaimer">VIP perks are promotional and subject to change.</p>
-      </section>
+      <AccountVipCard vipProgress={vipProgress} onOpenVip={openVipModal} />
 
       <section className="account-panel" id="account-settings" aria-labelledby="account-settings-title">
         <div className="account-section-heading">

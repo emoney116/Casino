@@ -2,7 +2,7 @@ import { createId } from "../lib/ids";
 import { readData, updateData } from "../lib/storage";
 import { getRepository, mirrorToBackend } from "../repositories";
 import { assertResponsiblePlayAllowsDebit } from "../account/profileService";
-import { emitVipLedgerUpdated, isVipWagerTransaction } from "../account/vipService";
+import { emitVipLedgerUpdated, isVipWagerTransaction, syncVipWagerTransaction } from "../account/vipService";
 import { setDebugWalletFetch, setLastMirrorError } from "../lib/debugState";
 import type { Currency, Transaction, TransactionType, WalletBalances } from "../types";
 
@@ -224,13 +224,15 @@ export function debitCurrency(input: LedgerInput): Transaction {
   });
 
   const tx = created as Transaction;
-  if (isVipWagerTransaction(tx)) emitVipLedgerUpdated(input.userId);
+  const isVipWager = isVipWagerTransaction(tx);
+  if (isVipWager && getRepository().mode !== "supabase") emitVipLedgerUpdated(input.userId);
   const balances = getBalance(input.userId);
   dispatchWalletUpdated(input.userId, balances, getRepository().mode === "supabase" ? "supabase" : "local");
   mirrorToBackend(async () => {
     const repository = getRepository();
     await repository.syncWalletBalance(input.userId, balances);
     await repository.syncWalletTransaction(tx);
+    if (isVipWager) await syncVipWagerTransaction(tx);
   });
   return tx;
 }

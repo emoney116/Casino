@@ -53,6 +53,32 @@ export const supabaseRepository: CasinoRepository = {
       metadata: metadataValue(row.metadata),
     }));
   },
+  async ensureVipProgress(userId: string) {
+    const client = requireSupabase();
+    const { error } = await client.from("vip_progress").upsert({
+      user_id: userId,
+      lifetime_sc_wagered: 0,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id", ignoreDuplicates: true });
+    if (error) throw error;
+  },
+  async fetchVipLifetimeSCWagered(userId: string) {
+    const client = requireSupabase();
+    const { data, error } = await client
+      .from("vip_progress")
+      .select("lifetime_sc_wagered")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? numericValue(data.lifetime_sc_wagered) : null;
+  },
+  async recordVipWager(transaction: Transaction) {
+    const client = requireSupabase();
+    const { error } = await client.rpc("record_vip_wager", {
+      p_transaction_id: transaction.id,
+    });
+    if (error) throw error;
+  },
   async syncProfile(user: User) {
     const client = requireSupabase();
     const { error } = await client.from("profiles").upsert({

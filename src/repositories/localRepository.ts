@@ -9,6 +9,15 @@ export const localRepository: CasinoRepository = {
   async fetchWalletTransactions(userId) {
     return readData().transactions.filter((transaction) => transaction.userId === userId);
   },
+  async ensureVipProgress() {
+    return undefined;
+  },
+  async fetchVipLifetimeSCWagered() {
+    return null;
+  },
+  async recordVipWager() {
+    return undefined;
+  },
   async syncProfile() {
     return undefined;
   },

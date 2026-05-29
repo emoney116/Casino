@@ -1,5 +1,7 @@
 import { readData } from "../lib/storage";
-import type { TransactionStatus, TransactionType } from "../types";
+import { setDebugVipProgress, setLastMirrorError } from "../lib/debugState";
+import { getRepository } from "../repositories";
+import type { Transaction, TransactionStatus, TransactionType } from "../types";
 
 export type VipTierId =
   | "none"
@@ -164,6 +166,50 @@ export function getVipProgressForWagered(lifetimeSCWagered: number): VipProgress
 
 export function getVipProgress(userId: string) {
   return getVipProgressForWagered(getLifetimeSCWagered(userId));
+}
+
+export function getInitialVipProgress(userId: string) {
+  return getRepository().mode === "supabase" ? getVipProgressForWagered(0) : getVipProgress(userId);
+}
+
+export async function refreshVipProgress(userId: string) {
+  const repository = getRepository();
+  if (repository.mode !== "supabase") {
+    const lifetimeSCWagered = getLifetimeSCWagered(userId);
+    const progress = getVipProgressForWagered(lifetimeSCWagered);
+    setDebugVipProgress({
+      userId,
+      source: "local",
+      lifetimeSCWagered,
+      calculatedTier: progress.currentTier.name,
+    });
+    return progress;
+  }
+
+  try {
+    const fetched = await repository.fetchVipLifetimeSCWagered(userId);
+    const lifetimeSCWagered = fetched ?? 0;
+    if (fetched === null) await repository.ensureVipProgress(userId);
+    const progress = getVipProgressForWagered(lifetimeSCWagered);
+    setDebugVipProgress({
+      userId,
+      source: "supabase",
+      lifetimeSCWagered,
+      calculatedTier: progress.currentTier.name,
+    });
+    return progress;
+  } catch (error) {
+    setLastMirrorError(error);
+    throw error;
+  }
+}
+
+export async function syncVipWagerTransaction(transaction: Transaction) {
+  if (!isVipWagerTransaction(transaction)) return;
+  const repository = getRepository();
+  if (repository.mode !== "supabase") return;
+  await repository.recordVipWager(transaction);
+  emitVipLedgerUpdated(transaction.userId);
 }
 
 export function emitVipLedgerUpdated(userId: string) {

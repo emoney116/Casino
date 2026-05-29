@@ -73,6 +73,8 @@ async function syncSupabaseUser(user: User, options: { initialBalances?: WalletB
   try {
     await repository.syncProfile(user);
     console.log("profile sync result/error", { ok: true });
+    await repository.ensureVipProgress(user.id);
+    console.log("vip progress init result/error", { ok: true });
   } catch (error) {
     console.log("profile sync result/error", { ok: false, error });
     setLastMirrorError(error);
