@@ -1,3 +1,4 @@
+import type { User as SupabaseAuthUser } from "@supabase/supabase-js";
 import { createId } from "../lib/ids";
 import { isSupabaseConfigured, supabase } from "../lib/supabaseClient";
 import { readData, updateData } from "../lib/storage";
@@ -7,15 +8,39 @@ import { emptyBalances, refreshWalletFromRepository } from "../wallet/walletServ
 import type { User, WalletBalances } from "../types";
 
 export interface AuthResult {
-  user: User;
+  user: User | null;
+  message?: string;
+  requiresEmailConfirmation?: boolean;
 }
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
+function normalizeUsername(username: string) {
+  return username.trim().replace(/\s+/g, " ");
+}
+
 function validateEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function validateUsername(username: string) {
+  if (username.length < 3) throw new Error("Username must be at least 3 characters.");
+  if (username.length > 24) throw new Error("Username must be 24 characters or fewer.");
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9 ._-]*$/.test(username)) {
+    throw new Error("Use letters, numbers, spaces, dots, underscores, or hyphens.");
+  }
+}
+
+function validatePassword(password: string) {
+  if (password.length < 8) throw new Error("Password must be at least 8 characters.");
+}
+
+function clearLocalSession() {
+  updateData((data) => {
+    data.sessions = [];
+  });
 }
 
 function cacheUserLocally(user: User) {
@@ -35,26 +60,64 @@ function getLocalCurrentUser() {
   return data.users.find((user) => user.id === session.userId) ?? null;
 }
 
-async function getSupabaseProfile(authUserId: string, email: string): Promise<User> {
+function isSupabaseEmailVerified(authUser: SupabaseAuthUser) {
+  return Boolean(authUser.email_confirmed_at || authUser.confirmed_at);
+}
+
+function getSupabasePhone(authUser: SupabaseAuthUser) {
+  return typeof authUser.phone === "string" && authUser.phone ? authUser.phone : undefined;
+}
+
+function getSupabasePhoneVerified(authUser: SupabaseAuthUser) {
+  return Boolean((authUser as SupabaseAuthUser & { phone_confirmed_at?: string | null }).phone_confirmed_at);
+}
+
+function assertActiveAccount(user: User) {
+  if (user.accountStatus === "ACTIVE") return;
+  const label = user.accountStatus.toLowerCase();
+  throw new Error(`This account is ${label}. Contact support if you believe this is a mistake.`);
+}
+
+async function checkUsernameAvailable(username: string) {
+  const normalized = normalizeUsername(username);
+  validateUsername(normalized);
+
+  if (isSupabaseConfigured) {
+    if (!supabase) throw new Error("Supabase is not configured.");
+    const { data, error } = await supabase.rpc("is_username_available", { candidate: normalized });
+    if (error) throw new Error(error.message);
+    return Boolean(data);
+  }
+
+  const candidate = normalized.toLowerCase();
+  return !readData().users.some((user) => user.username.trim().toLowerCase() === candidate);
+}
+
+async function getSupabaseProfile(authUser: SupabaseAuthUser, fallbackUsername?: string): Promise<User> {
   if (!supabase) throw new Error("Supabase is not configured.");
-  const { data, error } = await supabase.from("profiles").select("*").eq("id", authUserId).maybeSingle();
+  if (!authUser.email) throw new Error("Unable to load Supabase user email.");
+  const { data, error } = await supabase.from("profiles").select("*").eq("id", authUser.id).maybeSingle();
   if (error) throw new Error(error.message);
 
   const now = new Date().toISOString();
   const roles = data?.roles ?? (data?.role ? [data.role] : ["USER"]);
+  const accountStatus = String(data?.account_status ?? "ACTIVE").toUpperCase() as User["accountStatus"];
   const user = {
-    id: authUserId,
-    email: data?.email ?? email,
-    username: data?.username ?? email.split("@")[0],
+    id: authUser.id,
+    email: data?.email ?? authUser.email,
+    username: data?.username ?? fallbackUsername ?? authUser.email.split("@")[0],
     createdAt: data?.created_at ?? now,
     lastLoginAt: data?.last_login_at ?? now,
     roles,
-    accountStatus: data?.account_status ?? "ACTIVE",
+    accountStatus,
+    emailVerified: isSupabaseEmailVerified(authUser),
+    phone: getSupabasePhone(authUser),
+    phoneVerified: getSupabasePhoneVerified(authUser),
     avatarDataUrl: data?.avatar_data_url ?? undefined,
   };
   setDebugAuthContext({
-    authUserId,
-    profileId: data?.id ?? authUserId,
+    authUserId: authUser.id,
+    profileId: data?.id ?? authUser.id,
     username: user.username,
     supabaseConfigured: isSupabaseConfigured,
   });
@@ -71,18 +134,21 @@ async function syncSupabaseUser(user: User, options: { initialBalances?: WalletB
   });
   const repository = getRepository();
   try {
-    await repository.syncProfile(user);
-    console.log("profile sync result/error", { ok: true });
-    await repository.ensureVipProgress(user.id);
-    console.log("vip progress init result/error", { ok: true });
+    if (repository.ensureUserFoundation) {
+      await repository.ensureUserFoundation(user, { initialBalances: options.initialBalances });
+    } else {
+      await repository.syncProfile(user);
+      await repository.ensureVipProgress(user.id);
+    }
+    console.log("auth foundation sync result/error", { ok: true });
   } catch (error) {
-    console.log("profile sync result/error", { ok: false, error });
+    console.log("auth foundation sync result/error", { ok: false, error });
     setLastMirrorError(error);
     throw error;
   }
   await refreshWalletFromRepository(user.id, {
     missingBalances: options.initialBalances,
-    createMissingBalance: options.createMissingBalance,
+    createMissingBalance: options.createMissingBalance ?? true,
   });
 }
 
@@ -95,18 +161,27 @@ export async function getCurrentUser() {
   const authUser = data.session?.user;
   if (!authUser?.email) return null;
 
-  const user = await getSupabaseProfile(authUser.id, authUser.email);
-  await syncSupabaseUser(user);
+  const user = await getSupabaseProfile(authUser);
+  try {
+    assertActiveAccount(user);
+  } catch (statusError) {
+    setLastAuthError(statusError);
+    await supabase.auth.signOut();
+    clearLocalSession();
+    return null;
+  }
+  await syncSupabaseUser(user, { createMissingBalance: true });
   return user;
 }
 
 export async function registerUser(emailInput: string, usernameInput: string, password: string): Promise<AuthResult> {
   const email = normalizeEmail(emailInput);
-  const username = usernameInput.trim();
+  const username = normalizeUsername(usernameInput);
 
   if (!validateEmail(email)) throw new Error("Enter a valid email address.");
-  if (username.length < 3) throw new Error("Username must be at least 3 characters.");
-  if (password.length < 6) throw new Error("Password must be at least 6 characters.");
+  validateUsername(username);
+  validatePassword(password);
+  if (!(await checkUsernameAvailable(username))) throw new Error("Username already taken.");
 
   if (isSupabaseConfigured) {
     setDebugAuthProvider("Supabase");
@@ -124,19 +199,16 @@ export async function registerUser(emailInput: string, usernameInput: string, pa
     }
     if (!data.user?.id || !data.user.email) throw new Error("Supabase signup did not return a user.");
     if (!data.session) {
-      throw new Error("Signup created. Confirm the email or disable email confirmations for this prototype, then log in.");
+      setLastAuthError(undefined);
+      return {
+        user: null,
+        requiresEmailConfirmation: true,
+        message: "Account created. Check your email to confirm your account, then log in.",
+      };
     }
 
-    const now = new Date().toISOString();
-    const user: User = {
-      id: data.user.id,
-      email: data.user.email,
-      username,
-      createdAt: now,
-      lastLoginAt: now,
-      roles: ["USER"],
-      accountStatus: "ACTIVE",
-    };
+    const user = await getSupabaseProfile(data.user, username);
+    assertActiveAccount(user);
     const initialBalances = { GOLD: 0, BONUS: 1000 };
     updateData((localData) => {
       localData.walletBalances[user.id] = initialBalances;
@@ -193,9 +265,10 @@ export async function loginUser(emailInput: string, password: string): Promise<A
     }
     if (!data.user?.id || !data.user.email) throw new Error("Unable to load Supabase user.");
 
-    const user = await getSupabaseProfile(data.user.id, data.user.email);
+    const user = await getSupabaseProfile(data.user);
+    assertActiveAccount(user);
     user.lastLoginAt = new Date().toISOString();
-    await syncSupabaseUser(user);
+    await syncSupabaseUser(user, { createMissingBalance: true });
     setLastAuthError(undefined);
     return { user };
   }
@@ -231,7 +304,37 @@ export async function logoutUser() {
     const { error } = await supabase.auth.signOut();
     if (error) throw new Error(error.message);
   }
-  updateData((data) => {
-    data.sessions = [];
-  });
+  clearLocalSession();
+}
+
+export async function requestPasswordReset(emailInput: string) {
+  const email = normalizeEmail(emailInput);
+  if (!validateEmail(email)) throw new Error("Enter a valid email address.");
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error("Password reset requires Supabase authentication.");
+  }
+
+  const redirectTo = typeof window === "undefined"
+    ? undefined
+    : `${window.location.origin}/reset-password`;
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+  if (error) {
+    setLastAuthError(error);
+    throw new Error(error.message);
+  }
+  setLastAuthError(undefined);
+}
+
+export async function updatePasswordFromRecovery(password: string) {
+  validatePassword(password);
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error("Password reset requires Supabase authentication.");
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    setLastAuthError(error);
+    throw new Error(error.message);
+  }
+  setLastAuthError(undefined);
 }

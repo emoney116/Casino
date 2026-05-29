@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { getCurrentUser, loginUser, logoutUser, registerUser } from "./authService";
+import { getCurrentUser, loginUser, logoutUser, registerUser, type AuthResult } from "./authService";
 import { isSupabaseConfigured, supabase } from "../lib/supabaseClient";
 import type { User } from "../types";
 
@@ -8,7 +8,7 @@ interface AuthContextValue {
   loading: boolean;
   refreshUser: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, username: string, password: string) => Promise<void>;
+  register: (email: string, username: string, password: string) => Promise<AuthResult>;
   logout: () => Promise<void>;
 }
 
@@ -19,7 +19,12 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
   const [loading, setLoading] = useState(!initialUser);
 
   const refreshUser = useCallback(async () => {
-    setUser(await getCurrentUser());
+    try {
+      setUser(await getCurrentUser());
+    } catch (error) {
+      setUser(null);
+      throw error;
+    }
   }, []);
 
   useEffect(() => {
@@ -34,6 +39,9 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
       .then((currentUser) => {
         if (active) setUser(currentUser);
       })
+      .catch(() => {
+        if (active) setUser(null);
+      })
       .finally(() => {
         if (active) setLoading(false);
       });
@@ -45,7 +53,7 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
     }
 
     const { data } = supabase.auth.onAuthStateChange(() => {
-      void refreshUser();
+      void refreshUser().catch(() => undefined);
     });
     return () => {
       active = false;
@@ -59,10 +67,13 @@ export function AuthProvider({ children, initialUser }: { children: React.ReactN
       loading,
       refreshUser,
       login: async (email, password) => {
-        setUser((await loginUser(email, password)).user);
+        const result = await loginUser(email, password);
+        setUser(result.user);
       },
       register: async (email, username, password) => {
-        setUser((await registerUser(email, username, password)).user);
+        const result = await registerUser(email, username, password);
+        if (result.user) setUser(result.user);
+        return result;
       },
       logout: async () => {
         await logoutUser();

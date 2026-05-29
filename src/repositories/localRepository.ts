@@ -18,6 +18,9 @@ export const localRepository: CasinoRepository = {
   async recordVipWager() {
     return undefined;
   },
+  async ensureUserFoundation() {
+    return undefined;
+  },
   async syncProfile() {
     return undefined;
   },

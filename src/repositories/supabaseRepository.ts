@@ -16,6 +16,21 @@ function metadataValue(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
+function profileRowFromUser(user: User) {
+  const profileRow: Record<string, unknown> = {
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    created_at: user.createdAt,
+    last_login_at: user.lastLoginAt,
+    role: user.roles.includes("ADMIN") ? "ADMIN" : "USER",
+    roles: user.roles,
+    account_status: user.accountStatus,
+  };
+  if (user.avatarDataUrl !== undefined) profileRow.avatar_data_url = user.avatarDataUrl ?? null;
+  return profileRow;
+}
+
 export const supabaseRepository: CasinoRepository = {
   mode: "supabase",
   async fetchWalletBalance(userId: string) {
@@ -79,20 +94,40 @@ export const supabaseRepository: CasinoRepository = {
     });
     if (error) throw error;
   },
+  async ensureUserFoundation(user: User, options = {}) {
+    const client = requireSupabase();
+    const { error: profileError } = await client.from("profiles").upsert(profileRowFromUser(user));
+    if (profileError) throw profileError;
+
+    const balances = options.initialBalances ?? { GOLD: 0, BONUS: 0 };
+    const { error: walletError } = await client.from("wallet_balances").upsert({
+      user_id: user.id,
+      gold: balances.GOLD,
+      bonus: balances.BONUS,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id", ignoreDuplicates: true });
+    if (walletError) throw walletError;
+
+    const { error: vipError } = await client.from("vip_progress").upsert({
+      user_id: user.id,
+      lifetime_sc_wagered: 0,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id", ignoreDuplicates: true });
+    if (vipError) throw vipError;
+
+    const { error: progressionError } = await client.from("progression").upsert({
+      user_id: user.id,
+    }, { onConflict: "user_id", ignoreDuplicates: true });
+    if (progressionError) throw progressionError;
+
+    const { error: streakError } = await client.from("streaks").upsert({
+      user_id: user.id,
+    }, { onConflict: "user_id", ignoreDuplicates: true });
+    if (streakError) throw streakError;
+  },
   async syncProfile(user: User) {
     const client = requireSupabase();
-    const profileRow: Record<string, unknown> = {
-      id: user.id,
-      email: user.email,
-      username: user.username,
-      created_at: user.createdAt,
-      last_login_at: user.lastLoginAt,
-      role: user.roles.includes("ADMIN") ? "ADMIN" : "USER",
-      roles: user.roles,
-      account_status: user.accountStatus,
-    };
-    if (user.avatarDataUrl !== undefined) profileRow.avatar_data_url = user.avatarDataUrl ?? null;
-    const { error } = await client.from("profiles").upsert(profileRow);
+    const { error } = await client.from("profiles").upsert(profileRowFromUser(user));
     if (error) throw error;
   },
   async syncProfileAvatar(userId: string, avatarDataUrl?: string) {

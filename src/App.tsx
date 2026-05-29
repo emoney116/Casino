@@ -1,5 +1,6 @@
 import { AuthPage } from "./auth/AuthPage";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
+import { ResetPasswordPage } from "./auth/ResetPasswordPage";
 import { AppShell } from "./app/AppShell";
 import { ToastProvider } from "./components/ToastContext";
 import { PlayheaterMark, PlayheaterWordmark } from "./branding/playheater";
@@ -10,6 +11,8 @@ if (!isSupabaseConfigured) seedDemoAdmin();
 
 function Root() {
   const { user, loading } = useAuth();
+  const isResetPasswordRoute = typeof window !== "undefined" && window.location.pathname === "/reset-password";
+  if (isResetPasswordRoute) return <ResetPasswordPage />;
   if (loading) {
     return (
       <main className="playheater-splash">

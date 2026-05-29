@@ -13,6 +13,7 @@ import {
   LockKeyhole,
   LogOut,
   Mail,
+  Phone,
   Scale,
   ShieldCheck,
   Trophy,
@@ -445,6 +446,12 @@ export function AccountPage() {
     avatarChanged: false,
   }) && !saving;
   const avatarPreview = draftAvatarDataUrl || savedAvatarDataUrl;
+  const emailVerified = Boolean(currentUser.emailVerified);
+  const phoneStatus = currentUser.phone
+    ? currentUser.phoneVerified
+      ? "Verified"
+      : "Added"
+    : "Not added";
 
   const legalLinks = [
     { label: "Support", href: "/support", Icon: LifeBuoy },
@@ -705,6 +712,42 @@ export function AccountPage() {
             </button>
           </div>
         </form>
+      </section>
+
+      <section className="account-panel account-security-card" aria-labelledby="account-security-title">
+        <div className="account-section-heading">
+          <h2 id="account-security-title">Account Security</h2>
+        </div>
+        <div className="account-setting-list">
+          <article className="account-setting-row account-security-row">
+            <Mail size={18} />
+            <span>
+              <strong>Email</strong>
+              <small>{currentUser.email}</small>
+            </span>
+            <span className={`account-status-chip ${emailVerified ? "success" : "neutral"}`}>
+              {emailVerified ? "Verified" : "Unverified"}
+            </span>
+          </article>
+          <article className="account-setting-row account-security-row">
+            <Phone size={18} />
+            <span>
+              <strong>Phone</strong>
+              <small>{currentUser.phone ?? "Not added"}</small>
+            </span>
+            <span className={`account-status-chip ${currentUser.phoneVerified ? "success" : "neutral"}`}>
+              {phoneStatus}
+            </span>
+          </article>
+          <article className="account-setting-row account-security-row">
+            <ShieldCheck size={18} />
+            <span>
+              <strong>2FA</strong>
+              <small>Two-factor authentication will be available in a future update.</small>
+            </span>
+            <span className="account-status-chip neutral">Coming Soon</span>
+          </article>
+        </div>
       </section>
 
       <section className="account-panel account-verification-card" aria-labelledby="account-identity-title">

@@ -3246,13 +3246,32 @@ input, select {
   border-radius: 8px;
   padding: 0 12px;
 }
-.error-box, .warning {
+.error-box, .warning,
+.success-box {
   padding: 10px 12px;
   border-radius: 8px;
   background: rgba(220,38,38,0.14);
   color: #fecaca;
 }
+.success-box {
+  background: rgba(34,197,94,0.12);
+  color: #bbf7d0;
+  border: 1px solid rgba(34,197,94,0.22);
+}
 .warning { margin-top: 8px; font-size: 0.84rem; }
+
+.auth-link-button,
+.auth-reset-link {
+  display: grid;
+  place-items: center;
+  min-height: 36px;
+  padding: 0;
+  color: #fde68a;
+  background: transparent;
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+}
 
 .lobby-hero {
   display: grid;
@@ -43221,6 +43240,14 @@ button.cashier-transaction-row:hover {
 
 .account-setting-row.danger {
   border-color: rgba(248, 113, 113, 0.22);
+}
+
+.account-security-row .account-status-chip {
+  justify-self: end;
+}
+
+.account-security-row small {
+  white-space: normal;
 }
 
 .account-inline-setting,

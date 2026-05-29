@@ -1,5 +1,5 @@
 export type Role = "USER" | "ADMIN";
-export type AccountStatus = "ACTIVE" | "SUSPENDED" | "CLOSED";
+export type AccountStatus = "ACTIVE" | "SUSPENDED" | "BANNED" | "CLOSED";
 
 export type Currency = "GOLD" | "BONUS";
 export type TransactionType =
@@ -41,6 +41,9 @@ export interface User {
   lastLoginAt: string;
   roles: Role[];
   accountStatus: AccountStatus;
+  emailVerified?: boolean;
+  phone?: string;
+  phoneVerified?: boolean;
   lastDailyBonusClaimAt?: string;
   avatarDataUrl?: string;
 }
