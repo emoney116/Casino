@@ -9,8 +9,9 @@ import { LobbyPage } from "../games/LobbyPage";
 import { WalletPage } from "../wallet/WalletPage";
 import type { WalletPanel } from "../wallet/WalletPage";
 import { PurchaseCoinsModal } from "../wallet/PurchaseCoinsModal";
-import { getBalance } from "../wallet/walletService";
+import { getBalance, refreshWalletFromRepository, WALLET_BALANCE_UPDATED_EVENT } from "../wallet/walletService";
 import { getDisplayBalances } from "../lib/displayBalanceStress";
+import { setDebugRenderedWalletBalance } from "../lib/debugState";
 import type { Currency } from "../types";
 import type { AppView } from "./navigation";
 import { visibleNavItems } from "./navigation";
@@ -88,6 +89,7 @@ export function AppShell() {
   const [balanceExpanded, setBalanceExpanded] = useState(false);
   const [walletPanel, setWalletPanel] = useState<WalletPanel>(initialRoute.view === "redemption" ? "redeem" : null);
   const [walletPanelKey, setWalletPanelKey] = useState(0);
+  const [, setWalletVersion] = useState(0);
   const [purchaseModalOpen, setPurchaseModalOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(() => (user ? !hasDismissedOnboarding(user.id) : false));
   const [responsiblePlaySettings, setResponsiblePlaySettings] = useState<ResponsiblePlaySettings | null>(
@@ -142,10 +144,29 @@ export function AppShell() {
     window.history.replaceState(null, "", "/account");
   }, [notify, user]);
 
+  useEffect(() => {
+    if (!user || typeof window === "undefined" || typeof window.addEventListener !== "function") return;
+
+    function refreshRenderedWallet(event: Event) {
+      const detail = (event as CustomEvent<{ userId: string }>).detail;
+      if (detail?.userId === user?.id) setWalletVersion((value) => value + 1);
+    }
+
+    window.addEventListener(WALLET_BALANCE_UPDATED_EVENT, refreshRenderedWallet);
+    void refreshWalletFromRepository(user.id).then(() => setWalletVersion((value) => value + 1));
+    return () => window.removeEventListener(WALLET_BALANCE_UPDATED_EVENT, refreshRenderedWallet);
+  }, [user]);
+
   if (!user) return null;
   const currentUser = user;
   const balances = getBalance(currentUser.id);
   const displayBalances = getDisplayBalances(balances);
+  setDebugRenderedWalletBalance({
+    userId: currentUser.id,
+    surface: "AppShell",
+    storedBalances: balances,
+    renderedBalances: displayBalances,
+  });
   const nav = visibleNavItems(currentUser.roles);
 
   function gameplayBlockedBySelfExclusion() {

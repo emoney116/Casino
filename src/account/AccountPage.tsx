@@ -22,12 +22,13 @@ import { useAuth } from "../auth/AuthContext";
 import { Modal } from "../components/Modal";
 import { SupabaseDebugPanel } from "../components/SupabaseDebugPanel";
 import { getDisplayBalances } from "../lib/displayBalanceStress";
+import { setDebugRenderedWalletBalance } from "../lib/debugState";
 import { formatCoins, formatCurrencyFullDisplay, getCurrencyAmountFitClass } from "../lib/format";
 import { getProgression } from "../progression/progressionService";
 import { getKycStatus } from "../redemption/redemptionService";
 import { getStreak } from "../streaks/streakService";
 import { CashierIcon } from "../wallet/CashierIcons";
-import { getBalance } from "../wallet/walletService";
+import { getBalance, refreshWalletFromRepository, WALLET_BALANCE_UPDATED_EVENT } from "../wallet/walletService";
 import {
   PROFILE_IMAGE_MAX_BYTES,
   SELF_EXCLUSION_WARNING,
@@ -245,6 +246,7 @@ export function AccountPage() {
   const [selfExclusionConfirmOpen, setSelfExclusionConfirmOpen] = useState(false);
   const [vipModalOpen, setVipModalOpen] = useState(false);
   const [vipRefreshKey, setVipRefreshKey] = useState(0);
+  const [walletRefreshKey, setWalletRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -270,13 +272,32 @@ export function AccountPage() {
     return () => window.removeEventListener(VIP_LEDGER_UPDATED_EVENT, refreshVip);
   }, [user]);
 
-  const vipProgress = useMemo(() => user ? getVipProgress(user.id) : getVipProgressForWagered(0), [user, vipRefreshKey]);
+  useEffect(() => {
+    if (!user || typeof window === "undefined" || typeof window.addEventListener !== "function") return;
+
+    function refreshWallet(event: Event) {
+      const detail = (event as CustomEvent<{ userId: string }>).detail;
+      if (detail?.userId === user?.id) setWalletRefreshKey((value) => value + 1);
+    }
+
+    window.addEventListener(WALLET_BALANCE_UPDATED_EVENT, refreshWallet);
+    void refreshWalletFromRepository(user.id).then(() => setWalletRefreshKey((value) => value + 1));
+    return () => window.removeEventListener(WALLET_BALANCE_UPDATED_EVENT, refreshWallet);
+  }, [user]);
+
+  const vipProgress = useMemo(() => user ? getVipProgress(user.id) : getVipProgressForWagered(0), [user, vipRefreshKey, walletRefreshKey]);
 
   if (!user) return null;
   const currentUser = user;
 
   const balances = getBalance(currentUser.id);
   const displayBalances = getDisplayBalances(balances);
+  setDebugRenderedWalletBalance({
+    userId: currentUser.id,
+    surface: "AccountPage",
+    storedBalances: balances,
+    renderedBalances: displayBalances,
+  });
   const goldBalanceDisplay = formatCurrencyFullDisplay(displayBalances.GOLD, "GOLD");
   const sweepsBalanceDisplay = formatCurrencyFullDisplay(displayBalances.BONUS, "BONUS");
   const progress = getProgression(currentUser.id);

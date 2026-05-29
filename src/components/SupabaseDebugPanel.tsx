@@ -20,6 +20,11 @@ export function SupabaseDebugPanel() {
         <span>Current auth provider</span><strong>{debug.authProvider}</strong>
         <span>Current user id</span><strong>{user?.id ?? "none"}</strong>
         <span>Current user email</span><strong>{user?.email ?? "none"}</strong>
+        <span>Current profile id</span><strong>{debug.authContext?.profileId ?? "none"}</strong>
+        <span>Current profile username</span><strong>{debug.authContext?.username ?? "none"}</strong>
+        <span>Wallet source</span><strong>{debug.wallet?.source ?? "none"}</strong>
+        <span>Fetched wallet row</span><strong>{debug.wallet?.fetchedRow ?? "none"}</strong>
+        <span>Rendered wallet balance</span><strong>{debug.wallet?.renderedBalance ?? "none"}</strong>
         <span>Last auth error</span><strong>{debug.lastAuthError ?? "none"}</strong>
         <span>Last database mirror error</span><strong>{debug.lastMirrorError ?? "none"}</strong>
       </div>

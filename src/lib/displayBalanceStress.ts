@@ -1,4 +1,5 @@
 import type { Currency, WalletBalances } from "../types";
+import { isSupabaseConfigured } from "./supabaseClient";
 
 export const displayBalanceStressValues: WalletBalances[] = [
   { GOLD: 0, BONUS: 0 },
@@ -23,6 +24,7 @@ export function getDisplayBalance(amount: number, currency: Currency) {
 }
 
 function getDisplayBalanceStressIndex() {
+  if (isSupabaseConfigured) return null;
   const env = (import.meta as ImportMeta & { env?: Record<string, string | boolean | undefined> }).env;
   if (!env?.DEV || typeof window === "undefined") return null;
   const search = window.location?.search ?? "";

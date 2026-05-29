@@ -1,11 +1,12 @@
 import { ChevronRight, Download } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { Modal } from "../components/Modal";
 import { TransactionTable } from "../components/TransactionTable";
 import { redemptionConfig } from "../config/complianceConfig";
 import { getCurrencyShortName, redeemableCurrency } from "../config/currencyConfig";
 import { getDisplayBalances } from "../lib/displayBalanceStress";
+import { setDebugRenderedWalletBalance } from "../lib/debugState";
 import {
   formatCoins,
   formatCurrencyDisplay,
@@ -18,7 +19,7 @@ import { getEligibilityFlags, getKycStatus, getRedemptionRequests } from "../red
 import type { Transaction, TransactionType } from "../types";
 import { CashierIcon } from "./CashierIcons";
 import { PurchaseCoinsModal } from "./PurchaseCoinsModal";
-import { getBalance, getTransactions } from "./walletService";
+import { getBalance, getTransactions, refreshWalletFromRepository, WALLET_BALANCE_UPDATED_EVENT } from "./walletService";
 
 export type WalletTransactionFilter = "ALL" | "PURCHASES" | "BONUSES" | "BETS" | "WINS" | "ADMIN";
 export type WalletPanel = "purchase" | "redeem" | "history" | null;
@@ -131,6 +132,19 @@ export function WalletPage({ initialPanel = null }: { initialPanel?: WalletPanel
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [, setVersion] = useState(0);
 
+  useEffect(() => {
+    if (!user || typeof window === "undefined" || typeof window.addEventListener !== "function") return;
+
+    function refreshWallet(event: Event) {
+      const detail = (event as CustomEvent<{ userId: string }>).detail;
+      if (detail?.userId === user?.id) setVersion((value) => value + 1);
+    }
+
+    window.addEventListener(WALLET_BALANCE_UPDATED_EVENT, refreshWallet);
+    void refreshWalletFromRepository(user.id).then(() => setVersion((value) => value + 1));
+    return () => window.removeEventListener(WALLET_BALANCE_UPDATED_EVENT, refreshWallet);
+  }, [user]);
+
   if (!user) return null;
   const currentUser = user;
   const filters: WalletTransactionFilter[] = currentUser.roles.includes("ADMIN")
@@ -138,6 +152,12 @@ export function WalletPage({ initialPanel = null }: { initialPanel?: WalletPanel
     : ["ALL", "PURCHASES", "BONUSES", "BETS", "WINS"];
   const balances = getBalance(currentUser.id);
   const displayBalances = getDisplayBalances(balances);
+  setDebugRenderedWalletBalance({
+    userId: currentUser.id,
+    surface: "WalletPage",
+    storedBalances: balances,
+    renderedBalances: displayBalances,
+  });
   const goldBalanceDisplay = formatCurrencyFullDisplay(displayBalances.GOLD, "GOLD");
   const sweepsBalanceDisplay = formatCurrencyFullDisplay(displayBalances.BONUS, "BONUS");
   const kycStatus = getKycStatus(currentUser.id);

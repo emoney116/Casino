@@ -11,6 +11,6 @@ export function mirrorToBackend(action: () => Promise<void>) {
   if (!isSupabaseConfigured) return;
   void action().catch((error) => {
     setLastMirrorError(error);
-    console.warn("Supabase mirror failed; localStorage remains source of truth.", error);
+    console.warn("Supabase mirror failed; wallet cache may be out of sync with the database.", error);
   });
 }

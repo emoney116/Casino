@@ -1,5 +1,5 @@
 import { supabase } from "../lib/supabaseClient";
-import type { DailyStreak, Transaction, User, WalletBalances } from "../types";
+import type { Currency, DailyStreak, Transaction, TransactionStatus, TransactionType, User, WalletBalances } from "../types";
 import type { CasinoRepository } from "./types";
 
 function requireSupabase() {
@@ -7,8 +7,52 @@ function requireSupabase() {
   return supabase;
 }
 
+function numericValue(value: unknown) {
+  const parsed = typeof value === "number" ? value : Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function metadataValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
 export const supabaseRepository: CasinoRepository = {
   mode: "supabase",
+  async fetchWalletBalance(userId: string) {
+    const client = requireSupabase();
+    const { data, error } = await client
+      .from("wallet_balances")
+      .select("user_id,gold,bonus,updated_at")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+    return {
+      GOLD: numericValue(data.gold),
+      BONUS: numericValue(data.bonus),
+    };
+  },
+  async fetchWalletTransactions(userId: string) {
+    const client = requireSupabase();
+    const { data, error } = await client
+      .from("wallet_transactions")
+      .select("id,user_id,type,currency,amount,balance_after,status,created_at,metadata")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (error) throw error;
+    return (data ?? []).map((row): Transaction => ({
+      id: String(row.id),
+      userId: String(row.user_id),
+      type: row.type as TransactionType,
+      currency: row.currency as Currency,
+      amount: numericValue(row.amount),
+      balanceAfter: numericValue(row.balance_after),
+      status: row.status as TransactionStatus,
+      createdAt: String(row.created_at),
+      metadata: metadataValue(row.metadata),
+    }));
+  },
   async syncProfile(user: User) {
     const client = requireSupabase();
     const { error } = await client.from("profiles").upsert({

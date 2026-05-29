@@ -2,9 +2,9 @@ import { createId } from "../lib/ids";
 import { isSupabaseConfigured, supabase } from "../lib/supabaseClient";
 import { readData, updateData } from "../lib/storage";
 import { getRepository, mirrorToBackend } from "../repositories";
-import { setDebugAuthProvider, setLastAuthError, setLastMirrorError } from "../lib/debugState";
-import { emptyBalances } from "../wallet/walletService";
-import type { User } from "../types";
+import { setDebugAuthContext, setDebugAuthProvider, setLastAuthError, setLastMirrorError } from "../lib/debugState";
+import { emptyBalances, refreshWalletFromRepository } from "../wallet/walletService";
+import type { User, WalletBalances } from "../types";
 
 export interface AuthResult {
   user: User;
@@ -42,7 +42,7 @@ async function getSupabaseProfile(authUserId: string, email: string): Promise<Us
 
   const now = new Date().toISOString();
   const roles = data?.roles ?? (data?.role ? [data.role] : ["USER"]);
-  return {
+  const user = {
     id: authUserId,
     email: data?.email ?? email,
     username: data?.username ?? email.split("@")[0],
@@ -52,10 +52,23 @@ async function getSupabaseProfile(authUserId: string, email: string): Promise<Us
     accountStatus: data?.account_status ?? "ACTIVE",
     avatarDataUrl: data?.avatar_data_url ?? undefined,
   };
+  setDebugAuthContext({
+    authUserId,
+    profileId: data?.id ?? authUserId,
+    username: user.username,
+    supabaseConfigured: isSupabaseConfigured,
+  });
+  return user;
 }
 
-async function syncSupabaseUser(user: User) {
+async function syncSupabaseUser(user: User, options: { initialBalances?: WalletBalances; createMissingBalance?: boolean } = {}) {
   cacheUserLocally(user);
+  setDebugAuthContext({
+    authUserId: user.id,
+    profileId: user.id,
+    username: user.username,
+    supabaseConfigured: isSupabaseConfigured,
+  });
   const repository = getRepository();
   try {
     await repository.syncProfile(user);
@@ -65,14 +78,10 @@ async function syncSupabaseUser(user: User) {
     setLastMirrorError(error);
     throw error;
   }
-  try {
-    await repository.syncWalletBalance(user.id, readData().walletBalances[user.id] ?? { GOLD: 0, BONUS: 1000 });
-    console.log("wallet init result/error", { ok: true });
-  } catch (error) {
-    console.log("wallet init result/error", { ok: false, error });
-    setLastMirrorError(error);
-    throw error;
-  }
+  await refreshWalletFromRepository(user.id, {
+    missingBalances: options.initialBalances,
+    createMissingBalance: options.createMissingBalance,
+  });
 }
 
 export async function getCurrentUser() {
@@ -85,7 +94,7 @@ export async function getCurrentUser() {
   if (!authUser?.email) return null;
 
   const user = await getSupabaseProfile(authUser.id, authUser.email);
-  cacheUserLocally(user);
+  await syncSupabaseUser(user);
   return user;
 }
 
@@ -126,10 +135,11 @@ export async function registerUser(emailInput: string, usernameInput: string, pa
       roles: ["USER"],
       accountStatus: "ACTIVE",
     };
+    const initialBalances = { GOLD: 0, BONUS: 1000 };
     updateData((localData) => {
-      localData.walletBalances[user.id] = { GOLD: 0, BONUS: 1000 };
+      localData.walletBalances[user.id] = initialBalances;
     });
-    await syncSupabaseUser(user);
+    await syncSupabaseUser(user, { initialBalances, createMissingBalance: true });
     setLastAuthError(undefined);
     return { user };
   }
@@ -183,9 +193,6 @@ export async function loginUser(emailInput: string, password: string): Promise<A
 
     const user = await getSupabaseProfile(data.user.id, data.user.email);
     user.lastLoginAt = new Date().toISOString();
-    updateData((localData) => {
-      if (!localData.walletBalances[user.id]) localData.walletBalances[user.id] = { GOLD: 0, BONUS: 1000 };
-    });
     await syncSupabaseUser(user);
     setLastAuthError(undefined);
     return { user };
