@@ -13,24 +13,55 @@ export interface AuthResult {
   requiresEmailConfirmation?: boolean;
 }
 
-function normalizeEmail(email: string) {
+const GENERIC_LOGIN_ERROR = "Invalid username/email or password.";
+
+export const RESERVED_USERNAMES = new Set([
+  "admin",
+  "administrator",
+  "support",
+  "help",
+  "playheater",
+  "official",
+  "staff",
+  "moderator",
+  "mod",
+  "owner",
+  "system",
+  "security",
+  "cashier",
+  "vip",
+  "host",
+]);
+
+export function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
-function normalizeUsername(username: string) {
+export function normalizeUsername(username: string) {
   return username.trim().replace(/\s+/g, " ");
 }
 
-function validateEmail(email: string) {
+export function normalizeUsernameForLookup(username: string) {
+  return normalizeUsername(username).toLowerCase();
+}
+
+export function validateEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+export function getUsernameValidationError(usernameInput: string) {
+  const username = normalizeUsername(usernameInput);
+  const normalized = normalizeUsernameForLookup(username);
+  if (username.length < 3) return "Username must be at least 3 characters.";
+  if (username.length > 20) return "Username must be 20 characters or fewer.";
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) return "Use letters, numbers, and underscores only.";
+  if (RESERVED_USERNAMES.has(normalized)) return "That username is reserved.";
+  return "";
+}
+
 function validateUsername(username: string) {
-  if (username.length < 3) throw new Error("Username must be at least 3 characters.");
-  if (username.length > 24) throw new Error("Username must be 24 characters or fewer.");
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9 ._-]*$/.test(username)) {
-    throw new Error("Use letters, numbers, spaces, dots, underscores, or hyphens.");
-  }
+  const error = getUsernameValidationError(username);
+  if (error) throw new Error(error);
 }
 
 function validatePassword(password: string) {
@@ -78,7 +109,7 @@ function assertActiveAccount(user: User) {
   throw new Error(`This account is ${label}. Contact support if you believe this is a mistake.`);
 }
 
-async function checkUsernameAvailable(username: string) {
+export async function isUsernameAvailable(username: string) {
   const normalized = normalizeUsername(username);
   validateUsername(normalized);
 
@@ -91,6 +122,33 @@ async function checkUsernameAvailable(username: string) {
 
   const candidate = normalized.toLowerCase();
   return !readData().users.some((user) => user.username.trim().toLowerCase() === candidate);
+}
+
+async function resolveLoginEmail(identifierInput: string) {
+  const identifier = identifierInput.trim();
+  if (identifier.includes("@")) {
+    const email = normalizeEmail(identifier);
+    if (!validateEmail(email)) throw new Error(GENERIC_LOGIN_ERROR);
+    return email;
+  }
+
+  const username = normalizeUsernameForLookup(identifier);
+  if (!username) throw new Error(GENERIC_LOGIN_ERROR);
+
+  if (isSupabaseConfigured) {
+    if (!supabase) throw new Error("Supabase is not configured.");
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("username_normalized", username)
+      .maybeSingle();
+    if (error || !data?.email) throw new Error(GENERIC_LOGIN_ERROR);
+    return normalizeEmail(String(data.email));
+  }
+
+  const found = readData().users.find((user) => normalizeUsernameForLookup(user.username) === username);
+  if (!found) throw new Error(GENERIC_LOGIN_ERROR);
+  return normalizeEmail(found.email);
 }
 
 async function getSupabaseProfile(authUser: SupabaseAuthUser, fallbackUsername?: string): Promise<User> {
@@ -181,7 +239,7 @@ export async function registerUser(emailInput: string, usernameInput: string, pa
   if (!validateEmail(email)) throw new Error("Enter a valid email address.");
   validateUsername(username);
   validatePassword(password);
-  if (!(await checkUsernameAvailable(username))) throw new Error("Username already taken.");
+  if (!(await isUsernameAvailable(username))) throw new Error("Username already taken.");
 
   if (isSupabaseConfigured) {
     setDebugAuthProvider("Supabase");
@@ -251,7 +309,7 @@ export async function registerUser(emailInput: string, usernameInput: string, pa
 }
 
 export async function loginUser(emailInput: string, password: string): Promise<AuthResult> {
-  const email = normalizeEmail(emailInput);
+  const email = await resolveLoginEmail(emailInput);
 
   if (isSupabaseConfigured) {
     setDebugAuthProvider("Supabase");
@@ -261,7 +319,7 @@ export async function loginUser(emailInput: string, password: string): Promise<A
     console.log("Supabase login result/error", { userId: data.user?.id, hasSession: Boolean(data.session), error });
     if (error) {
       setLastAuthError(error);
-      throw new Error(error.message);
+      throw new Error(GENERIC_LOGIN_ERROR);
     }
     if (!data.user?.id || !data.user.email) throw new Error("Unable to load Supabase user.");
 
@@ -279,7 +337,7 @@ export async function loginUser(emailInput: string, password: string): Promise<A
   updateData((data) => {
     const found = data.users.find((candidate) => candidate.email === email);
     if (!found || data.passwordRecords[email] !== password) {
-      const error = new Error("Email or password is incorrect.");
+      const error = new Error(GENERIC_LOGIN_ERROR);
       setLastAuthError(error);
       throw error;
     }
